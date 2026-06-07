@@ -22,7 +22,9 @@ class Booking extends Model
         'payment_proof',
         'otp_code',
         'otp_verified',
-        'otp_sent_at'
+        'otp_sent_at',
+        'unverified_amount',
+        'unverified_proof'
     ];
 
     protected $casts = [
@@ -30,6 +32,7 @@ class Booking extends Model
         'end_date' => 'date',
         'total_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
+        'unverified_amount' => 'decimal:2',
         'otp_verified' => 'boolean',
         'otp_sent_at' => 'datetime'
     ];

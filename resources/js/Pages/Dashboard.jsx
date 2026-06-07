@@ -874,93 +874,92 @@ export default function Dashboard() {
                             {currentRole === 'resident' && (() => {
                                 const resId = getSimulatedResidentId();
                                 const myBookings = bookings.filter(b => b.tenant_id === resId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                                const activeBookings = myBookings.filter(b => b.status === 'active' || b.status === 'pending');
+                                const activeBooking = myBookings.find(b => b.status === 'active') || myBookings.find(b => b.status === 'pending');
                                 const myComplaints = visibleComplaints.filter(c => c.tenant_id === resId);
+                                const paid  = parseFloat(activeBooking?.paid_amount || 0);
+                                const total = parseFloat(activeBooking?.total_amount || 0);
+                                const progressPct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
                                 const today    = new Date();
+                                const endDate  = activeBooking ? new Date(activeBooking.end_date) : null;
+                                const sisaHari = endDate ? Math.ceil((endDate - today) / (1000 * 60 * 60 * 24)) : null;
 
                                 return (
                                     <div className="grid lg:grid-cols-12 gap-6 mt-2">
 
                                         {/* Progress Pembayaran + Detail Kamar */}
-                                        <div className="lg:col-span-5 space-y-6">
-                                            {activeBookings.length > 0 ? activeBookings.map(activeBooking => {
-                                                const paid  = parseFloat(activeBooking?.paid_amount || 0);
-                                                const total = parseFloat(activeBooking?.total_amount || 0);
-                                                const progressPct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
-                                                const endDate  = activeBooking ? new Date(activeBooking.end_date) : null;
-                                                const sisaHari = endDate ? Math.ceil((endDate - today) / (1000 * 60 * 60 * 24)) : null;
+                                        <div className="lg:col-span-5 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="font-extrabold text-base text-slate-800">📊 Progress Pembayaran</h3>
+                                                {activeBooking && (
+                                                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                                                        activeBooking.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                        activeBooking.payment_status === 'dp'   ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                                        'bg-red-100 text-red-700 border-red-200'
+                                                    }`}>
+                                                        {activeBooking.payment_status === 'paid' ? 'LUNAS' : activeBooking.payment_status === 'dp' ? 'DP / Sebagian' : 'BELUM BAYAR'}
+                                                    </span>
+                                                )}
+                                            </div>
 
-                                                return (
-                                                    <div key={activeBooking.id} className="glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-                                                        <div className="flex items-center justify-between">
-                                                            <h3 className="font-extrabold text-base text-slate-800">📊 Progress Pembayaran</h3>
-                                                            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
-                                                                activeBooking.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                                                activeBooking.payment_status === 'dp'   ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                                                                'bg-red-100 text-red-700 border-red-200'
-                                                            }`}>
-                                                                {activeBooking.payment_status === 'paid' ? 'LUNAS' : activeBooking.payment_status === 'dp' ? 'DP / Sebagian' : 'BELUM BAYAR'}
-                                                            </span>
+                                            {activeBooking ? (
+                                                <>
+                                                    <div>
+                                                        <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                                                            <span>Dibayar: <strong className="text-emerald-600">Rp {paid.toLocaleString('id-ID')}</strong></span>
+                                                            <span className="font-bold text-slate-700">{progressPct}%</span>
                                                         </div>
-
-                                                        <div>
-                                                            <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-                                                                <span>Dibayar: <strong className="text-emerald-600">Rp {paid.toLocaleString('id-ID')}</strong></span>
-                                                                <span className="font-bold text-slate-700">{progressPct}%</span>
-                                                            </div>
-                                                            <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-                                                                <div
-                                                                    className={`h-3 rounded-full transition-all duration-700 ${progressPct === 100 ? 'bg-emerald-500' : progressPct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
-                                                                    style={{ width: `${progressPct}%` }}
-                                                                />
-                                                            </div>
-                                                            <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                                                                <span>Rp 0</span>
-                                                                <span>Total: Rp {total.toLocaleString('id-ID')}</span>
-                                                            </div>
-                                                            {total - paid > 0 && (
-                                                                <p className="text-xs text-red-500 font-semibold mt-2">
-                                                                    Sisa tagihan: <strong>Rp {(total - paid).toLocaleString('id-ID')}</strong>
-                                                                </p>
-                                                            )}
+                                                        <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                                                            <div
+                                                                className={`h-3 rounded-full transition-all duration-700 ${progressPct === 100 ? 'bg-emerald-500' : progressPct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                                                                style={{ width: `${progressPct}%` }}
+                                                            />
                                                         </div>
-
-                                                        <div className="space-y-2 bg-slate-50 rounded-xl p-4 border border-slate-100 text-sm">
-                                                            <div className="flex justify-between"><span className="text-slate-500 text-xs">Kamar</span><span className="font-bold text-slate-800">No. {activeBooking.room?.room_number}</span></div>
-                                                            <div className="flex justify-between"><span className="text-slate-500 text-xs">Cabang</span><span className="font-semibold text-slate-700 text-xs">{(activeBooking.room?.branch?.name || '').replace('Kospart PH 18 - ', '')}</span></div>
-                                                            <div className="flex justify-between"><span className="text-slate-500 text-xs">Tipe Sewa</span><span className="font-semibold text-slate-700 text-xs">{activeBooking.rental_type === 'daily' ? 'Harian' : 'Bulanan'}</span></div>
-                                                            <div className="flex justify-between border-t border-slate-200 pt-2"><span className="text-slate-500 text-xs">Check-in</span><span className="font-semibold text-slate-700 text-xs">{new Date(activeBooking.start_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</span></div>
-                                                            <div className="flex justify-between"><span className="text-slate-500 text-xs">Check-out</span><span className="font-semibold text-slate-700 text-xs">{new Date(activeBooking.end_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</span></div>
-                                                            {sisaHari !== null && (
-                                                                <div className={`flex justify-between border-t border-slate-200 pt-2 text-xs font-bold ${sisaHari <= 3 ? 'text-red-600' : sisaHari <= 7 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                                                                    <span>Sisa Masa Sewa</span>
-                                                                    <span>{sisaHari > 0 ? `${sisaHari} hari lagi` : sisaHari === 0 ? 'Berakhir hari ini!' : 'Sudah berakhir'}</span>
-                                                                </div>
-                                                            )}
+                                                        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                                                            <span>Rp 0</span>
+                                                            <span>Total: Rp {total.toLocaleString('id-ID')}</span>
                                                         </div>
-
-                                                        {activeBooking.payment_status !== 'paid' && (
-                                                            parseFloat(activeBooking.unverified_amount) > 0 ? (
-                                                                <button
-                                                                    disabled
-                                                                    className="w-full py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-sm border border-slate-200 flex items-center justify-center gap-2 cursor-not-allowed"
-                                                                >
-                                                                    ⏳ Menunggu Verifikasi
-                                                                </button>
-                                                            ) : (
-                                                                <button
-                                                                    onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
-                                                                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                                                    Bayar Sekarang
-                                                                </button>
-                                                            )
+                                                        {total - paid > 0 && (
+                                                            <p className="text-xs text-red-500 font-semibold mt-2">
+                                                                Sisa tagihan: <strong>Rp {(total - paid).toLocaleString('id-ID')}</strong>
+                                                            </p>
                                                         )}
                                                     </div>
-                                                );
-                                            }) : (
-                                                <div className="glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm text-center py-8 text-slate-400">
+
+                                                    <div className="space-y-2 bg-slate-50 rounded-xl p-4 border border-slate-100 text-sm">
+                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Kamar</span><span className="font-bold text-slate-800">No. {activeBooking.room?.room_number}</span></div>
+                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Cabang</span><span className="font-semibold text-slate-700 text-xs">{(activeBooking.room?.branch?.name || '').replace('Kospart PH 18 - ', '')}</span></div>
+                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Tipe Sewa</span><span className="font-semibold text-slate-700 text-xs">{activeBooking.rental_type === 'daily' ? 'Harian' : 'Bulanan'}</span></div>
+                                                        <div className="flex justify-between border-t border-slate-200 pt-2"><span className="text-slate-500 text-xs">Check-in</span><span className="font-semibold text-slate-700 text-xs">{new Date(activeBooking.start_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</span></div>
+                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Check-out</span><span className="font-semibold text-slate-700 text-xs">{new Date(activeBooking.end_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</span></div>
+                                                        {sisaHari !== null && (
+                                                            <div className={`flex justify-between border-t border-slate-200 pt-2 text-xs font-bold ${sisaHari <= 3 ? 'text-red-600' : sisaHari <= 7 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                                                <span>Sisa Masa Sewa</span>
+                                                                <span>{sisaHari > 0 ? `${sisaHari} hari lagi` : sisaHari === 0 ? 'Berakhir hari ini!' : 'Sudah berakhir'}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {activeBooking.payment_status !== 'paid' && (
+                                                        parseFloat(activeBooking.unverified_amount) > 0 ? (
+                                                            <button
+                                                                disabled
+                                                                className="w-full py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-sm border border-slate-200 flex items-center justify-center gap-2 cursor-not-allowed"
+                                                            >
+                                                                ⏳ Menunggu Verifikasi
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
+                                                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                                Bayar Sekarang
+                                                            </button>
+                                                        )
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="text-center py-8 text-slate-400">
                                                     <div className="text-4xl mb-2">🏠</div>
                                                     <p className="text-sm font-semibold">Belum ada hunian aktif</p>
                                                     <p className="text-xs mt-1">Hubungi pengelola untuk proses booking</p>
