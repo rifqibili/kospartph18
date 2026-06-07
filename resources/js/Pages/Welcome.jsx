@@ -379,7 +379,7 @@ export default function Welcome({ branches, rooms, auth }) {
 
                 {/* Rooms Grid */}
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {filteredRooms.map((room, idx) => (
+                    {filteredRooms.slice(0, 3).map((room, idx) => (
                         <FadeUp key={room.id} delay={idx * 0.06}>
                             <div
                                 onClick={() => { setShowRoomDetail(room); setActiveGalleryIndex(0); }}
