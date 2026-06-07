@@ -1,6 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head, usePage, Link } from '@inertiajs/react';
 
+// ── CSRF-aware fetch helper ──────────────────────────────────────────────────
+function getCsrfToken() {
+    const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+}
+async function authFetch(url, options = {}) {
+    return fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-XSRF-TOKEN': getCsrfToken(),
+            ...(options.headers || {}),
+        },
+    });
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
     const { auth } = usePage().props;
     
@@ -25,6 +43,9 @@ export default function Dashboard() {
     const [showChangeRoomModal, setShowChangeRoomModal] = useState(null);
     const [showRescheduleModal, setShowRescheduleModal] = useState(null);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
+    // Payment modal for tenant
+    const [showPaymentModal, setShowPaymentModal] = useState(null);
+    const [paymentData, setPaymentData] = useState({ paid_amount: '', payment_proof: 'BUKTI_BAYAR_SIMULASI' });
     
     // Form Inputs
     const [newBranch, setNewBranch] = useState({ name: '', address: '', maps_link: '', status: 'active' });
@@ -113,46 +134,56 @@ export default function Dashboard() {
         setToasts(prev => [toast, ...prev].slice(0, 3)); // keep max 3 toasts
     };
 
-    // Load DB Data
+    // Load DB Data (parallel fetches)
     const loadAllData = async () => {
         try {
-            // Fetch main stats & notifications (with role override if simulated)
-            const statsRes = await fetch(`/api/dashboard/data`);
-            const statsData = await statsRes.json();
-            
-            // Fetch other tables
-            const branchesRes = await fetch('/api/branches');
-            const branchesData = await branchesRes.json();
-
-            const roomsRes = await fetch('/api/rooms');
-            const roomsData = await roomsRes.json();
-
-            const bookingsRes = await fetch('/api/bookings');
-            const bookingsData = await bookingsRes.json();
-
-            const financesRes = await fetch('/api/finances');
-            const financesData = await financesRes.json();
-
-            const complaintsRes = await fetch('/api/complaints');
+            const [statsRes, branchesRes, roomsRes, bookingsRes, complaintsRes] = await Promise.all([
+                fetch('/api/dashboard/data'),
+                fetch('/api/branches'),
+                fetch('/api/rooms'),
+                fetch('/api/bookings'),
+                fetch('/api/complaints'),
+            ]);
+            const statsData      = await statsRes.json();
+            const branchesData   = await branchesRes.json();
+            const roomsData      = await roomsRes.json();
+            const bookingsData   = await bookingsRes.json();
             const complaintsData = await complaintsRes.json();
 
-            setStats(statsData.stats);
-            setNotifications(statsData.notifications);
-            setRecentBookings(statsData.recentBookings);
-            setBranches(branchesData);
-            setRooms(roomsData);
-            setBookings(bookingsData);
-            setFinances(financesData);
-            setComplaints(complaintsData);
+            setStats(statsData.stats || {});
+            setNotifications(statsData.notifications || []);
+            setRecentBookings(statsData.recentBookings || []);
+            setBranches(Array.isArray(branchesData) ? branchesData : []);
+            setRooms(Array.isArray(roomsData) ? roomsData : []);
+            setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+            setComplaints(Array.isArray(complaintsData) ? complaintsData : []);
 
+            if (['super_admin', 'operator'].includes(auth.user.role)) {
+                const financesRes  = await fetch('/api/finances');
+                const financesData = await financesRes.json();
+                setFinances(Array.isArray(financesData) ? financesData : []);
+            }
         } catch (err) {
             console.error('Error loading data', err);
         }
     };
 
+    // Background polling for notifications every 60s
+    const loadNotificationsOnly = async () => {
+        try {
+            const res  = await fetch('/api/dashboard/data');
+            const data = await res.json();
+            setStats(data.stats || {});
+            setNotifications(data.notifications || []);
+        } catch (_) { /* silent */ }
+    };
+
+    useEffect(() => { loadAllData(); }, [currentRole]);
+
     useEffect(() => {
-        loadAllData();
-    }, [currentRole]);
+        const interval = setInterval(loadNotificationsOnly, 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     // Initialize Chart.js
     const initChart = async () => {
@@ -236,156 +267,131 @@ export default function Dashboard() {
         }
     }, [activeTab, finances]);
 
+    // ── Toast helper ─────────────────────────────────────────────────────────
+    const showToast = (message, type = 'success') => {
+        const colorMap = {
+            success: 'border-emerald-200 text-emerald-800 bg-emerald-50 shadow-lg',
+            error:   'border-red-200 text-red-800 bg-red-50 shadow-lg',
+        };
+        const icon = type === 'success' ? '✅' : '❌';
+        setToasts(prev => [{ id: Date.now(), title: `${icon} ${type === 'success' ? 'Berhasil' : 'Gagal'}`, message, color: colorMap[type] }, ...prev].slice(0, 3));
+    };
+
     // Handle Forms
     const handleAddBranch = async (e) => {
         e.preventDefault();
-        const res = await fetch('/api/branches', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(newBranch)
-        });
+        const res = await authFetch('/api/branches', { method: 'POST', body: JSON.stringify(newBranch) });
         if (res.ok) {
             setNewBranch({ name: '', address: '', maps_link: '', status: 'active' });
             loadAllData();
-            alert('Cabang berhasil ditambahkan!');
-        }
+            showToast('Cabang berhasil ditambahkan!');
+        } else { const d = await res.json(); showToast(d.message || 'Gagal menambah cabang.', 'error'); }
     };
 
     const handleAddRoom = async (e) => {
         e.preventDefault();
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({
-                ...newRoom,
-                facilities: newRoom.facilities.split(',').map(f => f.trim())
-            })
-        });
+        const res = await authFetch('/api/rooms', { method: 'POST', body: JSON.stringify({ ...newRoom, facilities: newRoom.facilities.split(',').map(f => f.trim()) }) });
         if (res.ok) {
             setNewRoom({ branch_id: '', room_number: '', price_monthly: '', price_daily: '', status: 'available', facilities: '', description: '' });
             loadAllData();
-            alert('Kamar berhasil ditambahkan!');
-        }
+            showToast('Kamar berhasil ditambahkan!');
+        } else { const d = await res.json(); showToast(d.message || 'Gagal menambah kamar.', 'error'); }
     };
 
     const handleAddFinance = async (e) => {
         e.preventDefault();
-        const res = await fetch('/api/finances', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(newFinance)
-        });
+        const res = await authFetch('/api/finances', { method: 'POST', body: JSON.stringify(newFinance) });
         if (res.ok) {
             setNewFinance({ transaction_type: 'expense', amount: '', category: 'maintenance', transaction_date: new Date().toISOString().split('T')[0], description: '' });
             loadAllData();
-            alert('Transaksi kas berhasil dicatat!');
-        }
+            showToast('Transaksi kas berhasil dicatat!');
+        } else { const d = await res.json(); showToast(d.message || 'Gagal mencatat transaksi.', 'error'); }
     };
 
     const handleAddComplaint = async (e) => {
         e.preventDefault();
-        const res = await fetch('/api/complaints', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(newComplaint)
-        });
+        const res = await authFetch('/api/complaints', { method: 'POST', body: JSON.stringify(newComplaint) });
         if (res.ok) {
             setNewComplaint({ room_id: '', title: '', description: '' });
-            setShowComplaintModal(false);
             loadAllData();
-            alert('Komplain berhasil diajukan!');
-        }
+            showToast('Komplain berhasil diajukan! Pengelola akan segera menindaklanjuti.');
+        } else { const d = await res.json(); showToast(d.message || 'Pastikan Anda memiliki booking aktif.', 'error'); }
     };
 
     const handleUpdateComplaintStatus = async (e) => {
         e.preventDefault();
-        const res = await fetch(`/api/complaints/${complaintResponse.id}/status`, {
+        const res = await authFetch(`/api/complaints/${complaintResponse.id}/status`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({
-                status: complaintResponse.status,
-                admin_response: complaintResponse.admin_response,
-                repair_photo: 'repair_done.png'
-            })
+            body: JSON.stringify({ status: complaintResponse.status, admin_response: complaintResponse.admin_response, repair_photo: 'repair_done.png' })
         });
         if (res.ok) {
             setComplaintResponse({ id: null, status: 'processing', admin_response: '' });
             loadAllData();
-            alert('Status aduan komplain berhasil diperbarui!');
-        }
+            showToast('Status komplain berhasil diperbarui!');
+        } else { const d = await res.json(); showToast(d.message || 'Gagal memperbarui status.', 'error'); }
+    };
+
+    // Tenant payment from dashboard
+    const handleTenantPayment = async (e) => {
+        e.preventDefault();
+        if (!showPaymentModal) return;
+        const res  = await authFetch(`/api/bookings/${showPaymentModal.id}/pay`, { method: 'POST', body: JSON.stringify(paymentData) });
+        const data = await res.json();
+        if (res.ok) {
+            setShowPaymentModal(null);
+            setPaymentData({ paid_amount: '', payment_proof: 'BUKTI_BAYAR_SIMULASI' });
+            loadAllData();
+            showToast(data.message);
+        } else { showToast(data.message || 'Gagal memproses pembayaran.', 'error'); }
     };
 
     const handleApproveBooking = async (id) => {
         if (!confirm('Aktifkan penyewaan ini?')) return;
-        const res = await fetch(`/api/bookings/${id}/approve`, { method: 'POST', headers: { 'Accept': 'application/json' } });
-        if (res.ok) {
-            loadAllData();
-            alert('Penyewaan disetujui & Kamar aktif ditempati.');
-        }
+        const res = await authFetch(`/api/bookings/${id}/approve`, { method: 'POST' });
+        if (res.ok) { loadAllData(); showToast('Penyewaan disetujui & Kamar aktif ditempati.'); }
+        else { const d = await res.json(); showToast(d.message || 'Gagal approve.', 'error'); }
     };
 
     const handleCheckoutBooking = async (id) => {
         if (!confirm('Apakah penghuni akan checkout dan mengosongkan kamar?')) return;
-        const res = await fetch(`/api/bookings/${id}/checkout`, { method: 'POST', headers: { 'Accept': 'application/json' } });
-        if (res.ok) {
-            loadAllData();
-            alert('Proses checkout selesai. Kamar kembali berstatus tersedia.');
-        }
+        const res = await authFetch(`/api/bookings/${id}/checkout`, { method: 'POST' });
+        if (res.ok) { loadAllData(); showToast('Proses checkout selesai. Kamar kembali tersedia.'); }
+        else { const d = await res.json(); showToast(d.message || 'Gagal checkout.', 'error'); }
     };
 
     const handleChangeRoom = async (e) => {
         e.preventDefault();
-        const res = await fetch(`/api/bookings/${showChangeRoomModal.id}/change-room`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ new_room_id: newRoomIdInput })
-        });
+        const res = await authFetch(`/api/bookings/${showChangeRoomModal.id}/change-room`, { method: 'POST', body: JSON.stringify({ new_room_id: newRoomIdInput }) });
         const data = await res.json();
-        if (res.ok) {
-            setShowChangeRoomModal(null);
-            setNewRoomIdInput('');
-            loadAllData();
-            alert(data.message);
-        } else {
-            alert(data.message);
-        }
+        if (res.ok) { setShowChangeRoomModal(null); setNewRoomIdInput(''); loadAllData(); showToast(data.message); }
+        else { showToast(data.message || 'Gagal pindah kamar.', 'error'); }
     };
 
     const handleRescheduleBill = async (e) => {
         e.preventDefault();
-        const res = await fetch(`/api/bookings/${showRescheduleModal.id}/reschedule-bill`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(rescheduleData)
-        });
+        const res = await authFetch(`/api/bookings/${showRescheduleModal.id}/reschedule-bill`, { method: 'POST', body: JSON.stringify(rescheduleData) });
         const data = await res.json();
-        if (res.ok) {
-            setShowRescheduleModal(null);
-            setRescheduleData({ start_date: '', end_date: '' });
-            loadAllData();
-            alert(data.message);
-        } else {
-            alert(data.message);
-        }
+        if (res.ok) { setShowRescheduleModal(null); setRescheduleData({ start_date: '', end_date: '' }); loadAllData(); showToast(data.message); }
+        else { showToast(data.message || 'Gagal reschedule.', 'error'); }
     };
 
-    // Filter data based on operator branch restrictions
-    const operatorBranches = auth.user.assigned_branches || [];
-    
+    // Operator branches: real for actual operator, first branch when simulating
+    const operatorBranches = auth.user.role === 'operator'
+        ? (auth.user.assigned_branches || [])
+        : currentRole === 'operator'
+            ? branches.slice(0, 1).map(b => b.id)
+            : [];
+
     // Helper to get simulated resident ID
     const getSimulatedResidentId = () => {
-        if (auth.user.role === 'resident') {
-            return auth.user.id;
-        }
-        // Find first resident booking to simulate
-        const firstResidentBooking = bookings.find(b => b.tenant_id);
+        if (auth.user.role === 'resident') return auth.user.id;
+        const firstResidentBooking = bookings.find(b => b.tenant_id && b.tenant);
         return firstResidentBooking ? firstResidentBooking.tenant_id : auth.user.id;
     };
 
+    // Use optional chaining to prevent crashes when related data not yet loaded
     const visibleRooms = rooms.filter(r => {
-        if (currentRole === 'operator') {
-            return operatorBranches.includes(r.branch_id);
-        }
+        if (currentRole === 'operator') return operatorBranches.includes(r.branch_id);
         if (currentRole === 'resident') {
             const resId = getSimulatedResidentId();
             return bookings.some(b => b.room_id === r.id && b.tenant_id === resId && b.status === 'active');
@@ -394,57 +400,50 @@ export default function Dashboard() {
     });
 
     const visibleBookings = bookings.filter(b => {
-        if (currentRole === 'operator') {
-            return operatorBranches.includes(b.room.branch_id);
-        }
-        if (currentRole === 'resident') {
-            return b.tenant_id === getSimulatedResidentId();
-        }
+        if (currentRole === 'operator') return operatorBranches.includes(b.room?.branch_id);
+        if (currentRole === 'resident') return b.tenant_id === getSimulatedResidentId();
         return true;
     });
 
     const visibleComplaints = complaints.filter(c => {
-        if (currentRole === 'operator') {
-            return operatorBranches.includes(c.room.branch_id);
-        }
-        if (currentRole === 'resident') {
-            return c.tenant_id === getSimulatedResidentId();
-        }
+        if (currentRole === 'operator') return operatorBranches.includes(c.room?.branch_id);
+        if (currentRole === 'resident') return c.tenant_id === getSimulatedResidentId();
         return true;
     });
 
-    // Helper to get simulated resident name
     const getSimulatedResidentName = () => {
-        if (auth.user.role === 'resident') {
-            return auth.user.name;
-        }
+        if (auth.user.role === 'resident') return auth.user.name;
         const resId = getSimulatedResidentId();
-        const booking = bookings.find(b => b.tenant_id === resId);
-        return booking ? booking.tenant?.name : auth.user.name;
+        return bookings.find(b => b.tenant_id === resId)?.tenant?.name || auth.user.name;
     };
 
     const visibleNotifications = notifications.filter(notif => {
         if (currentRole === 'operator') {
-            if (notif.type === 'unpaid_bill' || notif.type === 'rental_expiry' || notif.type === 'daily_checkout_today') {
-                const bookingCode = notif.meta?.booking_code;
-                const booking = bookings.find(b => b.booking_code === bookingCode);
-                return booking && operatorBranches.includes(booking.room.branch_id);
+            if (['unpaid_bill', 'rental_expiry', 'daily_checkout_today'].includes(notif.type)) {
+                const booking = bookings.find(b => b.booking_code === notif.meta?.booking_code);
+                return booking && operatorBranches.includes(booking.room?.branch_id);
             }
             if (notif.type === 'new_complaint') {
-                const complaintId = notif.meta?.complaint_id;
-                const complaint = complaints.find(c => c.id === complaintId);
-                return complaint && operatorBranches.includes(complaint.room.branch_id);
+                const complaint = complaints.find(c => c.id === notif.meta?.complaint_id);
+                return complaint && operatorBranches.includes(complaint.room?.branch_id);
             }
+            return false;
         }
         if (currentRole === 'resident') {
-            const tenantName = getSimulatedResidentName();
-            return notif.meta?.tenant === tenantName;
+            const resId = getSimulatedResidentId();
+            if (notif.meta?.booking_code) {
+                return bookings.find(b => b.booking_code === notif.meta.booking_code)?.tenant_id === resId;
+            }
+            if (notif.meta?.complaint_id !== undefined) {
+                return complaints.find(c => c.id === notif.meta.complaint_id)?.tenant_id === resId;
+            }
+            return false;
         }
         return true;
     });
 
-    // Get count of pending complaints for header badge
     const pendingComplaintsBadgeCount = visibleComplaints.filter(c => c.status === 'pending').length;
+    const urgentNotifCount = visibleNotifications.filter(n => ['unpaid_bill', 'rental_expiry', 'daily_checkout_today'].includes(n.type)).length;
 
     return (
         <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex font-sans">
@@ -1093,51 +1092,38 @@ export default function Dashboard() {
                                                     {['super_admin', 'operator'].includes(currentRole) && (
                                                         <div className="flex flex-wrap gap-2 justify-end">
                                                             {b.status === 'pending' && (
-                                                                <button 
-                                                                    onClick={() => handleApproveBooking(b.id)}
-                                                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-md transition-colors"
-                                                                >
+                                                                <button onClick={() => handleApproveBooking(b.id)} className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-md transition-colors">
                                                                     Approve
                                                                 </button>
                                                             )}
                                                             {b.status === 'active' && (
                                                                 <>
-                                                                    <button 
-                                                                        onClick={() => {
-                                                                            setSelectedRoom(b.room);
-                                                                            setShowChangeRoomModal(b);
-                                                                        }}
-                                                                        className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-md transition-colors"
-                                                                        title="Pindah/Perubahan Kamar"
-                                                                    >
+                                                                    <button onClick={() => setShowChangeRoomModal(b)} className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-md transition-colors" title="Pindah/Perubahan Kamar">
                                                                         Pindah Kamar
                                                                     </button>
-                                                                    <button 
-                                                                        onClick={() => {
-                                                                            setSelectedRoom(b.room);
-                                                                            setShowRescheduleModal(b);
-                                                                        }}
-                                                                        className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-md transition-colors"
-                                                                        title="Reschedule tagihan / masa sewa"
-                                                                    >
+                                                                    <button onClick={() => setShowRescheduleModal(b)} className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-md transition-colors" title="Reschedule tagihan / masa sewa">
                                                                         Reschedule
                                                                     </button>
-                                                                    <button 
-                                                                        onClick={() => handleCheckoutBooking(b.id)}
-                                                                        className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-md transition-colors"
-                                                                    >
+                                                                    <button onClick={() => handleCheckoutBooking(b.id)} className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-md transition-colors">
                                                                         Checkout
                                                                     </button>
                                                                 </>
                                                             )}
                                                         </div>
                                                     )}
+
+                                                    {/* Tombol Bayar Sekarang untuk Tenant */}
+                                                    {currentRole === 'resident' && b.payment_status !== 'paid' && (
+                                                        <button
+                                                            onClick={() => { setShowPaymentModal(b); setPaymentData({ paid_amount: String(b.total_amount), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
+                                                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-md transition-colors w-full flex items-center justify-center gap-1.5 shadow-sm mb-1.5"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            Bayar Sekarang
+                                                        </button>
+                                                    )}
                                                     
-                                                    {/* Invoice Download Simulation Link */}
-                                                    <button 
-                                                        onClick={() => setShowInvoiceModal(b)}
-                                                        className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200 w-full sm:w-auto shadow-sm"
-                                                    >
+                                                    <button onClick={() => setShowInvoiceModal(b)} className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200 w-full sm:w-auto shadow-sm">
                                                         Cetak Invoice
                                                     </button>
                                                 </td>
@@ -1388,52 +1374,39 @@ export default function Dashboard() {
                                 </table>
                             </div>
 
-                            {/* Complaint Response Form Modal (Admin Update) */}
-                            {complaintResponse.id && (
-                                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                                    <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-2xl">
-                                        <h3 className="font-extrabold text-lg text-slate-800">Perbarui Status Penanganan Komplain</h3>
-                                        <form onSubmit={handleUpdateComplaintStatus} className="space-y-4">
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Pilih Status Kerja</label>
-                                                <select 
-                                                    value={complaintResponse.status}
-                                                    onChange={(e) => setComplaintResponse({...complaintResponse, status: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                >
-                                                    <option value="pending">Pending</option>
-                                                    <option value="confirmed">Dikonfirmasi (Antre)</option>
-                                                    <option value="processing">Proses Pengerjaan</option>
-                                                    <option value="completed">Selesai diperbaiki</option>
-                                                    <option value="ready">Ready (Konfirmasi Kamar Siap)</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Pesan Respon Pengelola</label>
-                                                <textarea 
-                                                    required
-                                                    value={complaintResponse.admin_response}
-                                                    onChange={(e) => setComplaintResponse({...complaintResponse, admin_response: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full h-24"
-                                                    placeholder="Tulis instruksi/info ke tenant terkait perbaikan..."
-                                                />
-                                            </div>
-                                            <div className="flex gap-4 pt-2">
-                                                <button type="button" onClick={() => setComplaintResponse({ id: null, status: 'processing', admin_response: '' })} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all border border-slate-200">
-                                                    Batal
-                                                </button>
-                                                <button type="submit" className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all">
-                                                    Simpan Status
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
                 </main>
             </div>
+
+            {/* ── Complaint Response Modal (root-level, always mounted) ── */}
+            {complaintResponse.id && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-2xl">
+                        <h3 className="font-extrabold text-lg text-slate-800">Perbarui Status Penanganan Komplain</h3>
+                        <form onSubmit={handleUpdateComplaintStatus} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-slate-500">Pilih Status Kerja</label>
+                                <select value={complaintResponse.status} onChange={(e) => setComplaintResponse({...complaintResponse, status: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
+                                    <option value="pending">Pending</option>
+                                    <option value="confirmed">Dikonfirmasi (Antre)</option>
+                                    <option value="processing">Proses Pengerjaan</option>
+                                    <option value="completed">Selesai diperbaiki</option>
+                                    <option value="ready">Ready (Konfirmasi Kamar Siap)</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-slate-500">Pesan Respon Pengelola</label>
+                                <textarea required value={complaintResponse.admin_response} onChange={(e) => setComplaintResponse({...complaintResponse, admin_response: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full h-24" placeholder="Tulis instruksi/info ke tenant terkait perbaikan..." />
+                            </div>
+                            <div className="flex gap-4 pt-2">
+                                <button type="button" onClick={() => setComplaintResponse({ id: null, status: 'processing', admin_response: '' })} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm border border-slate-200">Batal</button>
+                                <button type="submit" className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm">Simpan Status</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Change Room Modal Dialog */}
             {showChangeRoomModal && (
@@ -1614,6 +1587,39 @@ export default function Dashboard() {
                                 Cetak (PDF / Kertas)
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* ── Payment Modal for Tenant (root-level) ── */}
+            {showPaymentModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200/80 p-6 space-y-5 shadow-2xl">
+                        <div>
+                            <h3 className="font-extrabold text-lg text-slate-800">💳 Bayar Tagihan Sewa</h3>
+                            <p className="text-xs text-slate-500 mt-1">Booking: <span className="font-mono font-bold text-slate-700">{showPaymentModal.booking_code}</span></p>
+                        </div>
+                        <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2 text-sm">
+                            <div className="flex justify-between"><span className="text-slate-500">Kamar</span><span className="font-bold text-slate-800">No. {showPaymentModal.room?.room_number} ({showPaymentModal.rental_type === 'daily' ? 'Harian' : 'Bulanan'})</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500">Periode</span><span className="font-semibold text-slate-700 text-xs">{new Date(showPaymentModal.start_date).toLocaleDateString('id-ID')} – {new Date(showPaymentModal.end_date).toLocaleDateString('id-ID')}</span></div>
+                            <div className="flex justify-between border-t border-slate-200 pt-2"><span className="text-slate-500">Total Tagihan</span><span className="font-extrabold text-slate-900">Rp {parseFloat(showPaymentModal.total_amount).toLocaleString('id-ID')}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500">Sudah Dibayar</span><span className="font-bold text-emerald-600">Rp {parseFloat(showPaymentModal.paid_amount || 0).toLocaleString('id-ID')}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500 font-semibold">Sisa Tagihan</span><span className="font-extrabold text-red-600">Rp {Math.max(0, parseFloat(showPaymentModal.total_amount) - parseFloat(showPaymentModal.paid_amount || 0)).toLocaleString('id-ID')}</span></div>
+                        </div>
+                        <form onSubmit={handleTenantPayment} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-slate-500">Jumlah yang Dibayarkan (Rp)</label>
+                                <input type="number" required min="1" value={paymentData.paid_amount} onChange={(e) => setPaymentData({...paymentData, paid_amount: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder={`Maks Rp ${parseFloat(showPaymentModal.total_amount).toLocaleString('id-ID')}`} />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-slate-500">Bukti Pembayaran (Simulasi)</label>
+                                <input type="text" required value={paymentData.payment_proof} onChange={(e) => setPaymentData({...paymentData, payment_proof: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder="Nama file / URL bukti transfer" />
+                                <p className="text-[10px] text-slate-400">Isi dengan nama file atau URL gambar bukti transfer (simulasi).</p>
+                            </div>
+                            <div className="flex gap-3 pt-1">
+                                <button type="button" onClick={() => setShowPaymentModal(null)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm border border-slate-200 transition-all">Batal</button>
+                                <button type="submit" className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm shadow-md shadow-emerald-700/20 transition-all">Konfirmasi Bayar</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

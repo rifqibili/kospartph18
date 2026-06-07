@@ -1,5 +1,0 @@
-[variables]
-    DOCUMENT_ROOT = "/public"
-
-[phases.release]
-    cmds = ["php artisan migrate --force"]

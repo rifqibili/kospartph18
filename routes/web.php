@@ -39,6 +39,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/bookings/{id}/change-room', [BookingController::class, 'changeRoom']);
     Route::post('/api/bookings/{id}/reschedule-bill', [BookingController::class, 'rescheduleBill']);
     Route::post('/api/bookings/{id}/checkout', [BookingController::class, 'checkout']);
+    Route::post('/api/bookings/{id}/pay', [BookingController::class, 'uploadPaymentProofAuth']);
 
     // Complaints Management
     Route::get('/api/complaints', [ComplaintController::class, 'index']);

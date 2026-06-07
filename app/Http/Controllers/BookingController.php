@@ -178,6 +178,58 @@ class BookingController extends Controller
         ]);
     }
 
+    // Upload payment proof by authenticated tenant from dashboard
+    public function uploadPaymentProofAuth(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'payment_proof' => 'required|string',
+            'paid_amount'   => 'required|numeric|min:0',
+        ]);
+
+        $booking = Booking::with(['room', 'tenant'])->findOrFail($id);
+
+        // Tenant can only pay their own booking
+        if ($user->role === 'resident' && $booking->tenant_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized: Bukan booking Anda.'], 403);
+        }
+
+        // Admin/operator can mark payment for any booking in their scope
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            if (!in_array($booking->room->branch_id, $user->assigned_branches)) {
+                return response()->json(['message' => 'Unauthorized: Booking di luar cabang Anda.'], 403);
+            }
+        }
+
+        $isFullyPaid = floatval($request->paid_amount) >= floatval($booking->total_amount);
+
+        $booking->update([
+            'payment_proof'  => $request->payment_proof,
+            'paid_amount'    => $request->paid_amount,
+            'payment_status' => $isFullyPaid ? 'paid' : 'dp',
+            'status'         => 'active',
+        ]);
+
+        $booking->room->update(['status' => 'occupied']);
+
+        Finance::create([
+            'transaction_type' => 'income',
+            'amount'           => $request->paid_amount,
+            'category'         => 'rental',
+            'transaction_date' => now()->format('Y-m-d'),
+            'description'      => 'Pembayaran ' . ($booking->rental_type === 'daily' ? 'Harian' : 'Bulanan') . ' Kamar ' . $booking->room->room_number . ' - ' . $booking->tenant->name,
+            'booking_id'       => $booking->id,
+        ]);
+
+        return response()->json([
+            'message' => $isFullyPaid
+                ? 'Pembayaran lunas berhasil! Kamar sekarang aktif ditempati.'
+                : 'DP berhasil diunggah. Sisa tagihan akan dilunasi kemudian.',
+            'booking' => $booking->fresh(['room.branch', 'tenant']),
+        ]);
+    }
+
     // Update status / Approve booking manually by admin
     public function approveBooking(Request $request, $id)
     {
