@@ -50,7 +50,7 @@ export default function Dashboard() {
     
     // Form Inputs
     const [newBranch, setNewBranch] = useState({ name: '', address: '', maps_link: '', status: 'active' });
-    const [newRoom, setNewRoom] = useState({ branch_id: '', room_number: '', price_monthly: '', price_daily: '', status: 'available', facilities: '', description: '' });
+    const [newRoom, setNewRoom] = useState({ branch_id: '', room_number: '', price_monthly: '', price_daily: '', status: 'available', facilities: '', description: '', photos: '', video: '' });
     const [newFinance, setNewFinance] = useState({ transaction_type: 'expense', amount: '', category: 'maintenance', transaction_date: new Date().toISOString().split('T')[0], description: '' });
     const [newComplaint, setNewComplaint] = useState({ room_id: '', title: '', description: '' });
     const [complaintResponse, setComplaintResponse] = useState({ id: null, status: 'processing', admin_response: '' });
@@ -289,9 +289,14 @@ export default function Dashboard() {
 
     const handleAddRoom = async (e) => {
         e.preventDefault();
-        const res = await authFetch('/api/rooms', { method: 'POST', body: JSON.stringify({ ...newRoom, facilities: newRoom.facilities.split(',').map(f => f.trim()) }) });
+        const payload = { 
+            ...newRoom, 
+            facilities: newRoom.facilities.split(',').map(f => f.trim()).filter(Boolean),
+            photos: newRoom.photos ? newRoom.photos.split(',').map(p => p.trim()).filter(Boolean) : []
+        };
+        const res = await authFetch('/api/rooms', { method: 'POST', body: JSON.stringify(payload) });
         if (res.ok) {
-            setNewRoom({ branch_id: '', room_number: '', price_monthly: '', price_daily: '', status: 'available', facilities: '', description: '' });
+            setNewRoom({ branch_id: '', room_number: '', price_monthly: '', price_daily: '', status: 'available', facilities: '', description: '', photos: '', video: '' });
             loadAllData();
             showToast('Kamar berhasil ditambahkan!');
         } else { const d = await res.json(); showToast(d.message || 'Gagal menambah kamar.', 'error'); }
@@ -1191,7 +1196,7 @@ export default function Dashboard() {
                                             placeholder="100000"
                                         />
                                     </div>
-                                    <div className="space-y-1 md:col-span-3">
+                                    <div className="space-y-1 md:col-span-4">
                                         <label className="text-xs font-semibold text-slate-500">Fasilitas (pisahkan dengan koma)</label>
                                         <input 
                                             type="text" 
@@ -1199,6 +1204,26 @@ export default function Dashboard() {
                                             onChange={(e) => setNewRoom({...newRoom, facilities: e.target.value})}
                                             className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
                                             placeholder="AC, Wi-Fi, Kamar Mandi Dalam, Kasur Springbed"
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-xs font-semibold text-slate-500">Foto Kamar (Link URL, pisahkan dengan koma)</label>
+                                        <input 
+                                            type="text" 
+                                            value={newRoom.photos}
+                                            onChange={(e) => setNewRoom({...newRoom, photos: e.target.value})}
+                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
+                                            placeholder="https://img.com/a.jpg, https://img.com/b.jpg"
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-xs font-semibold text-slate-500">Video Kamar (Link URL YouTube/dll)</label>
+                                        <input 
+                                            type="text" 
+                                            value={newRoom.video}
+                                            onChange={(e) => setNewRoom({...newRoom, video: e.target.value})}
+                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
+                                            placeholder="https://youtube.com/watch?v=..."
                                         />
                                     </div>
                                     <button type="submit" className="py-2.5 bg-emerald-600 hover:bg-emerald-505 text-white font-bold rounded-xl text-sm transition-all">

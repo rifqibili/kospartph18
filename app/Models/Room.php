@@ -16,11 +16,14 @@ class Room extends Model
         'status',
         'facilities',
         'description',
-        'image'
+        'image',
+        'photos',
+        'video'
     ];
 
     protected $casts = [
         'facilities' => 'array',
+        'photos' => 'array',
         'price_monthly' => 'decimal:2',
         'price_daily' => 'decimal:2'
     ];

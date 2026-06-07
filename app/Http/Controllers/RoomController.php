@@ -42,6 +42,8 @@ class RoomController extends Controller
             'facilities' => 'nullable|array',
             'description' => 'nullable|string',
             'image' => 'nullable|string',
+            'photos' => 'nullable|array',
+            'video' => 'nullable|string',
         ]);
 
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
@@ -71,6 +73,8 @@ class RoomController extends Controller
             'facilities' => 'nullable|array',
             'description' => 'nullable|string',
             'image' => 'nullable|string',
+            'photos' => 'nullable|array',
+            'video' => 'nullable|string',
         ]);
 
         $room = Room::findOrFail($id);
