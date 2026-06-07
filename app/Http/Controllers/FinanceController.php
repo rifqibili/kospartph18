@@ -12,9 +12,6 @@ class FinanceController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        if (!in_array($user->role, ['super_admin', 'operator'])) {
-            return response()->json(['message' => 'Unauthorized.'], 403);
-        }
 
         if ($user->role === 'operator') {
             // Operator can only see finances related to bookings in their branches
@@ -27,10 +24,19 @@ class FinanceController extends Controller
                 })
                 ->orderBy('transaction_date', 'desc')
                 ->get();
-        } else {
+        } elseif ($user->role === 'resident') {
+            $finances = Finance::with('booking.room.branch')
+                ->whereHas('booking', function($q) use ($user) {
+                    $q->where('tenant_id', $user->id);
+                })
+                ->orderBy('transaction_date', 'desc')
+                ->get();
+        } elseif ($user->role === 'super_admin') {
             $finances = Finance::with('booking.room.branch')
                 ->orderBy('transaction_date', 'desc')
                 ->get();
+        } else {
+            return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
         return response()->json($finances);

@@ -159,11 +159,9 @@ export default function Dashboard() {
             setBookings(Array.isArray(bookingsData) ? bookingsData : []);
             setComplaints(Array.isArray(complaintsData) ? complaintsData : []);
 
-            if (['super_admin', 'operator'].includes(auth.user.role)) {
-                const financesRes  = await fetch('/api/finances');
-                const financesData = await financesRes.json();
-                setFinances(Array.isArray(financesData) ? financesData : []);
-            }
+            const financesRes  = await fetch('/api/finances');
+            const financesData = await financesRes.json();
+            setFinances(Array.isArray(financesData) ? financesData : []);
         } catch (err) {
             console.error('Error loading data', err);
         }
@@ -967,58 +965,47 @@ export default function Dashboard() {
                                             )}
                                         </div>
 
-                                        {/* Riwayat Booking Timeline */}
+                                        {/* Riwayat Pembayaran */}
                                         <div className="lg:col-span-4 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm">
-                                            <h3 className="font-extrabold text-base text-slate-800 mb-4">📋 Riwayat Sewa</h3>
-                                            {myBookings.length === 0 ? (
-                                                <div className="text-center py-8 text-slate-400">
-                                                    <div className="text-3xl mb-2">📭</div>
-                                                    <p className="text-xs font-semibold">Belum ada riwayat sewa</p>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-0 overflow-y-auto max-h-64 pr-1">
-                                                    {myBookings.map((b, idx) => {
-                                                        const isActive = b.status === 'active';
-                                                        const isLast = idx === myBookings.length - 1;
-                                                        return (
-                                                            <div key={b.id} className="flex gap-3">
-                                                                <div className="flex flex-col items-center shrink-0">
-                                                                    <div className={`w-3 h-3 rounded-full border-2 mt-1 shrink-0 ${
-                                                                        isActive               ? 'bg-emerald-500 border-emerald-400 shadow shadow-emerald-200' :
-                                                                        b.status === 'pending'   ? 'bg-amber-400 border-amber-300' :
-                                                                        b.status === 'completed' ? 'bg-slate-400 border-slate-300' :
-                                                                        'bg-red-400 border-red-300'
-                                                                    }`} />
-                                                                    {!isLast && <div className="w-0.5 flex-grow bg-slate-200 my-1 min-h-[16px]" />}
-                                                                </div>
-                                                                <div className="pb-4 flex-grow min-w-0">
-                                                                    <div className="flex items-start justify-between gap-2">
-                                                                        <div className="min-w-0">
-                                                                            <p className="text-xs font-bold text-slate-800">Kamar {b.room?.room_number}</p>
-                                                                            <p className="text-[10px] text-slate-500 truncate">{(b.room?.branch?.name || '').replace('Kospart PH 18 - ', '')} · {b.rental_type === 'daily' ? 'Harian' : 'Bulanan'}</p>
-                                                                            <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{new Date(b.start_date).toLocaleDateString('id-ID', {day:'numeric',month:'short'})} – {new Date(b.end_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</p>
+                                            <h3 className="font-extrabold text-base text-slate-800 mb-4">💳 Riwayat Pembayaran</h3>
+                                            {(() => {
+                                                const myFinances = finances.filter(f => f.booking?.tenant_id === resId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                                                return myFinances.length === 0 ? (
+                                                    <div className="text-center py-8 text-slate-400">
+                                                        <div className="text-3xl mb-2">📭</div>
+                                                        <p className="text-xs font-semibold">Belum ada riwayat pembayaran</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-0 overflow-y-auto max-h-64 pr-1">
+                                                        {myFinances.map((f, idx) => {
+                                                            const isIncome = f.transaction_type === 'income';
+                                                            const isLast = idx === myFinances.length - 1;
+                                                            return (
+                                                                <div key={f.id} className="flex gap-3">
+                                                                    <div className="flex flex-col items-center shrink-0">
+                                                                        <div className={`w-3 h-3 rounded-full border-2 mt-1 shrink-0 ${isIncome ? 'bg-emerald-500 border-emerald-400 shadow shadow-emerald-200' : 'bg-red-500 border-red-400 shadow shadow-red-200'}`} />
+                                                                        {!isLast && <div className="w-0.5 flex-grow bg-slate-200 my-1 min-h-[16px]" />}
+                                                                    </div>
+                                                                    <div className="pb-4 flex-grow min-w-0">
+                                                                        <div className="flex items-start justify-between gap-2">
+                                                                            <div className="min-w-0">
+                                                                                <p className="text-xs font-bold text-slate-800">Rp {parseFloat(f.amount).toLocaleString('id-ID')}</p>
+                                                                                <p className="text-[10px] text-slate-500 mt-0.5 truncate">{f.description}</p>
+                                                                                <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{new Date(f.transaction_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</p>
+                                                                            </div>
+                                                                            <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${isIncome ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                                                {isIncome ? 'Sewa' : 'Pengeluaran'}
+                                                                            </span>
                                                                         </div>
-                                                                        <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                                                                            isActive               ? 'bg-emerald-100 text-emerald-700' :
-                                                                            b.status === 'pending'   ? 'bg-amber-100 text-amber-700' :
-                                                                            b.status === 'completed' ? 'bg-slate-100 text-slate-600' :
-                                                                            'bg-red-100 text-red-700'
-                                                                        }`}>{isActive ? 'Aktif' : b.status === 'pending' ? 'Pending' : b.status === 'completed' ? 'Selesai' : 'Ditolak'}</span>
-                                                                    </div>
-                                                                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                                                        <span className="text-[10px] font-semibold text-slate-600">Rp {parseFloat(b.total_amount).toLocaleString('id-ID')}</span>
-                                                                        <span className={`text-[9px] font-bold uppercase ${b.payment_status === 'paid' ? 'text-emerald-600' : b.payment_status === 'dp' ? 'text-amber-600' : 'text-red-500'}`}>
-                                                                            · {b.payment_status === 'paid' ? 'Lunas' : b.payment_status === 'dp' ? 'DP' : 'Blm Bayar'}
-                                                                        </span>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })()}
                                             <button onClick={() => setActiveTab('bookings')} className="w-full mt-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition-all">
-                                                Lihat Semua Riwayat →
+                                                Ke Pembayaran →
                                             </button>
                                         </div>
 
