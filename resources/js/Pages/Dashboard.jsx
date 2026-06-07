@@ -46,6 +46,7 @@ export default function Dashboard() {
     // Payment modal for tenant
     const [showPaymentModal, setShowPaymentModal] = useState(null);
     const [paymentData, setPaymentData] = useState({ paid_amount: '', payment_proof: 'BUKTI_BAYAR_SIMULASI' });
+    const [showVerifyPaymentModal, setShowVerifyPaymentModal] = useState(null);
     
     // Form Inputs
     const [newBranch, setNewBranch] = useState({ name: '', address: '', maps_link: '', status: 'active' });
@@ -343,6 +344,27 @@ export default function Dashboard() {
             loadAllData();
             showToast(data.message);
         } else { showToast(data.message || 'Gagal memproses pembayaran.', 'error'); }
+    };
+
+    const handleVerifyPayment = async (id) => {
+        const res = await authFetch(`/api/bookings/${id}/verify-payment`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            setShowVerifyPaymentModal(null);
+            loadAllData();
+            showToast(data.message);
+        } else { showToast(data.message || 'Gagal verifikasi pembayaran.', 'error'); }
+    };
+
+    const handleRejectPayment = async (id) => {
+        if (!confirm('Tolak pembayaran ini? Tenant akan diminta untuk mengupload ulang bukti pembayaran.')) return;
+        const res = await authFetch(`/api/bookings/${id}/reject-payment`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            setShowVerifyPaymentModal(null);
+            loadAllData();
+            showToast(data.message);
+        } else { showToast(data.message || 'Gagal menolak pembayaran.', 'error'); }
     };
 
     const handleApproveBooking = async (id) => {
@@ -918,13 +940,22 @@ export default function Dashboard() {
                                                     </div>
 
                                                     {activeBooking.payment_status !== 'paid' && (
-                                                        <button
-                                                            onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
-                                                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                                            Bayar Sekarang
-                                                        </button>
+                                                        parseFloat(activeBooking.unverified_amount) > 0 ? (
+                                                            <button
+                                                                disabled
+                                                                className="w-full py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-sm border border-slate-200 flex items-center justify-center gap-2 cursor-not-allowed"
+                                                            >
+                                                                ⏳ Menunggu Verifikasi
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
+                                                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                                Bayar Sekarang
+                                                            </button>
+                                                        )
                                                     )}
                                                 </>
                                             ) : (
@@ -1282,6 +1313,11 @@ export default function Dashboard() {
                                                 <td className="p-4 pr-6 text-right space-y-1.5">
                                                     {['super_admin', 'operator'].includes(currentRole) && (
                                                         <div className="flex flex-wrap gap-2 justify-end">
+                                                            {parseFloat(b.unverified_amount) > 0 && (
+                                                                <button onClick={() => setShowVerifyPaymentModal(b)} className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-md transition-colors animate-pulse shadow-sm shadow-indigo-500/50">
+                                                                    Verifikasi Bayar
+                                                                </button>
+                                                            )}
                                                             {b.status === 'pending' && (
                                                                 <button onClick={() => handleApproveBooking(b.id)} className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-md transition-colors">
                                                                     Approve
@@ -1305,13 +1341,22 @@ export default function Dashboard() {
 
                                                     {/* Tombol Bayar Sekarang untuk Tenant */}
                                                     {currentRole === 'resident' && b.payment_status !== 'paid' && (
-                                                        <button
-                                                            onClick={() => { setShowPaymentModal(b); setPaymentData({ paid_amount: String(b.total_amount), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
-                                                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-md transition-colors w-full flex items-center justify-center gap-1.5 shadow-sm mb-1.5"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                                            Bayar Sekarang
-                                                        </button>
+                                                        parseFloat(b.unverified_amount) > 0 ? (
+                                                            <button
+                                                                disabled
+                                                                className="px-3 py-1.5 bg-slate-100 text-slate-500 font-bold text-xs rounded-md border border-slate-200 w-full flex items-center justify-center gap-1.5 shadow-sm mb-1.5 cursor-not-allowed"
+                                                            >
+                                                                ⏳ Menunggu Verifikasi
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => { setShowPaymentModal(b); setPaymentData({ paid_amount: String(Math.max(0, b.total_amount - b.paid_amount)), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
+                                                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-md transition-colors w-full flex items-center justify-center gap-1.5 shadow-sm mb-1.5"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                                Bayar Sekarang
+                                                            </button>
+                                                        )
                                                     )}
                                                     
                                                     <button onClick={() => setShowInvoiceModal(b)} className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200 w-full sm:w-auto shadow-sm">
@@ -1669,6 +1714,51 @@ export default function Dashboard() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Payment Verification Modal (Admin/Operator) */}
+            {showVerifyPaymentModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl">
+                        <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-extrabold text-lg text-slate-800">Verifikasi Pembayaran</h3>
+                                <p className="text-xs text-slate-500 mt-1">Kode: <strong className="text-slate-700 font-mono">{showVerifyPaymentModal.booking_code}</strong></p>
+                            </div>
+                            <button onClick={() => setShowVerifyPaymentModal(null)} className="p-2 text-slate-400 hover:text-slate-600 bg-white rounded-xl shadow-sm hover:shadow transition-all border border-slate-200">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-5">
+                            <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-sm text-amber-800">
+                                <div className="font-bold mb-1">Menunggu Verifikasi:</div>
+                                <div className="font-mono text-xl text-amber-600 font-extrabold">Rp {parseFloat(showVerifyPaymentModal.unverified_amount).toLocaleString('id-ID')}</div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Bukti Transfer:</label>
+                                <div className="w-full h-48 bg-slate-100 rounded-xl border border-slate-200 border-dashed flex items-center justify-center overflow-hidden relative group">
+                                    {showVerifyPaymentModal.unverified_proof?.startsWith('data:') || showVerifyPaymentModal.unverified_proof?.startsWith('http') ? (
+                                        <img src={showVerifyPaymentModal.unverified_proof} alt="Bukti Transfer" className="max-w-full max-h-full object-contain" />
+                                    ) : (
+                                        <div className="text-center text-slate-500">
+                                            <svg className="w-8 h-8 mx-auto mb-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            <span className="text-xs font-medium bg-slate-200 px-2.5 py-1 rounded-md text-slate-600 block">{showVerifyPaymentModal.unverified_proof || 'Bukti Tidak Tersedia'}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+                            <button onClick={() => handleRejectPayment(showVerifyPaymentModal.id)} className="flex-1 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl text-sm border border-red-200 transition-colors">
+                                Tolak
+                            </button>
+                            <button onClick={() => handleVerifyPayment(showVerifyPaymentModal.id)} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm shadow-md shadow-emerald-600/20 transition-colors">
+                                Setujui
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -40,6 +40,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/bookings/{id}/reschedule-bill', [BookingController::class, 'rescheduleBill']);
     Route::post('/api/bookings/{id}/checkout', [BookingController::class, 'checkout']);
     Route::post('/api/bookings/{id}/pay', [BookingController::class, 'uploadPaymentProofAuth']);
+    Route::post('/api/bookings/{id}/verify-payment', [BookingController::class, 'verifyPayment']);
+    Route::post('/api/bookings/{id}/reject-payment', [BookingController::class, 'rejectPayment']);
 
     // Complaints Management
     Route::get('/api/complaints', [ComplaintController::class, 'index']);

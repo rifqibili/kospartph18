@@ -153,27 +153,12 @@ class BookingController extends Controller
 
         $booking = Booking::findOrFail($id);
         $booking->update([
-            'payment_proof' => $request->payment_proof,
-            'paid_amount' => $request->paid_amount,
-            'payment_status' => $request->paid_amount >= $booking->total_amount ? 'paid' : 'dp',
-            'status' => 'active', // Approved and check-in
-        ]);
-
-        // Mark room as occupied
-        $booking->room->update(['status' => 'occupied']);
-
-        // Record financial transaction (income)
-        Finance::create([
-            'transaction_type' => 'income',
-            'amount' => $request->paid_amount,
-            'category' => 'rental',
-            'transaction_date' => now()->format('Y-m-d'),
-            'description' => 'Pembayaran ' . ($booking->rental_type === 'daily' ? 'Harian' : 'Bulanan') . ' Kamar ' . $booking->room->room_number . ' - ' . $booking->tenant->name,
-            'booking_id' => $booking->id,
+            'unverified_proof' => $request->payment_proof,
+            'unverified_amount' => $request->paid_amount,
         ]);
 
         return response()->json([
-            'message' => 'Bukti pembayaran berhasil diunggah. Kamar sekarang aktif ditempati.',
+            'message' => 'Bukti pembayaran berhasil diunggah dan sedang menunggu verifikasi pengelola.',
             'booking' => $booking
         ]);
     }
@@ -202,20 +187,54 @@ class BookingController extends Controller
             }
         }
 
-        $isFullyPaid = floatval($request->paid_amount) >= floatval($booking->total_amount);
+        $booking->update([
+            'unverified_proof'  => $request->payment_proof,
+            'unverified_amount' => $request->paid_amount,
+        ]);
+
+        return response()->json([
+            'message' => 'Bukti pembayaran berhasil diunggah. Menunggu verifikasi pengelola.',
+            'booking' => $booking->fresh(['room.branch', 'tenant']),
+        ]);
+    }
+
+    public function verifyPayment(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!in_array($user->role, ['super_admin', 'operator'])) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $booking = Booking::with(['room', 'tenant'])->findOrFail($id);
+
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            if (!in_array($booking->room->branch_id, $user->assigned_branches)) {
+                return response()->json(['message' => 'Unauthorized branch booking access.'], 403);
+            }
+        }
+
+        if ($booking->unverified_amount <= 0) {
+            return response()->json(['message' => 'Tidak ada pembayaran yang menunggu verifikasi.'], 400);
+        }
+
+        $amountToVerify = $booking->unverified_amount;
+        $newPaidAmount = $booking->paid_amount + $amountToVerify;
+        $isFullyPaid = floatval($newPaidAmount) >= floatval($booking->total_amount);
 
         $booking->update([
-            'payment_proof'  => $request->payment_proof,
-            'paid_amount'    => $request->paid_amount,
+            'payment_proof'  => $booking->unverified_proof,
+            'paid_amount'    => $newPaidAmount,
             'payment_status' => $isFullyPaid ? 'paid' : 'dp',
             'status'         => 'active',
+            'unverified_amount' => 0,
+            'unverified_proof' => null,
         ]);
 
         $booking->room->update(['status' => 'occupied']);
 
         Finance::create([
             'transaction_type' => 'income',
-            'amount'           => $request->paid_amount,
+            'amount'           => $amountToVerify,
             'category'         => 'rental',
             'transaction_date' => now()->format('Y-m-d'),
             'description'      => 'Pembayaran ' . ($booking->rental_type === 'daily' ? 'Harian' : 'Bulanan') . ' Kamar ' . $booking->room->room_number . ' - ' . $booking->tenant->name,
@@ -223,10 +242,34 @@ class BookingController extends Controller
         ]);
 
         return response()->json([
-            'message' => $isFullyPaid
-                ? 'Pembayaran lunas berhasil! Kamar sekarang aktif ditempati.'
-                : 'DP berhasil diunggah. Sisa tagihan akan dilunasi kemudian.',
-            'booking' => $booking->fresh(['room.branch', 'tenant']),
+            'message' => 'Pembayaran berhasil diverifikasi.',
+            'booking' => $booking->fresh(['room.branch', 'tenant'])
+        ]);
+    }
+
+    public function rejectPayment(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!in_array($user->role, ['super_admin', 'operator'])) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $booking = Booking::findOrFail($id);
+
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            if (!in_array($booking->room->branch_id, $user->assigned_branches)) {
+                return response()->json(['message' => 'Unauthorized branch booking access.'], 403);
+            }
+        }
+
+        $booking->update([
+            'unverified_amount' => 0,
+            'unverified_proof' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Pembayaran ditolak. Menunggu tenant mengunggah ulang bukti bayar.',
+            'booking' => $booking->fresh(['room.branch', 'tenant'])
         ]);
     }
 
