@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    @apply bg-[#f8fafc] text-slate-800 antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+    @apply text-slate-900;
+  }
+}
+
+/* Bright Premium Theme */
+:root {
+  --primary-emerald: #198754;
+  --primary-emerald-dark: #0f5132;
+  --accent-gold: #ffc107;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(241, 245, 249, 0.8);
+}
+
+.bg-emerald-gradient {
+  background: linear-gradient(135deg, #198754 0%, #10b981 100%);
+}
+
+.bg-premium-dark {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+}
+
+/* Light Glassmorphism Panels */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+}
+
+.glass-card {
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(25, 135, 84, 0.08), 0 10px 10px -5px rgba(25, 135, 84, 0.04);
+  border-color: rgba(25, 135, 84, 0.2);
+}
+
+/* Micro-animations */
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+/* Text glow effects */
+.text-glow-emerald {
+  text-shadow: 0 2px 10px rgba(25, 135, 84, 0.15);
+}
+
+.border-glow-emerald {
+  box-shadow: 0 0 15px rgba(25, 135, 84, 0.05);
+}
+
+/* Light inputs */
+.glass-input {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  transition: all 0.2s ease;
+}
+
+.glass-input:focus {
+  border-color: #198754;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.15);
+  background: #ffffff;
+}
+
+/* Custom Scrollbar for Light Mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #198754;
+}
