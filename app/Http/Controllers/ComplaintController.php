@@ -36,18 +36,21 @@ class ComplaintController extends Controller
             'photo' => 'nullable|string', // base64 or string url simulation
         ]);
 
+        $activeBooking = \App\Models\Booking::where('room_id', $request->room_id)
+            ->where('status', 'active')
+            ->first();
+
         if ($user->role === 'resident') {
-            $hasBooking = \App\Models\Booking::where('tenant_id', $user->id)
-                ->where('room_id', $request->room_id)
-                ->where('status', 'active')
-                ->exists();
-            if (!$hasBooking) {
+            if (!$activeBooking || $activeBooking->tenant_id !== $user->id) {
                 return response()->json(['message' => 'Anda tidak menempati kamar ini.'], 403);
             }
         }
 
+        // Gunakan tenant_id dari booking aktif agar simulasi super_admin/operator bekerja dengan benar
+        $tenant_id = $activeBooking ? $activeBooking->tenant_id : $user->id;
+
         $complaint = Complaint::create([
-            'tenant_id' => $user->id,
+            'tenant_id' => $tenant_id,
             'room_id' => $request->room_id,
             'title' => $request->title,
             'description' => $request->description,
