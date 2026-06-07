@@ -847,6 +847,197 @@ export default function Dashboard() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* ── RIWAYAT & PROGRESS khusus TENANT ── */}
+                            {currentRole === 'resident' && (() => {
+                                const resId = getSimulatedResidentId();
+                                const myBookings = bookings.filter(b => b.tenant_id === resId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                                const activeBooking = myBookings.find(b => b.status === 'active') || myBookings.find(b => b.status === 'pending');
+                                const myComplaints = visibleComplaints.filter(c => c.tenant_id === resId);
+                                const paid  = parseFloat(activeBooking?.paid_amount || 0);
+                                const total = parseFloat(activeBooking?.total_amount || 0);
+                                const progressPct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+                                const today    = new Date();
+                                const endDate  = activeBooking ? new Date(activeBooking.end_date) : null;
+                                const sisaHari = endDate ? Math.ceil((endDate - today) / (1000 * 60 * 60 * 24)) : null;
+
+                                return (
+                                    <div className="grid lg:grid-cols-12 gap-6 mt-2">
+
+                                        {/* Progress Pembayaran + Detail Kamar */}
+                                        <div className="lg:col-span-5 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="font-extrabold text-base text-slate-800">📊 Progress Pembayaran</h3>
+                                                {activeBooking && (
+                                                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                                                        activeBooking.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                        activeBooking.payment_status === 'dp'   ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                                        'bg-red-100 text-red-700 border-red-200'
+                                                    }`}>
+                                                        {activeBooking.payment_status === 'paid' ? 'LUNAS' : activeBooking.payment_status === 'dp' ? 'DP / Sebagian' : 'BELUM BAYAR'}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {activeBooking ? (
+                                                <>
+                                                    <div>
+                                                        <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                                                            <span>Dibayar: <strong className="text-emerald-600">Rp {paid.toLocaleString('id-ID')}</strong></span>
+                                                            <span className="font-bold text-slate-700">{progressPct}%</span>
+                                                        </div>
+                                                        <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                                                            <div
+                                                                className={`h-3 rounded-full transition-all duration-700 ${progressPct === 100 ? 'bg-emerald-500' : progressPct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                                                                style={{ width: `${progressPct}%` }}
+                                                            />
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                                                            <span>Rp 0</span>
+                                                            <span>Total: Rp {total.toLocaleString('id-ID')}</span>
+                                                        </div>
+                                                        {total - paid > 0 && (
+                                                            <p className="text-xs text-red-500 font-semibold mt-2">
+                                                                Sisa tagihan: <strong>Rp {(total - paid).toLocaleString('id-ID')}</strong>
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="space-y-2 bg-slate-50 rounded-xl p-4 border border-slate-100 text-sm">
+                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Kamar</span><span className="font-bold text-slate-800">No. {activeBooking.room?.room_number}</span></div>
+                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Cabang</span><span className="font-semibold text-slate-700 text-xs">{(activeBooking.room?.branch?.name || '').replace('Kospart PH 18 - ', '')}</span></div>
+                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Tipe Sewa</span><span className="font-semibold text-slate-700 text-xs">{activeBooking.rental_type === 'daily' ? 'Harian' : 'Bulanan'}</span></div>
+                                                        <div className="flex justify-between border-t border-slate-200 pt-2"><span className="text-slate-500 text-xs">Check-in</span><span className="font-semibold text-slate-700 text-xs">{new Date(activeBooking.start_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</span></div>
+                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Check-out</span><span className="font-semibold text-slate-700 text-xs">{new Date(activeBooking.end_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</span></div>
+                                                        {sisaHari !== null && (
+                                                            <div className={`flex justify-between border-t border-slate-200 pt-2 text-xs font-bold ${sisaHari <= 3 ? 'text-red-600' : sisaHari <= 7 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                                                <span>Sisa Masa Sewa</span>
+                                                                <span>{sisaHari > 0 ? `${sisaHari} hari lagi` : sisaHari === 0 ? 'Berakhir hari ini!' : 'Sudah berakhir'}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {activeBooking.payment_status !== 'paid' && (
+                                                        <button
+                                                            onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
+                                                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            Bayar Sekarang
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="text-center py-8 text-slate-400">
+                                                    <div className="text-4xl mb-2">🏠</div>
+                                                    <p className="text-sm font-semibold">Belum ada hunian aktif</p>
+                                                    <p className="text-xs mt-1">Hubungi pengelola untuk proses booking</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Riwayat Booking Timeline */}
+                                        <div className="lg:col-span-4 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                            <h3 className="font-extrabold text-base text-slate-800 mb-4">📋 Riwayat Sewa</h3>
+                                            {myBookings.length === 0 ? (
+                                                <div className="text-center py-8 text-slate-400">
+                                                    <div className="text-3xl mb-2">📭</div>
+                                                    <p className="text-xs font-semibold">Belum ada riwayat sewa</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-0 overflow-y-auto max-h-64 pr-1">
+                                                    {myBookings.map((b, idx) => {
+                                                        const isActive = b.status === 'active';
+                                                        const isLast = idx === myBookings.length - 1;
+                                                        return (
+                                                            <div key={b.id} className="flex gap-3">
+                                                                <div className="flex flex-col items-center shrink-0">
+                                                                    <div className={`w-3 h-3 rounded-full border-2 mt-1 shrink-0 ${
+                                                                        isActive               ? 'bg-emerald-500 border-emerald-400 shadow shadow-emerald-200' :
+                                                                        b.status === 'pending'   ? 'bg-amber-400 border-amber-300' :
+                                                                        b.status === 'completed' ? 'bg-slate-400 border-slate-300' :
+                                                                        'bg-red-400 border-red-300'
+                                                                    }`} />
+                                                                    {!isLast && <div className="w-0.5 flex-grow bg-slate-200 my-1 min-h-[16px]" />}
+                                                                </div>
+                                                                <div className="pb-4 flex-grow min-w-0">
+                                                                    <div className="flex items-start justify-between gap-2">
+                                                                        <div className="min-w-0">
+                                                                            <p className="text-xs font-bold text-slate-800">Kamar {b.room?.room_number}</p>
+                                                                            <p className="text-[10px] text-slate-500 truncate">{(b.room?.branch?.name || '').replace('Kospart PH 18 - ', '')} · {b.rental_type === 'daily' ? 'Harian' : 'Bulanan'}</p>
+                                                                            <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{new Date(b.start_date).toLocaleDateString('id-ID', {day:'numeric',month:'short'})} – {new Date(b.end_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</p>
+                                                                        </div>
+                                                                        <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                                                                            isActive               ? 'bg-emerald-100 text-emerald-700' :
+                                                                            b.status === 'pending'   ? 'bg-amber-100 text-amber-700' :
+                                                                            b.status === 'completed' ? 'bg-slate-100 text-slate-600' :
+                                                                            'bg-red-100 text-red-700'
+                                                                        }`}>{isActive ? 'Aktif' : b.status === 'pending' ? 'Pending' : b.status === 'completed' ? 'Selesai' : 'Ditolak'}</span>
+                                                                    </div>
+                                                                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                                                        <span className="text-[10px] font-semibold text-slate-600">Rp {parseFloat(b.total_amount).toLocaleString('id-ID')}</span>
+                                                                        <span className={`text-[9px] font-bold uppercase ${b.payment_status === 'paid' ? 'text-emerald-600' : b.payment_status === 'dp' ? 'text-amber-600' : 'text-red-500'}`}>
+                                                                            · {b.payment_status === 'paid' ? 'Lunas' : b.payment_status === 'dp' ? 'DP' : 'Blm Bayar'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            <button onClick={() => setActiveTab('bookings')} className="w-full mt-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition-all">
+                                                Lihat Semua Riwayat →
+                                            </button>
+                                        </div>
+
+                                        {/* Status Komplain */}
+                                        <div className="lg:col-span-3 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="font-extrabold text-base text-slate-800">🔧 Komplain</h3>
+                                                {myComplaints.filter(c => c.status !== 'completed').length > 0 && (
+                                                    <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                                                        {myComplaints.filter(c => c.status !== 'completed').length}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {myComplaints.length === 0 ? (
+                                                <div className="text-center py-6 text-slate-400">
+                                                    <div className="text-3xl mb-2">✅</div>
+                                                    <p className="text-xs font-semibold">Tidak ada aduan aktif</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-3 overflow-y-auto max-h-48">
+                                                    {myComplaints.slice(0, 4).map(c => (
+                                                        <div key={c.id} className="border border-slate-200 rounded-xl p-3 bg-white">
+                                                            <div className="flex items-start justify-between gap-1 mb-1">
+                                                                <p className="text-xs font-bold text-slate-800 leading-tight truncate flex-1">{c.title}</p>
+                                                                <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
+                                                                    c.status === 'pending'    ? 'bg-red-100 text-red-700' :
+                                                                    c.status === 'confirmed'  ? 'bg-amber-100 text-amber-700' :
+                                                                    c.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                                                                    'bg-emerald-100 text-emerald-700'
+                                                                }`}>{c.status === 'pending' ? 'Pending' : c.status === 'confirmed' ? 'Konfirmasi' : c.status === 'processing' ? 'Proses' : 'Selesai'}</span>
+                                                            </div>
+                                                            <p className="text-[10px] text-slate-500 truncate">{c.description}</p>
+                                                            {c.admin_response && (
+                                                                <div className="mt-1.5 bg-emerald-50 border border-emerald-100 rounded-lg p-1.5">
+                                                                    <p className="text-[9px] text-emerald-700 font-bold">Respon Pengelola:</p>
+                                                                    <p className="text-[9px] text-emerald-800 mt-0.5 leading-relaxed">{c.admin_response}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <button onClick={() => setActiveTab('complaints')} className="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-sm">
+                                                + Ajukan Komplain
+                                            </button>
+                                        </div>
+
+                                    </div>
+                                );
+                            })()}
                         </div>
                     )}
 
