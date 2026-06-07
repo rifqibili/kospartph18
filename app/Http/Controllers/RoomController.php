@@ -43,7 +43,8 @@ class RoomController extends Controller
             'description' => 'nullable|string',
             'image' => 'nullable|string',
             'photos' => 'nullable|array',
-            'video' => 'nullable|string',
+            'photos.*' => 'image|max:5120',
+            'video' => 'nullable|mimes:mp4,mov,ogg,qt|max:20480',
         ]);
 
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
@@ -52,7 +53,21 @@ class RoomController extends Controller
             }
         }
 
-        $room = Room::create($request->all());
+        $data = $request->except(['photos', 'video']);
+        
+        if ($request->hasFile('photos')) {
+            $photosPaths = [];
+            foreach ($request->file('photos') as $photo) {
+                $photosPaths[] = '/storage/' . $photo->store('room_photos', 'public');
+            }
+            $data['photos'] = $photosPaths;
+        }
+
+        if ($request->hasFile('video')) {
+            $data['video'] = '/storage/' . $request->file('video')->store('room_videos', 'public');
+        }
+
+        $room = Room::create($data);
 
         return response()->json(['message' => 'Kamar berhasil ditambahkan.', 'room' => $room]);
     }
@@ -74,7 +89,8 @@ class RoomController extends Controller
             'description' => 'nullable|string',
             'image' => 'nullable|string',
             'photos' => 'nullable|array',
-            'video' => 'nullable|string',
+            'photos.*' => 'image|max:5120',
+            'video' => 'nullable|mimes:mp4,mov,ogg,qt|max:20480',
         ]);
 
         $room = Room::findOrFail($id);
@@ -85,7 +101,21 @@ class RoomController extends Controller
             }
         }
 
-        $room->update($request->all());
+        $data = $request->except(['photos', 'video']);
+        
+        if ($request->hasFile('photos')) {
+            $photosPaths = [];
+            foreach ($request->file('photos') as $photo) {
+                $photosPaths[] = '/storage/' . $photo->store('room_photos', 'public');
+            }
+            $data['photos'] = $photosPaths;
+        }
+
+        if ($request->hasFile('video')) {
+            $data['video'] = '/storage/' . $request->file('video')->store('room_videos', 'public');
+        }
+
+        $room->update($data);
 
         return response()->json(['message' => 'Kamar berhasil diperbarui.', 'room' => $room]);
     }

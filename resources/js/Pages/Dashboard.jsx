@@ -7,14 +7,21 @@ function getCsrfToken() {
     return match ? decodeURIComponent(match[1]) : '';
 }
 async function authFetch(url, options = {}) {
+    const isFormData = options.body instanceof FormData;
+    const headers = {
+        'Accept': 'application/json',
+        'X-XSRF-TOKEN': getCsrfToken(),
+        ...(options.headers || {}),
+    };
+    
+    // Let the browser set Content-Type with the boundary if it's FormData
+    if (!isFormData && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
+
     return fetch(url, {
         ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-XSRF-TOKEN': getCsrfToken(),
-            ...(options.headers || {}),
-        },
+        headers,
     });
 }
 // ────────────────────────────────────────────────────────────────────────────
@@ -50,7 +57,7 @@ export default function Dashboard() {
     
     // Form Inputs
     const [newBranch, setNewBranch] = useState({ name: '', address: '', maps_link: '', status: 'active' });
-    const [newRoom, setNewRoom] = useState({ branch_id: '', room_number: '', price_monthly: '', price_daily: '', status: 'available', facilities: '', description: '', photos: '', video: '' });
+    const [newRoom, setNewRoom] = useState({ branch_id: '', room_number: '', price_monthly: '', price_daily: '', status: 'available', facilities: '', description: '', photos: null, video: null });
     const [newFinance, setNewFinance] = useState({ transaction_type: 'expense', amount: '', category: 'maintenance', transaction_date: new Date().toISOString().split('T')[0], description: '' });
     const [newComplaint, setNewComplaint] = useState({ room_id: '', title: '', description: '' });
     const [complaintResponse, setComplaintResponse] = useState({ id: null, status: 'processing', admin_response: '' });
@@ -289,14 +296,31 @@ export default function Dashboard() {
 
     const handleAddRoom = async (e) => {
         e.preventDefault();
-        const payload = { 
-            ...newRoom, 
-            facilities: newRoom.facilities.split(',').map(f => f.trim()).filter(Boolean),
-            photos: newRoom.photos ? newRoom.photos.split(',').map(p => p.trim()).filter(Boolean) : []
-        };
-        const res = await authFetch('/api/rooms', { method: 'POST', body: JSON.stringify(payload) });
+        
+        const payload = new FormData();
+        payload.append('branch_id', newRoom.branch_id);
+        payload.append('room_number', newRoom.room_number);
+        payload.append('price_monthly', newRoom.price_monthly);
+        payload.append('price_daily', newRoom.price_daily);
+        payload.append('status', newRoom.status);
+        payload.append('description', newRoom.description || '');
+        
+        const facilitiesArray = newRoom.facilities.split(',').map(f => f.trim()).filter(Boolean);
+        facilitiesArray.forEach((f, idx) => payload.append(`facilities[${idx}]`, f));
+
+        if (newRoom.photos) {
+            Array.from(newRoom.photos).forEach((file, idx) => {
+                payload.append(`photos[${idx}]`, file);
+            });
+        }
+        
+        if (newRoom.video) {
+            payload.append('video', newRoom.video);
+        }
+
+        const res = await authFetch('/api/rooms', { method: 'POST', body: payload });
         if (res.ok) {
-            setNewRoom({ branch_id: '', room_number: '', price_monthly: '', price_daily: '', status: 'available', facilities: '', description: '', photos: '', video: '' });
+            setNewRoom({ branch_id: '', room_number: '', price_monthly: '', price_daily: '', status: 'available', facilities: '', description: '', photos: null, video: null });
             loadAllData();
             showToast('Kamar berhasil ditambahkan!');
         } else { const d = await res.json(); showToast(d.message || 'Gagal menambah kamar.', 'error'); }
@@ -1207,23 +1231,22 @@ export default function Dashboard() {
                                         />
                                     </div>
                                     <div className="space-y-1 md:col-span-2">
-                                        <label className="text-xs font-semibold text-slate-500">Foto Kamar (Link URL, pisahkan dengan koma)</label>
+                                        <label className="text-xs font-semibold text-slate-500">Upload Foto Kamar (Bisa lebih dari 1)</label>
                                         <input 
-                                            type="text" 
-                                            value={newRoom.photos}
-                                            onChange={(e) => setNewRoom({...newRoom, photos: e.target.value})}
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                            placeholder="https://img.com/a.jpg, https://img.com/b.jpg"
+                                            type="file" 
+                                            multiple
+                                            accept="image/*"
+                                            onChange={(e) => setNewRoom({...newRoom, photos: e.target.files})}
+                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                                         />
                                     </div>
                                     <div className="space-y-1 md:col-span-2">
-                                        <label className="text-xs font-semibold text-slate-500">Video Kamar (Link URL YouTube/dll)</label>
+                                        <label className="text-xs font-semibold text-slate-500">Upload Video Kamar (Maks 20MB)</label>
                                         <input 
-                                            type="text" 
-                                            value={newRoom.video}
-                                            onChange={(e) => setNewRoom({...newRoom, video: e.target.value})}
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                            placeholder="https://youtube.com/watch?v=..."
+                                            type="file" 
+                                            accept="video/mp4,video/x-m4v,video/*"
+                                            onChange={(e) => setNewRoom({...newRoom, video: e.target.files[0]})}
+                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                                         />
                                     </div>
                                     <button type="submit" className="py-2.5 bg-emerald-600 hover:bg-emerald-505 text-white font-bold rounded-xl text-sm transition-all">
