@@ -525,7 +525,7 @@ export default function Dashboard() {
                         }`}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                        {currentRole === 'resident' ? 'Sewa Saya' : 'Penyewaan / Sewa'}
+                        {currentRole === 'resident' ? 'Riwayat Pembayaran' : 'Penyewaan / Sewa'}
                     </button>
 
                     <button 
@@ -593,7 +593,7 @@ export default function Dashboard() {
                             {activeTab === 'overview' ? 'Ringkasan Dashboard' : 
                              activeTab === 'branches' ? 'Master Cabang Kos' :
                              activeTab === 'rooms' ? 'Master Kamar Kos' :
-                             activeTab === 'bookings' ? 'Log Transaksi Penyewaan' :
+                             activeTab === 'bookings' ? (currentRole === 'resident' ? 'Riwayat Pembayaran' : 'Log Transaksi Penyewaan') :
                              activeTab === 'complaints' ? 'Pengaduan Komplain & Perbaikan' : 'Laporan Keuangan'}
                         </h2>
                     </div>
@@ -937,24 +937,29 @@ export default function Dashboard() {
                                                         )}
                                                     </div>
 
-                                                    {activeBooking.payment_status !== 'paid' && (
-                                                        parseFloat(activeBooking.unverified_amount) > 0 ? (
-                                                            <button
-                                                                disabled
-                                                                className="w-full py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-sm border border-slate-200 flex items-center justify-center gap-2 cursor-not-allowed"
-                                                            >
-                                                                ⏳ Menunggu Verifikasi
-                                                            </button>
-                                                        ) : (
-                                                            <button
-                                                                onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
-                                                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2"
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                                                Bayar Sekarang
-                                                            </button>
-                                                        )
-                                                    )}
+                                                    <div className="flex gap-2">
+                                                        {activeBooking.payment_status !== 'paid' && (
+                                                            parseFloat(activeBooking.unverified_amount) > 0 ? (
+                                                                <button
+                                                                    disabled
+                                                                    className="w-full py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-sm border border-slate-200 flex items-center justify-center gap-2 cursor-not-allowed"
+                                                                >
+                                                                    ⏳ Menunggu Verifikasi
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
+                                                                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                                    Bayar
+                                                                </button>
+                                                            )
+                                                        )}
+                                                        <button onClick={() => setShowInvoiceModal(activeBooking)} className="w-full py-2.5 bg-white text-slate-700 font-bold rounded-xl text-sm border border-slate-200 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center">
+                                                            Cetak Invoice
+                                                        </button>
+                                                    </div>
                                                 </>
                                             ) : (
                                                 <div className="text-center py-8 text-slate-400">
@@ -1253,107 +1258,119 @@ export default function Dashboard() {
                     {activeTab === 'bookings' && (
                         <div className="space-y-8">
                             <div className="glass-panel rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
-                                            <th className="p-4 pl-6">Kode Booking</th>
-                                            <th className="p-4">Tenant / Kamar</th>
-                                            <th className="p-4">Jenis Sewa</th>
-                                            <th className="p-4">Periode</th>
-                                            <th className="p-4">Tagihan</th>
-                                            <th className="p-4">Status / Bayar</th>
-                                            <th className="p-4 pr-6 text-right">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 text-sm">
-                                        {visibleBookings.map(b => (
-                                            <tr key={b.id} className="hover:bg-slate-50">
-                                                <td className="p-4 pl-6 font-mono font-bold text-slate-800">{b.booking_code}</td>
-                                                <td className="p-4">
-                                                    <div className="font-semibold text-slate-800">{b.tenant.name}</div>
-                                                    <div className="text-xs text-slate-500">{b.room.branch.name.replace('Kospart PH 18 - ', '')} (Kamar {b.room.room_number})</div>
-                                                </td>
-                                                <td className="p-4 uppercase text-xs font-bold tracking-wider text-emerald-600">{b.rental_type === 'daily' ? 'Harian' : 'Bulanan'}</td>
-                                                <td className="p-4 font-mono text-slate-600 text-xs">
-                                                    {new Date(b.start_date).toLocaleDateString('id-ID')} s.d <br />
-                                                    {new Date(b.end_date).toLocaleDateString('id-ID')}
-                                                </td>
-                                                <td className="p-4 font-mono font-semibold text-slate-800">Rp {parseFloat(b.total_amount).toLocaleString('id-ID')}</td>
-                                                <td className="p-4">
-                                                    <div className="flex flex-col gap-1 items-start">
-                                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
-                                                            b.status === 'active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                                                            b.status === 'pending' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                                                            'bg-slate-100 text-slate-600 border border-slate-200'
-                                                        }`}>
-                                                            {b.status === 'active' ? 'Aktif' : b.status === 'pending' ? 'Pending' : 'Checkout'}
-                                                        </span>
-                                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
-                                                            b.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                                                            b.payment_status === 'unpaid' ? 'bg-red-100 text-red-800 border border-red-200' :
-                                                            'bg-amber-100 text-amber-800 border border-amber-200'
-                                                        }`}>
-                                                            {b.payment_status === 'paid' ? 'Lunas' : b.payment_status === 'unpaid' ? 'Belum Lunas' : 'DP / Sebagian'}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 pr-6 text-right space-y-1.5">
-                                                    {['super_admin', 'operator'].includes(currentRole) && (
-                                                        <div className="flex flex-wrap gap-2 justify-end">
-                                                            {parseFloat(b.unverified_amount) > 0 && (
-                                                                <button onClick={() => setShowVerifyPaymentModal(b)} className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-md transition-colors animate-pulse shadow-sm shadow-indigo-500/50">
-                                                                    Verifikasi Bayar
-                                                                </button>
-                                                            )}
-                                                            {b.status === 'pending' && (
-                                                                <button onClick={() => handleApproveBooking(b.id)} className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-md transition-colors">
-                                                                    Approve
-                                                                </button>
-                                                            )}
-                                                            {b.status === 'active' && (
-                                                                <>
-                                                                    <button onClick={() => setShowChangeRoomModal(b)} className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-md transition-colors" title="Pindah/Perubahan Kamar">
-                                                                        Pindah Kamar
-                                                                    </button>
-                                                                    <button onClick={() => setShowRescheduleModal(b)} className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-md transition-colors" title="Reschedule tagihan / masa sewa">
-                                                                        Reschedule
-                                                                    </button>
-                                                                    <button onClick={() => handleCheckoutBooking(b.id)} className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-md transition-colors">
-                                                                        Checkout
-                                                                    </button>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Tombol Bayar Sekarang untuk Tenant */}
-                                                    {currentRole === 'resident' && b.payment_status !== 'paid' && (
-                                                        parseFloat(b.unverified_amount) > 0 ? (
-                                                            <button
-                                                                disabled
-                                                                className="px-3 py-1.5 bg-slate-100 text-slate-500 font-bold text-xs rounded-md border border-slate-200 w-full flex items-center justify-center gap-1.5 shadow-sm mb-1.5 cursor-not-allowed"
-                                                            >
-                                                                ⏳ Menunggu Verifikasi
-                                                            </button>
-                                                        ) : (
-                                                            <button
-                                                                onClick={() => { setShowPaymentModal(b); setPaymentData({ paid_amount: String(Math.max(0, b.total_amount - b.paid_amount)), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
-                                                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-md transition-colors w-full flex items-center justify-center gap-1.5 shadow-sm mb-1.5"
-                                                            >
-                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                                                Bayar Sekarang
-                                                            </button>
-                                                        )
-                                                    )}
-                                                    
-                                                    <button onClick={() => setShowInvoiceModal(b)} className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200 w-full sm:w-auto shadow-sm">
-                                                        Cetak Invoice
-                                                    </button>
-                                                </td>
+                                {currentRole === 'resident' ? (
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
+                                                <th className="p-4 pl-6">Tanggal</th>
+                                                <th className="p-4">Deskripsi</th>
+                                                <th className="p-4 pr-6 text-right">Nominal</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 text-sm">
+                                            {finances.filter(f => f.booking?.tenant_id === getSimulatedResidentId()).sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date)).map(f => (
+                                                <tr key={f.id} className="hover:bg-slate-50">
+                                                    <td className="p-4 pl-6 font-mono text-slate-600 text-xs">
+                                                        {new Date(f.transaction_date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}
+                                                    </td>
+                                                    <td className="p-4 font-semibold text-slate-800">{f.description}</td>
+                                                    <td className="p-4 pr-6 text-right font-mono font-bold text-emerald-600">
+                                                        Rp {parseFloat(f.amount).toLocaleString('id-ID')}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {finances.filter(f => f.booking?.tenant_id === getSimulatedResidentId()).length === 0 && (
+                                                <tr>
+                                                    <td colSpan="3" className="p-8 text-center text-slate-400">
+                                                        Belum ada riwayat pembayaran.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
+                                                <th className="p-4 pl-6">Kode Booking</th>
+                                                <th className="p-4">Tenant / Kamar</th>
+                                                <th className="p-4">Jenis Sewa</th>
+                                                <th className="p-4">Periode</th>
+                                                <th className="p-4">Tagihan</th>
+                                                <th className="p-4">Status / Bayar</th>
+                                                <th className="p-4 pr-6 text-right">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 text-sm">
+                                            {visibleBookings.map(b => (
+                                                <tr key={b.id} className="hover:bg-slate-50">
+                                                    <td className="p-4 pl-6 font-mono font-bold text-slate-800">{b.booking_code}</td>
+                                                    <td className="p-4">
+                                                        <div className="font-semibold text-slate-800">{b.tenant.name}</div>
+                                                        <div className="text-xs text-slate-500">{b.room.branch.name.replace('Kospart PH 18 - ', '')} (Kamar {b.room.room_number})</div>
+                                                    </td>
+                                                    <td className="p-4 uppercase text-xs font-bold tracking-wider text-emerald-600">{b.rental_type === 'daily' ? 'Harian' : 'Bulanan'}</td>
+                                                    <td className="p-4 font-mono text-slate-600 text-xs">
+                                                        {new Date(b.start_date).toLocaleDateString('id-ID')} s.d <br />
+                                                        {new Date(b.end_date).toLocaleDateString('id-ID')}
+                                                    </td>
+                                                    <td className="p-4 font-mono font-semibold text-slate-800">Rp {parseFloat(b.total_amount).toLocaleString('id-ID')}</td>
+                                                    <td className="p-4">
+                                                        <div className="flex flex-col gap-1 items-start">
+                                                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
+                                                                b.status === 'active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                                                b.status === 'pending' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                                                                'bg-slate-100 text-slate-600 border border-slate-200'
+                                                            }`}>
+                                                                {b.status === 'active' ? 'Aktif' : b.status === 'pending' ? 'Pending' : 'Checkout'}
+                                                            </span>
+                                                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
+                                                                b.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                                                b.payment_status === 'unpaid' ? 'bg-red-100 text-red-800 border border-red-200' :
+                                                                'bg-amber-100 text-amber-800 border border-amber-200'
+                                                            }`}>
+                                                                {b.payment_status === 'paid' ? 'Lunas' : b.payment_status === 'unpaid' ? 'Belum Lunas' : 'DP / Sebagian'}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 pr-6 text-right space-y-1.5">
+                                                        {['super_admin', 'operator'].includes(currentRole) && (
+                                                            <div className="flex flex-wrap gap-2 justify-end">
+                                                                {parseFloat(b.unverified_amount) > 0 && (
+                                                                    <button onClick={() => setShowVerifyPaymentModal(b)} className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-md transition-colors animate-pulse shadow-sm shadow-indigo-500/50">
+                                                                        Verifikasi Bayar
+                                                                    </button>
+                                                                )}
+                                                                {b.status === 'pending' && (
+                                                                    <button onClick={() => handleApproveBooking(b.id)} className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-md transition-colors">
+                                                                        Approve
+                                                                    </button>
+                                                                )}
+                                                                {b.status === 'active' && (
+                                                                    <>
+                                                                        <button onClick={() => setShowChangeRoomModal(b)} className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-md transition-colors" title="Pindah/Perubahan Kamar">
+                                                                            Pindah Kamar
+                                                                        </button>
+                                                                        <button onClick={() => setShowRescheduleModal(b)} className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-md transition-colors" title="Reschedule tagihan / masa sewa">
+                                                                            Reschedule
+                                                                        </button>
+                                                                        <button onClick={() => handleCheckoutBooking(b.id)} className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-md transition-colors">
+                                                                            Checkout
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        
+                                                        <button onClick={() => setShowInvoiceModal(b)} className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200 w-full sm:w-auto shadow-sm">
+                                                            Cetak Invoice
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
                             </div>
                         </div>
                     )}
