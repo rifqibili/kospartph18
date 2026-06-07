@@ -974,7 +974,7 @@ export default function Dashboard() {
                                         <div className="lg:col-span-4 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm">
                                             <h3 className="font-extrabold text-base text-slate-800 mb-4">💳 Riwayat Pembayaran</h3>
                                             {(() => {
-                                                const myFinances = finances.filter(f => f.booking?.tenant_id === resId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                                                const myFinances = finances.filter(f => f.booking_id === activeBooking?.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                                                 return myFinances.length === 0 ? (
                                                     <div className="text-center py-8 text-slate-400">
                                                         <div className="text-3xl mb-2">📭</div>
@@ -1258,37 +1258,44 @@ export default function Dashboard() {
                     {activeTab === 'bookings' && (
                         <div className="space-y-8">
                             <div className="glass-panel rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                                {currentRole === 'resident' ? (
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
-                                                <th className="p-4 pl-6">Tanggal</th>
-                                                <th className="p-4">Deskripsi</th>
-                                                <th className="p-4 pr-6 text-right">Nominal</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 text-sm">
-                                            {finances.filter(f => f.booking?.tenant_id === getSimulatedResidentId()).sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date)).map(f => (
-                                                <tr key={f.id} className="hover:bg-slate-50">
-                                                    <td className="p-4 pl-6 font-mono text-slate-600 text-xs">
-                                                        {new Date(f.transaction_date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}
-                                                    </td>
-                                                    <td className="p-4 font-semibold text-slate-800">{f.description}</td>
-                                                    <td className="p-4 pr-6 text-right font-mono font-bold text-emerald-600">
-                                                        Rp {parseFloat(f.amount).toLocaleString('id-ID')}
-                                                    </td>
+                                {currentRole === 'resident' ? (() => {
+                                    const resId = getSimulatedResidentId();
+                                    const myBookings = bookings.filter(b => b.tenant_id === resId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                                    const activeBooking = myBookings.find(b => b.status === 'active') || myBookings.find(b => b.status === 'pending');
+                                    const myFinances = finances.filter(f => f.booking_id === activeBooking?.id).sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date));
+                                    
+                                    return (
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
+                                                    <th className="p-4 pl-6">Tanggal</th>
+                                                    <th className="p-4">Deskripsi</th>
+                                                    <th className="p-4 pr-6 text-right">Nominal</th>
                                                 </tr>
-                                            ))}
-                                            {finances.filter(f => f.booking?.tenant_id === getSimulatedResidentId()).length === 0 && (
-                                                <tr>
-                                                    <td colSpan="3" className="p-8 text-center text-slate-400">
-                                                        Belum ada riwayat pembayaran.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                ) : (
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-sm">
+                                                {myFinances.map(f => (
+                                                    <tr key={f.id} className="hover:bg-slate-50">
+                                                        <td className="p-4 pl-6 font-mono text-slate-600 text-xs">
+                                                            {new Date(f.transaction_date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}
+                                                        </td>
+                                                        <td className="p-4 font-semibold text-slate-800">{f.description}</td>
+                                                        <td className="p-4 pr-6 text-right font-mono font-bold text-emerald-600">
+                                                            Rp {parseFloat(f.amount).toLocaleString('id-ID')}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {myFinances.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="3" className="p-8 text-center text-slate-400">
+                                                            Belum ada riwayat pembayaran untuk hunian ini.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    );
+                                })() : (
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
