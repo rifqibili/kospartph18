@@ -8,6 +8,7 @@ use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\RoomController;
+use App\Http\Controllers\FaqController;
 use Illuminate\Support\Facades\Route;
 
 // Guest Landing Page
@@ -15,13 +16,13 @@ Route::get('/', [LandingController::class, 'index'])->name('home');
 Route::get('/kamar', [LandingController::class, 'rooms'])->name('rooms.index');
 Route::get('/cabang', [LandingController::class, 'branches'])->name('branches.index');
 
-// Guest Booking API Operations
-Route::post('/api/guest/bookings', [BookingController::class, 'store']);
-Route::post('/api/guest/bookings/verify-otp', [BookingController::class, 'verifyOtp']);
-Route::post('/api/guest/bookings/{id}/payment-proof', [BookingController::class, 'uploadPaymentProof']);
-
 // Authenticated Routes
 Route::middleware(['auth'])->group(function () {
+    // Intended route for redirecting back to rooms after login/register
+    Route::get('/kamar/pesan', function () {
+        return redirect()->route('rooms.index');
+    })->name('rooms.book.intent');
+
     // Render Dashboard View
     Route::get('/dashboard', [DashboardController::class, 'view'])->name('dashboard');
     
@@ -33,15 +34,29 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // Content Management
+    Route::get('/api/faqs', [FaqController::class, 'index']);
+    Route::post('/api/faqs', [FaqController::class, 'store']);
+    Route::put('/api/faqs/{id}', [FaqController::class, 'update']);
+    Route::delete('/api/faqs/{id}', [FaqController::class, 'destroy']);
+
+    // Resident Booking Operations (Authenticated)
+    Route::post('/api/bookings/store', [BookingController::class, 'store']);
+    Route::post('/api/bookings/verify-otp', [BookingController::class, 'verifyOtp']);
+    Route::post('/api/bookings/{id}/payment-proof', [BookingController::class, 'uploadPaymentProof']);
+    Route::post('/api/bookings/{id}/extend', [BookingController::class, 'extendBooking']);
+
     // Admin & Resident Booking Operations
     Route::get('/api/bookings', [BookingController::class, 'index']);
     Route::post('/api/bookings/{id}/approve', [BookingController::class, 'approveBooking']);
     Route::post('/api/bookings/{id}/change-room', [BookingController::class, 'changeRoom']);
     Route::post('/api/bookings/{id}/reschedule-bill', [BookingController::class, 'rescheduleBill']);
     Route::post('/api/bookings/{id}/checkout', [BookingController::class, 'checkout']);
+    Route::get('/api/bookings/{id}/contract', [BookingController::class, 'downloadContract']);
     Route::post('/api/bookings/{id}/pay', [BookingController::class, 'uploadPaymentProofAuth']);
     Route::post('/api/bookings/{id}/verify-payment', [BookingController::class, 'verifyPayment']);
     Route::post('/api/bookings/{id}/reject-payment', [BookingController::class, 'rejectPayment']);
+    Route::post('/api/bookings/{id}/remind', [BookingController::class, 'sendReminder']);
 
     // Complaints Management
     Route::get('/api/complaints', [ComplaintController::class, 'index']);
@@ -53,9 +68,23 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/finances', [FinanceController::class, 'store']);
     Route::get('/api/finances/chart', [FinanceController::class, 'chartData']);
 
+    // Canteen Management
+    Route::get('/api/canteen-items', [App\Http\Controllers\CanteenItemController::class, 'index']);
+    Route::post('/api/canteen-items', [App\Http\Controllers\CanteenItemController::class, 'store']);
+    Route::put('/api/canteen-items/{id}', [App\Http\Controllers\CanteenItemController::class, 'update']);
+    Route::delete('/api/canteen-items/{id}', [App\Http\Controllers\CanteenItemController::class, 'destroy']);
+    
+    Route::get('/api/canteen-orders', [App\Http\Controllers\CanteenOrderController::class, 'index']);
+    Route::post('/api/canteen-orders', [App\Http\Controllers\CanteenOrderController::class, 'store']);
+    Route::put('/api/canteen-orders/{id}/status', [App\Http\Controllers\CanteenOrderController::class, 'updateStatus']);
+    Route::put('/api/canteen-orders/{id}/payment', [App\Http\Controllers\CanteenOrderController::class, 'updatePayment']);
+    Route::post('/api/canteen-orders/{id}/pay-debt', [App\Http\Controllers\CanteenOrderController::class, 'payDebt']);
+    Route::post('/api/canteen-orders/pay-bulk-debt', [App\Http\Controllers\CanteenOrderController::class, 'payBulkDebt']);
+
     // Branches & Rooms Management (Master Data)
     Route::apiResource('/api/branches', BranchController::class);
     Route::apiResource('/api/rooms', RoomController::class);
+    Route::post('/api/rooms/{id}/finish-cleaning', [RoomController::class, 'finishCleaning']);
 });
 
 require __DIR__.'/auth.php';

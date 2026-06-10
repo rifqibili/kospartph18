@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'phone', 'avatar', 'assigned_branches'])]
+#[Fillable(['name', 'email', 'password', 'role', 'phone', 'nik', 'ktp_photo', 'avatar', 'assigned_branches'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -29,5 +29,10 @@ class User extends Authenticatable
             'password' => 'hashed',
             'assigned_branches' => 'array',
         ];
+    }
+
+    public function bookings()
+    {
+        return $this->hasMany(Booking::class, 'tenant_id');
     }
 }

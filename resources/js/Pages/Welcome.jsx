@@ -58,14 +58,15 @@ const ScaleIn = ({ children, delay = 0, className = '' }) => {
     );
 };
 
-export default function Welcome({ branches, rooms, auth }) {
+export default function Welcome({ branches, rooms, faqs, auth }) {
     const [selectedBranch, setSelectedBranch] = useState('all');
     const [rentalType, setRentalType] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRoom, setSelectedRoom] = useState(null);
     const [bookingForm, setBookingForm] = useState({
-        name: '', email: '', phone: '', start_date: '', end_date: '', rental_type: 'monthly'
+        name: '', email: '', phone: '', start_date: '', end_date: '', rental_type: 'monthly', nik: '', ktp_photo: null, agree_tnc: false
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [bookingStep, setBookingStep] = useState('browse');
     const [bookingResponse, setBookingResponse] = useState(null);
     const [otpCodeInput, setOtpCodeInput] = useState('');
@@ -74,6 +75,13 @@ export default function Welcome({ branches, rooms, auth }) {
     const [successMessage, setSuccessMessage] = useState('');
     const [showRoomDetail, setShowRoomDetail] = useState(null);
     const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
+    const [activeTourIndex, setActiveTourIndex] = useState(0);
+
+    const virtualTourVideos = [
+        { title: "Tur Resepsionis & Ruang Tunggu", src: "/images/ruang tunggu, kursi pijat, resepsionis.mp4" },
+        { title: "Tur Suasana Kamar Eksklusif", src: "/images/suasana kamar 2.500.000.mp4" },
+        { title: "Tur Kamar Mandi Eksklusif", src: "/images/kamar mandi.mp4" }
+    ];
 
     const getRoomMedia = (room) => {
         if (!room) return [];
@@ -102,33 +110,64 @@ export default function Welcome({ branches, rooms, auth }) {
     });
 
     const handleOpenBooking = (room) => {
+        if (!auth?.user) {
+            alert('Anda harus memiliki akun atau login terlebih dahulu untuk melakukan booking.');
+            window.location.href = '/login';
+            return;
+        }
+
         setSelectedRoom(room);
+        const defaultRentalType = room.price_daily > 0 && room.price_monthly > 0 ? 'monthly' : (room.price_monthly > 0 ? 'monthly' : 'daily');
+        const endDate = new Date();
+        if (defaultRentalType === 'daily') {
+            endDate.setDate(endDate.getDate() + 1);
+        } else {
+            endDate.setMonth(endDate.getMonth() + 1);
+        }
+
         setBookingForm({
             ...bookingForm,
+            name: auth.user.name || '',
+            email: auth.user.email || '',
+            phone: auth.user.phone || '',
+            nik: auth.user.nik || '',
+            ktp_photo: null,
+            agree_tnc: false,
             room_id: room.id,
-            rental_type: room.price_daily > 0 && room.price_monthly > 0 ? 'monthly' : (room.price_monthly > 0 ? 'monthly' : 'daily'),
+            rental_type: defaultRentalType,
             start_date: new Date().toISOString().split('T')[0],
-            end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            end_date: endDate.toISOString().split('T')[0]
         });
         setBookingStep('booking');
     };
 
     const handleBookingSubmit = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
         try {
-            const res = await fetch('/api/guest/bookings', {
+            const formData = new FormData();
+            formData.append('room_id', selectedRoom.id);
+            formData.append('rental_type', bookingForm.rental_type);
+            formData.append('start_date', bookingForm.start_date);
+            formData.append('end_date', bookingForm.end_date);
+            formData.append('name', bookingForm.name);
+            formData.append('email', bookingForm.email);
+            formData.append('phone', bookingForm.phone);
+            formData.append('nik', bookingForm.nik);
+            if (bookingForm.ktp_photo) {
+                formData.append('ktp_photo', bookingForm.ktp_photo);
+            }
+
+            const res = await fetch('/api/bookings/store', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({
-                    room_id: selectedRoom.id, rental_type: bookingForm.rental_type,
-                    start_date: bookingForm.start_date, end_date: bookingForm.end_date,
-                    name: bookingForm.name, email: bookingForm.email, phone: bookingForm.phone,
-                })
+                headers: { 'Accept': 'application/json' },
+                body: formData
             });
             const data = await res.json();
             if (res.ok) { setBookingResponse(data); setBookingStep('otp'); }
             else { alert(data.message || 'Terjadi kesalahan'); }
         } catch (err) { console.error(err); alert('Gagal mengajukan pemesanan.'); }
+        finally { setIsSubmitting(false); }
     };
 
     const handleVerifyOtp = async (e) => {
@@ -161,7 +200,7 @@ export default function Welcome({ branches, rooms, auth }) {
 
     const resetBookingModal = () => {
         setSelectedRoom(null); setBookingStep('browse');
-        setBookingForm({ name: '', email: '', phone: '', start_date: '', end_date: '', rental_type: 'monthly' });
+        setBookingForm({ name: '', email: '', phone: '', start_date: '', end_date: '', rental_type: 'monthly', nik: '', ktp_photo: null, agree_tnc: false });
         setOtpCodeInput(''); setOtpError(''); setBookingResponse(null);
     };
 
@@ -182,39 +221,44 @@ export default function Welcome({ branches, rooms, auth }) {
     ];
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col font-sans selection:bg-emerald-600 selection:text-white">
+        <div className="min-h-screen bg-mesh-dark text-slate-300 flex flex-col font-sans selection:bg-emerald-600 selection:text-white relative overflow-hidden">
+            {/* ─── Glowing Orbs (21st Glass Background) ─── */}
+            <div className="fixed top-0 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-[120px] pointer-events-none animate-blob"></div>
+            <div className="fixed bottom-0 right-1/4 w-80 h-80 bg-teal-500/20 rounded-full blur-[100px] pointer-events-none animate-blob animation-delay-2000"></div>
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-700/10 rounded-full blur-[150px] pointer-events-none animate-blob animation-delay-4000"></div>
+
             <Head title="Beranda – Kospart PH 18 | Hunian Eksklusif Lampung" />
 
             {/* ─── HEADER ─── */}
-            <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+            <header className="sticky top-0 z-40 glass-3d border-b-0 shadow-lg">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-emerald-gradient rounded-xl flex items-center justify-center shadow-lg border border-emerald-500/30 overflow-hidden">
                             <img src="/images/logo 2.jpeg" alt="Logo Kospart" className="w-full h-full object-cover" />
                         </div>
                         <div>
-                            <span className="font-extrabold text-2xl tracking-tight text-slate-900 block">KOSPART</span>
-                            <span className="text-emerald-600 text-xs font-semibold tracking-widest uppercase block -mt-1">PH 18 LAMPUNG</span>
+                            <span className="font-extrabold text-2xl tracking-tight text-white block text-glow">KOSPART</span>
+                            <span className="text-emerald-400 text-xs font-semibold tracking-widest uppercase block -mt-1">PH 18 LAMPUNG</span>
                         </div>
                     </div>
 
-                    <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-                        <Link href="/" className="text-emerald-600 font-semibold">Beranda</Link>
-                        <Link href="/kamar" className="hover:text-emerald-600 transition-colors">Cari Kamar</Link>
-                        <Link href="/cabang" className="hover:text-emerald-600 transition-colors">Cabang Kos</Link>
-                        <a href="#contact" className="hover:text-emerald-600 transition-colors">Kontak</a>
+                    <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+                        <Link href="/" className="text-emerald-400 font-semibold text-glow">Beranda</Link>
+                        <Link href="/kamar" className="hover:text-emerald-400 transition-colors">Cari Kamar</Link>
+                        <Link href="/cabang" className="hover:text-emerald-400 transition-colors">Cabang Kos</Link>
+                        <a href="#contact" className="hover:text-emerald-400 transition-colors">Kontak</a>
                     </nav>
 
                     <div className="flex items-center gap-4">
                         {auth.user ? (
-                            <Link href="/dashboard" className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-sm transition-all shadow-md">
+                            <Link href="/dashboard" className="px-5 py-2.5 bg-emerald-600/90 hover:bg-emerald-500 text-white font-semibold rounded-xl text-sm transition-all shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-400/30">
                                 Masuk Dashboard
                             </Link>
                         ) : (
                             <>
-                                <Link href="/login" className="text-slate-600 hover:text-slate-900 text-sm font-semibold transition-colors">Login Admin</Link>
-                                <Link href="/register" className="hidden sm:inline-block px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm transition-all border border-slate-200 shadow-sm">
-                                    Daftar Akun
+                                <Link href="/login" className="text-slate-300 hover:text-white text-sm font-semibold transition-colors">Login</Link>
+                                <Link href="/register" className="hidden sm:inline-block px-5 py-2.5 glass-3d hover:bg-slate-800/60 text-white font-semibold rounded-xl text-sm transition-all">
+                                    Daftar
                                 </Link>
                             </>
                         )}
@@ -223,87 +267,84 @@ export default function Welcome({ branches, rooms, auth }) {
             </header>
 
             {/* ─── HERO ─── */}
-            <section className="relative overflow-hidden py-24 bg-premium-dark border-b border-emerald-50">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-100/60 rounded-full blur-3xl pointer-events-none"></div>
-                <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-emerald-50/50 rounded-full blur-3xl pointer-events-none"></div>
-
+            <section className="relative overflow-hidden py-24 bg-transparent border-b border-slate-800/50 z-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 grid md:grid-cols-12 gap-12 items-center">
                     {/* Left copy — hero always visible, no reveal needed */}
                     <div className="md:col-span-7 space-y-6 text-left">
-                        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold border border-emerald-200 tracking-wide uppercase">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-3d text-emerald-400 text-xs font-semibold border border-emerald-500/30 tracking-wide uppercase shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                             Kost Eksklusif Terbaik di Lampung
                         </span>
-                        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 leading-tight">
+                        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight">
                             Hunian Nyaman,<br />Strategis, &{' '}
-                            <span className="text-emerald-600 text-glow-emerald">Premium</span>
+                            <span className="text-emerald-400 text-glow">Premium</span>
                         </h1>
                         <p className="text-slate-600 text-base sm:text-lg max-w-xl leading-relaxed font-medium">
                             Nikmati fasilitas lengkap sekelas hotel di Kospart PH 18 — AC, TV Android, kamar mandi dalam, lounge, resto, laundry, dan kursi pijat premium dalam satu tempat.
                         </p>
                         <div className="flex flex-wrap gap-4 pt-2">
-                            <Link href="/kamar" className="px-7 py-4 bg-emerald-gradient hover:opacity-90 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 transition-all transform hover:-translate-y-0.5">
+                            <Link href="/kamar" className="px-7 py-4 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] border border-emerald-400/50 transition-all transform hover:-translate-y-0.5">
                                 Pesan Kamar Sekarang
                             </Link>
-                            <a href="#contact" className="px-7 py-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold rounded-xl shadow-sm transition-all">
+                            <a href="#contact" className="px-7 py-4 glass-3d hover:bg-slate-800/60 text-white font-bold rounded-xl transition-all">
                                 Tanya Admin (WA)
                             </a>
                         </div>
                     </div>
 
                     <div className="md:col-span-5 relative animate-float">
-                        <div className="relative rounded-2xl overflow-hidden border border-slate-100 shadow-xl">
-                            <img src="/images/tampak depan.jpeg" alt="Kospart PH 18 Tampak Depan" className="w-full h-80 object-cover object-center" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                        <div className="relative rounded-2xl overflow-hidden glass-3d shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                            <img src="/images/ruang tamu.jpeg" alt="Kospart PH 18 Ruang Tamu" className="w-full h-80 object-cover object-center mix-blend-overlay opacity-90" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
                             <div className="absolute bottom-5 left-5">
-                                <span className="text-white font-extrabold text-xl block drop-shadow">Kospart PH 18</span>
-                                <span className="text-emerald-300 text-xs font-semibold">Bandar Lampung</span>
+                                <span className="text-white font-extrabold text-xl block drop-shadow-lg">Kospart PH 18</span>
+                                <span className="text-emerald-400 text-xs font-semibold">Bandar Lampung</span>
                             </div>
                         </div>
                         {/* Floating badge */}
-                        <div className="absolute -top-4 -right-4 bg-white border border-emerald-100 rounded-2xl px-4 py-2 shadow-lg text-center">
-                            <div className="text-2xl font-extrabold text-emerald-600">{rooms.filter(r => r.status === 'available').length}</div>
-                            <div className="text-xs text-slate-500 font-semibold">Kamar Tersedia</div>
+                        <div className="absolute -top-4 -right-4 glass-3d rounded-2xl px-4 py-2 shadow-[0_0_15px_rgba(16,185,129,0.2)] text-center border border-emerald-500/30">
+                            <div className="text-2xl font-extrabold text-emerald-400 text-glow">{rooms.filter(r => r.status === 'available').length}</div>
+                            <div className="text-xs text-slate-300 font-semibold">Kamar Tersedia</div>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* ─── TENTANG / PROFIL ─── */}
-            <section id="tentang" className="py-20 border-t border-slate-100" style={{ background: 'linear-gradient(160deg,#f0fdf4 0%,#ffffff 60%,#f8fafc 100%)' }}>
+            <section id="tentang" className="py-20 relative z-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
                     {/* Heading */}
                     <FadeUp className="text-center max-w-3xl mx-auto mb-14 space-y-3">
-                        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 tracking-widest uppercase">
+                        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-3d text-emerald-400 text-xs font-bold border border-emerald-500/30 tracking-widest uppercase shadow-[0_0_10px_rgba(16,185,129,0.1)]">
                             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>
                             Tentang Kospart PH 18
                         </span>
-                        <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight">
-                            Selamat Datang di <span className="text-emerald-600">Kospart PH 18</span>
+                        <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">
+                            Selamat Datang di <span className="text-emerald-400 text-glow">Kospart PH 18</span>
                         </h2>
-                        <p className="text-slate-500 font-medium text-base">Hunian Modern dengan Fasilitas Kelas Atas</p>
+                        <p className="text-slate-400 font-medium text-base">Hunian Modern dengan Fasilitas Kelas Atas</p>
                     </FadeUp>
 
                     {/* 2-col: teks kiri, kartu kanan */}
                     <div className="grid md:grid-cols-2 gap-14 items-center mb-16">
                         <SlideIn from="left" className="space-y-5">
-                            <p className="text-slate-700 text-base leading-relaxed">
-                                Kospart PH 18 hadir sebagai solusi hunian eksklusif yang memadukan <strong className="text-emerald-700">kenyamanan maksimal</strong> dan kemudahan hidup modern. Setiap kamar dirancang secara privat lengkap dengan AC, TV Android, kamar mandi dalam dengan water heater serta WC duduk, lemari pakaian, dan meja rias yang elegan.
+                            <p className="text-slate-300 text-base leading-relaxed">
+                                Kospart PH 18 hadir sebagai solusi hunian eksklusif yang memadukan <strong className="text-emerald-400">kenyamanan maksimal</strong> dan kemudahan hidup modern. Setiap kamar dirancang secara privat lengkap dengan AC, TV Android, kamar mandi dalam dengan water heater serta WC duduk, lemari pakaian, dan meja rias yang elegan.
                             </p>
-                            <p className="text-slate-700 text-base leading-relaxed">
+                            <p className="text-slate-300 text-base leading-relaxed">
                                 Tak hanya kenyamanan di dalam kamar, kami memanjakan Anda dengan fasilitas bersama yang mewah — laundry praktis, Wi-Fi super cepat, serta area Lounge yang luas untuk bersantai atau bekerja.
                             </p>
-                            <p className="text-slate-700 text-base leading-relaxed">
-                                Butuh relaksasi? Manfaatkan <strong className="text-emerald-700">kursi pijat premium</strong> hanya Rp30.000/sesi. Resto makanan rumahan siap menyajikan hidangan lezat setiap hari. Rasakan pengalaman <strong className="text-emerald-700">nge-kos rasa apartemen</strong> hanya di Kospart PH 18!
+                            <p className="text-slate-300 text-base leading-relaxed">
+                                Butuh relaksasi? Manfaatkan <strong className="text-emerald-400">kursi pijat premium</strong> hanya Rp30.000/sesi. Resto makanan rumahan siap menyajikan hidangan lezat setiap hari. Rasakan pengalaman <strong className="text-emerald-400">nge-kos rasa apartemen</strong> hanya di Kospart PH 18!
                             </p>
                             <div className="flex flex-wrap gap-3 pt-2">
-                                <a href="#rooms" className="inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl transition-all shadow-md">
+                                <a href="#rooms" className="inline-flex items-center gap-2 px-5 py-3 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] border border-emerald-400/50">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                     Lihat Kamar Tersedia
                                 </a>
-                                <a href="https://wa.me/628980598327" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-xl border border-slate-200 transition-all shadow-sm">
-                                    <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
+                                <a href="https://wa.me/628980598327" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-3 glass-3d hover:bg-slate-800/60 text-white font-bold text-sm rounded-xl transition-all">
+                                    <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
                                     Hubungi Admin WA
                                 </a>
                             </div>
@@ -314,10 +355,10 @@ export default function Welcome({ branches, rooms, auth }) {
                             <div className="grid grid-cols-2 gap-4">
                                 {features.map((item, idx) => (
                                     <ScaleIn key={idx} delay={idx * 0.07}>
-                                        <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-2 hover:shadow-lg hover:border-emerald-200 hover:-translate-y-1 transition-all duration-300 cursor-default h-full">
-                                            <span className="text-2xl">{item.icon}</span>
-                                            <h4 className="font-extrabold text-slate-900 text-sm leading-snug">{item.title}</h4>
-                                            <p className="text-slate-500 text-xs leading-relaxed">{item.desc}</p>
+                                        <div className="glass-3d rounded-2xl p-4 space-y-2 cursor-default h-full">
+                                            <span className="text-2xl drop-shadow-md">{item.icon}</span>
+                                            <h4 className="font-extrabold text-white text-sm leading-snug">{item.title}</h4>
+                                            <p className="text-slate-400 text-xs leading-relaxed">{item.desc}</p>
                                         </div>
                                     </ScaleIn>
                                 ))}
@@ -325,13 +366,12 @@ export default function Welcome({ branches, rooms, auth }) {
                         </SlideIn>
                     </div>
 
-                    {/* Stats row */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
                         {stats.map((s, idx) => (
                             <FadeUp key={idx} delay={idx * 0.1}>
-                                <div className="bg-white border border-slate-100 rounded-2xl p-6 text-center shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300">
-                                    <div className="text-3xl font-extrabold mb-1" style={{ color: s.color }}>{s.value}</div>
-                                    <div className="text-slate-600 text-xs font-semibold">{s.label}</div>
+                                <div className="glass-3d rounded-2xl p-6 text-center hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all duration-300 border-t border-slate-700/50">
+                                    <div className="text-3xl font-extrabold mb-1" style={{ color: s.color, textShadow: `0 0 15px ${s.color}66` }}>{s.value}</div>
+                                    <div className="text-slate-300 text-xs font-semibold">{s.label}</div>
                                 </div>
                             </FadeUp>
                         ))}
@@ -340,38 +380,38 @@ export default function Welcome({ branches, rooms, auth }) {
             </section>
 
             {/* ─── KAMAR / ROOM LISTING ─── */}
-            <main id="rooms" className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
+            <main id="rooms" className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full relative z-10">
                 <FadeUp className="space-y-3 text-center max-w-2xl mx-auto mb-12">
-                    <span className="inline-block px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 tracking-widest uppercase">Unit Kamar Pilihan</span>
-                    <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">Kamar Tersedia Untuk Anda</h2>
-                    <p className="text-slate-600 font-medium">Pilih cabang terdekat dan tipe sewa (Harian/Bulanan) sesuai kebutuhan Anda.</p>
+                    <span className="inline-block px-4 py-1.5 rounded-full glass-3d text-emerald-400 text-xs font-bold border border-emerald-500/30 tracking-widest uppercase shadow-[0_0_10px_rgba(16,185,129,0.1)]">Unit Kamar Pilihan</span>
+                    <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Kamar Tersedia Untuk Anda</h2>
+                    <p className="text-slate-400 font-medium">Pilih cabang terdekat dan tipe sewa (Harian/Bulanan) sesuai kebutuhan Anda.</p>
                 </FadeUp>
 
                 {/* Filters */}
                 <FadeUp delay={0.1}>
-                    <div className="glass-panel rounded-2xl p-6 mb-12 flex flex-wrap gap-4 items-center justify-between border-glow-emerald">
+                    <div className="glass-3d rounded-2xl p-6 mb-12 flex flex-wrap gap-4 items-center justify-between border-t border-slate-700/50">
                         <div className="flex flex-wrap gap-4 flex-grow md:flex-none">
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Cabang</label>
-                                <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} className="glass-input rounded-xl px-4 py-2.5 text-sm font-medium w-48">
-                                    <option value="all">Semua Cabang</option>
-                                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Cabang</label>
+                                <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} className="glass-3d-input rounded-xl px-4 py-2.5 text-sm font-medium w-48">
+                                    <option value="all" className="bg-slate-900 text-white">Semua Cabang</option>
+                                    {branches.map(b => <option key={b.id} value={b.id} className="bg-slate-900 text-white">{b.name}</option>)}
                                 </select>
                             </div>
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Tipe Sewa</label>
-                                <select value={rentalType} onChange={(e) => setRentalType(e.target.value)} className="glass-input rounded-xl px-4 py-2.5 text-sm font-medium w-40">
-                                    <option value="all">Semua Tipe</option>
-                                    <option value="monthly">Bulanan saja</option>
-                                    <option value="daily">Harian saja</option>
+                                <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Tipe Sewa</label>
+                                <select value={rentalType} onChange={(e) => setRentalType(e.target.value)} className="glass-3d-input rounded-xl px-4 py-2.5 text-sm font-medium w-40">
+                                    <option value="all" className="bg-slate-900 text-white">Semua Tipe</option>
+                                    <option value="monthly" className="bg-slate-900 text-white">Bulanan saja</option>
+                                    <option value="daily" className="bg-slate-900 text-white">Harian saja</option>
                                 </select>
                             </div>
                         </div>
                         <div className="flex flex-col gap-1.5 w-full md:w-80">
-                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Pencarian</label>
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Pencarian</label>
                             <div className="relative">
-                                <input type="text" placeholder="Cari nomor kamar/fasilitas..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="glass-input rounded-xl pl-10 pr-4 py-2.5 text-sm w-full" />
-                                <svg className="w-5 h-5 text-slate-500 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                <input type="text" placeholder="Cari nomor kamar/fasilitas..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="glass-3d-input rounded-xl pl-10 pr-4 py-2.5 text-sm w-full" />
+                                <svg className="w-5 h-5 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             </div>
                         </div>
                     </div>
@@ -383,25 +423,25 @@ export default function Welcome({ branches, rooms, auth }) {
                         <FadeUp key={room.id} delay={idx * 0.06}>
                             <div
                                 onClick={() => { setShowRoomDetail(room); setActiveGalleryIndex(0); }}
-                                className="glass-card rounded-2xl overflow-hidden flex flex-col relative group cursor-pointer h-full"
+                                className="glass-3d rounded-2xl overflow-hidden flex flex-col relative group cursor-pointer h-full"
                             >
                                 <div className="absolute top-4 left-4 z-10">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                                        room.status === 'available' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                                        room.status === 'occupied' ? 'bg-red-100 text-red-800 border border-red-200' :
-                                        room.status === 'booked' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                                        'bg-slate-100 text-slate-600 border border-slate-200'
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg ${
+                                        room.status === 'available' ? 'bg-emerald-500/80 text-white border border-emerald-400/50 backdrop-blur-sm' :
+                                        room.status === 'occupied' ? 'bg-red-500/80 text-white border border-red-400/50 backdrop-blur-sm' :
+                                        room.status === 'booked' ? 'bg-amber-500/80 text-white border border-amber-400/50 backdrop-blur-sm' :
+                                        'bg-slate-500/80 text-white border border-slate-400/50 backdrop-blur-sm'
                                     }`}>
                                         {room.status === 'available' ? 'Tersedia' : room.status === 'occupied' ? 'Penuh' : room.status === 'booked' ? 'Dibooking' : 'Maintenance'}
                                     </span>
                                 </div>
 
                                 <div className="relative h-56 overflow-hidden">
-                                    <img src={room.image || '/images/foto kamar 1.jpeg'} alt={`Kamar ${room.room_number}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                                    <img src={room.image || '/images/foto kamar 1.jpeg'} alt={`Kamar ${room.room_number}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 mix-blend-overlay opacity-80" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent"></div>
                                     <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
-                                        <h3 className="text-white font-extrabold text-2xl font-mono">No. {room.room_number}</h3>
-                                        <span className="text-slate-700 text-xs font-semibold bg-white/80 px-2.5 py-1 rounded-md backdrop-blur-sm border border-slate-200">
+                                        <h3 className="text-white font-extrabold text-2xl font-mono drop-shadow-md">No. {room.room_number}</h3>
+                                        <span className="text-white text-xs font-semibold glass-3d px-2.5 py-1 rounded-md">
                                             {room.branch.name.replace('Kospart PH 18 - ', '')}
                                         </span>
                                     </div>
@@ -409,38 +449,38 @@ export default function Welcome({ branches, rooms, auth }) {
 
                                 <div className="p-6 flex-grow flex flex-col justify-between space-y-5">
                                     <div className="space-y-3">
-                                        <p className="text-slate-600 text-sm leading-relaxed font-medium line-clamp-2">{room.description}</p>
+                                        <p className="text-slate-300 text-sm leading-relaxed font-medium line-clamp-2">{room.description}</p>
                                         <div className="flex flex-wrap gap-2">
                                             {room.facilities && JSON.parse(JSON.stringify(room.facilities)).slice(0, 4).map((fac, i) => (
-                                                <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 text-slate-700 text-xs border border-slate-200">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>{fac}
+                                                <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md glass-3d text-slate-200 text-xs">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.8)]"></span>{fac}
                                                 </span>
                                             ))}
                                         </div>
                                     </div>
 
-                                    <div className="border-t border-slate-100 pt-4 space-y-3">
+                                    <div className="border-t border-slate-700/50 pt-4 space-y-3">
                                         <div className="flex items-center justify-between">
                                             {room.price_monthly > 0 && (
                                                 <div>
-                                                    <span className="text-slate-500 text-xs font-medium block">Sewa Bulanan</span>
-                                                    <span className="text-slate-900 font-extrabold text-lg">Rp {parseFloat(room.price_monthly).toLocaleString('id-ID')}</span>
+                                                    <span className="text-slate-400 text-xs font-medium block">Sewa Bulanan</span>
+                                                    <span className="text-white font-extrabold text-lg">Rp {parseFloat(room.price_monthly).toLocaleString('id-ID')}</span>
                                                 </div>
                                             )}
                                             {room.price_daily > 0 && (
                                                 <div className="text-right">
-                                                    <span className="text-slate-500 text-xs font-medium block">Sewa Harian</span>
-                                                    <span className="text-emerald-600 font-extrabold text-lg">Rp {parseFloat(room.price_daily).toLocaleString('id-ID')} <span className="text-xs text-slate-500 font-normal">/hari</span></span>
+                                                    <span className="text-slate-400 text-xs font-medium block">Sewa Harian</span>
+                                                    <span className="text-emerald-400 font-extrabold text-lg text-glow">Rp {parseFloat(room.price_daily).toLocaleString('id-ID')} <span className="text-xs text-slate-400 font-normal">/hari</span></span>
                                                 </div>
                                             )}
                                         </div>
                                         {room.status === 'available' ? (
-                                            <button onClick={(e) => { e.stopPropagation(); handleOpenBooking(room); }} className="w-full py-3 bg-emerald-gradient hover:opacity-90 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-emerald-600/10 flex items-center justify-center gap-2">
+                                            <button onClick={(e) => { e.stopPropagation(); handleOpenBooking(room); }} className="w-full py-3 bg-emerald-600/90 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] border border-emerald-400/50 flex items-center justify-center gap-2">
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                                 Booking Online
                                             </button>
                                         ) : (
-                                            <button disabled className="w-full py-3 bg-slate-50 border border-slate-200 text-slate-400 text-sm font-bold rounded-xl cursor-not-allowed">
+                                            <button disabled className="w-full py-3 glass-3d border-slate-700/50 text-slate-500 text-sm font-bold rounded-xl cursor-not-allowed">
                                                 Kamar Tidak Tersedia
                                             </button>
                                         )}
@@ -453,15 +493,15 @@ export default function Welcome({ branches, rooms, auth }) {
 
                 {filteredRooms.length === 0 && (
                     <FadeUp className="py-16 text-center">
-                        <div className="text-4xl mb-3">🔍</div>
-                        <h3 className="text-xl font-extrabold text-slate-800 mb-1">Kamar tidak ditemukan</h3>
-                        <p className="text-slate-500 text-sm">Coba ubah filter pencarian Anda.</p>
+                        <div className="text-4xl mb-3 drop-shadow-md">🔍</div>
+                        <h3 className="text-xl font-extrabold text-white mb-1">Kamar tidak ditemukan</h3>
+                        <p className="text-slate-400 text-sm">Coba ubah filter pencarian Anda.</p>
                     </FadeUp>
                 )}
 
                 {/* CTA ke halaman kamar lengkap */}
                 <FadeUp delay={0.2} className="text-center mt-14">
-                    <Link href="/kamar" className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-gradient hover:opacity-90 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 transition-all transform hover:-translate-y-0.5 text-sm">
+                    <Link href="/kamar" className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] border border-emerald-400/50 transition-all transform hover:-translate-y-0.5 text-sm">
                         Lihat Semua Kamar & Filter Lengkap
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
                     </Link>
@@ -469,71 +509,103 @@ export default function Welcome({ branches, rooms, auth }) {
             </main>
 
             {/* ─── VIDEO TOUR ─── */}
-            <section id="video-tour" className="py-20 bg-premium-dark border-t border-slate-100">
+            <section id="video-tour" className="py-20 relative z-10 border-t border-slate-800/50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
                     <FadeUp className="space-y-3 text-center max-w-2xl mx-auto">
-                        <span className="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold border border-emerald-200 tracking-wide uppercase">Video Virtual Tour</span>
-                        <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">Virtual Tour Kos & Fasilitas</h2>
-                        <p className="text-slate-600 font-medium">Saksikan suasana ruang tunggu, kursi pijat, dan kamar eksklusif secara langsung.</p>
+                        <span className="px-3.5 py-1.5 rounded-full glass-3d text-emerald-400 text-xs font-semibold border border-emerald-500/30 tracking-wide uppercase shadow-[0_0_10px_rgba(16,185,129,0.1)]">Video Virtual Tour</span>
+                        <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Virtual Tour Kos & Fasilitas</h2>
+                        <p className="text-slate-400 font-medium">Saksikan suasana ruang tunggu, kursi pijat, dan kamar eksklusif secara langsung.</p>
                     </FadeUp>
 
-                    <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                        <SlideIn from="left">
-                            <div className="space-y-3">
-                                <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block">Tur Resepsionis & Ruang Tunggu</span>
-                                <div className="rounded-2xl overflow-hidden border border-slate-100 bg-white shadow-2xl aspect-video">
-                                    <video src="/images/ruang tunggu, kursi pijat, resepsionis.mp4" controls className="w-full h-full object-cover"></video>
+                    <div className="max-w-4xl mx-auto relative group">
+                        <FadeUp>
+                            <div className="space-y-4">
+                                <div className="text-center">
+                                    <span className="text-sm font-bold text-emerald-400 uppercase tracking-widest block text-glow">
+                                        {virtualTourVideos[activeTourIndex].title}
+                                    </span>
+                                </div>
+                                <div className="rounded-3xl overflow-hidden glass-3d shadow-[0_0_40px_rgba(0,0,0,0.6)] border border-slate-700/50 aspect-video p-1.5 relative">
+                                    <video 
+                                        key={activeTourIndex}
+                                        src={virtualTourVideos[activeTourIndex].src} 
+                                        controls 
+                                        className="w-full h-full object-cover rounded-2xl bg-slate-950"
+                                    ></video>
+                                    
+                                    {/* Navigation Overlay */}
+                                    <button 
+                                        onClick={() => setActiveTourIndex(prev => prev === 0 ? virtualTourVideos.length - 1 : prev - 1)}
+                                        className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full glass-3d flex items-center justify-center text-white hover:text-emerald-400 border border-slate-600/50 hover:border-emerald-500/50 shadow-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                                        </svg>
+                                    </button>
+                                    
+                                    <button 
+                                        onClick={() => setActiveTourIndex(prev => prev === virtualTourVideos.length - 1 ? 0 : prev + 1)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full glass-3d flex items-center justify-center text-white hover:text-emerald-400 border border-slate-600/50 hover:border-emerald-500/50 shadow-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                
+                                {/* Indicators */}
+                                <div className="flex items-center justify-center gap-3 pt-4">
+                                    {virtualTourVideos.map((_, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setActiveTourIndex(idx)}
+                                            className={`h-2.5 rounded-full transition-all duration-300 ${activeTourIndex === idx ? 'w-8 bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'w-2.5 bg-slate-600 hover:bg-slate-500'}`}
+                                            aria-label={`Go to slide ${idx + 1}`}
+                                        />
+                                    ))}
                                 </div>
                             </div>
-                        </SlideIn>
-                        <SlideIn from="right" delay={0.1}>
-                            <div className="space-y-3">
-                                <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block">Tur Suasana Kamar Eksklusif</span>
-                                <div className="rounded-2xl overflow-hidden border border-slate-100 bg-white shadow-2xl aspect-video">
-                                    <video src="/images/suasana kamar 2.500.000.mp4" controls className="w-full h-full object-cover"></video>
-                                </div>
-                            </div>
-                        </SlideIn>
+                        </FadeUp>
                     </div>
                 </div>
             </section>
 
             {/* ─── TESTIMONI ─── */}
-            <section id="testimoni" className="py-20 border-t border-slate-100 overflow-hidden" style={{ background: 'linear-gradient(160deg,#f0fdf4 0%,#ffffff 50%,#f8fafc 100%)' }}>
+            <section id="testimoni" className="py-20 relative z-10 border-t border-slate-800/50 overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
                     {/* Heading */}
                     <FadeUp className="text-center max-w-2xl mx-auto mb-14 space-y-3">
-                        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200 tracking-widest uppercase">
+                        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-3d text-amber-400 text-xs font-bold border border-amber-500/30 tracking-widest uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)]">
                             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                             Testimoni Penghuni
                         </span>
-                        <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight">
-                            Apa Kata Mereka tentang <span className="text-emerald-600">Kospart PH 18?</span>
+                        <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">
+                            Apa Kata Mereka tentang <span className="text-emerald-400 text-glow">Kospart PH 18?</span>
                         </h2>
-                        <p className="text-slate-500 font-medium">Ribuan penghuni telah merasakan kenyamanan hunian kami. Ini adalah cerita mereka.</p>
+                        <p className="text-slate-400 font-medium">Ribuan penghuni telah merasakan kenyamanan hunian kami. Ini adalah cerita mereka.</p>
                     </FadeUp>
 
                     {/* Rating summary bar */}
                     <FadeUp delay={0.1} className="flex flex-col sm:flex-row items-center justify-center gap-8 mb-14">
                         <div className="text-center">
-                            <div className="text-6xl font-extrabold text-slate-900 leading-none">4.9</div>
+                            <div className="text-6xl font-extrabold text-white leading-none text-glow">4.9</div>
                             <div className="flex gap-1 justify-center mt-2 mb-1">
                                 {[1,2,3,4,5].map(s => (
-                                    <svg key={s} className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                                    <svg key={s} className="w-5 h-5 text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                                 ))}
                             </div>
-                            <div className="text-slate-500 text-xs font-semibold">dari 200+ ulasan</div>
+                            <div className="text-slate-400 text-xs font-semibold">dari 200+ ulasan</div>
                         </div>
-                        <div className="w-px h-16 bg-slate-200 hidden sm:block"></div>
+                        <div className="w-px h-16 bg-slate-700 hidden sm:block"></div>
                         <div className="flex flex-col gap-2 w-48">
                             {[['5 bintang', 92], ['4 bintang', 6], ['3 bintang', 2]].map(([label, pct]) => (
                                 <div key={label} className="flex items-center gap-2 text-xs">
-                                    <span className="text-slate-500 w-16 shrink-0">{label}</span>
-                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%`, transition: 'width 1s ease' }}></div>
+                                    <span className="text-slate-400 w-16 shrink-0">{label}</span>
+                                    <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-amber-400 rounded-full shadow-[0_0_5px_rgba(251,191,36,0.8)]" style={{ width: `${pct}%`, transition: 'width 1s ease' }}></div>
                                     </div>
-                                    <span className="text-slate-600 font-bold w-8 text-right">{pct}%</span>
+                                    <span className="text-slate-300 font-bold w-8 text-right">{pct}%</span>
                                 </div>
                             ))}
                         </div>
@@ -598,37 +670,37 @@ export default function Welcome({ branches, rooms, auth }) {
                             },
                         ].map((t, idx) => (
                             <ScaleIn key={idx} delay={idx * 0.07}>
-                                <div className="bg-white border border-slate-100 rounded-2xl p-6 space-y-4 hover:shadow-xl hover:-translate-y-1 hover:border-emerald-100 transition-all duration-300 h-full flex flex-col">
+                                <div className="glass-3d rounded-2xl p-6 space-y-4 h-full flex flex-col">
                                     {/* Header */}
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-11 h-11 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-xl shrink-0">
+                                            <div className="w-11 h-11 rounded-full bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-xl shrink-0">
                                                 {t.avatar}
                                             </div>
                                             <div>
-                                                <div className="font-extrabold text-slate-900 text-sm">{t.name}</div>
-                                                <div className="text-slate-500 text-xs">{t.role}</div>
+                                                <div className="font-extrabold text-white text-sm">{t.name}</div>
+                                                <div className="text-slate-400 text-xs">{t.role}</div>
                                             </div>
                                         </div>
-                                        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 shrink-0">{t.badge}</span>
+                                        <span className="text-[10px] font-bold px-2 py-1 rounded-full glass-3d text-emerald-400 border border-emerald-500/30 shrink-0">{t.badge}</span>
                                     </div>
 
                                     {/* Stars */}
                                     <div className="flex gap-0.5">
                                         {Array.from({ length: t.rating }).map((_, i) => (
-                                            <svg key={i} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                                            <svg key={i} className="w-4 h-4 text-amber-400 drop-shadow-[0_0_2px_rgba(251,191,36,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                                         ))}
                                     </div>
 
                                     {/* Quote */}
-                                    <p className="text-slate-600 text-sm leading-relaxed flex-grow">
-                                        <span className="text-emerald-400 text-2xl leading-none font-serif mr-1">"</span>
+                                    <p className="text-slate-300 text-sm leading-relaxed flex-grow">
+                                        <span className="text-emerald-400 text-2xl leading-none font-serif mr-1 text-glow">"</span>
                                         {t.text}
-                                        <span className="text-emerald-400 text-2xl leading-none font-serif ml-1">"</span>
+                                        <span className="text-emerald-400 text-2xl leading-none font-serif ml-1 text-glow">"</span>
                                     </p>
 
                                     {/* Date */}
-                                    <div className="text-slate-400 text-xs font-medium pt-1 border-t border-slate-50">{t.date}</div>
+                                    <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{t.date}</div>
                                 </div>
                             </ScaleIn>
                         ))}
@@ -644,31 +716,62 @@ export default function Welcome({ branches, rooms, auth }) {
                 </div>
             </section>
 
+            {/* ─── FAQ SECTION ─── */}
+            <div className="py-24 relative z-10">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <FadeUp>
+                        <div className="text-center mb-12">
+                            <h2 className="font-extrabold text-3xl md:text-5xl text-white tracking-tight mb-4 text-glow">
+                                Pertanyaan Seputar Kos
+                            </h2>
+                            <p className="text-slate-400 text-lg">Jawaban cepat untuk hal-hal yang sering ditanyakan calon penghuni.</p>
+                        </div>
+                    </FadeUp>
+                    <div className="space-y-4">
+                        {(faqs || []).map((faq, index) => (
+                            <FadeUp key={faq.id || index} delay={0.1 * index}>
+                                <details className="group glass-3d border border-slate-700/50 rounded-2xl overflow-hidden cursor-pointer [&_summary::-webkit-details-marker]:hidden">
+                                    <summary className="flex justify-between items-center font-bold text-lg text-slate-200 p-6 hover:bg-slate-800/40 transition-colors">
+                                        {faq.question}
+                                        <span className="transition group-open:rotate-180 bg-emerald-500/10 text-emerald-400 p-1.5 rounded-lg shrink-0 ml-4">
+                                            <svg fill="none" height="20" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="20"><path d="M6 9l6 6 6-6"></path></svg>
+                                        </span>
+                                    </summary>
+                                    <div className="text-slate-300 px-6 pb-6 pt-5 leading-relaxed border-t border-slate-700/50 bg-slate-800/20 whitespace-pre-line text-base">
+                                        {faq.answer}
+                                    </div>
+                                </details>
+                            </FadeUp>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             {/* ─── KONTAK / LOKASI ─── */}
-            <section id="contact" className="py-20 border-t border-slate-100">
+            <section id="contact" className="py-20 relative z-10 border-t border-slate-800/50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-12 gap-12">
                     <SlideIn from="left" className="md:col-span-5 space-y-6">
                         <FadeUp>
-                            <span className="inline-block px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 tracking-widest uppercase mb-2">Lokasi & Kontak</span>
-                            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Kunjungi Lokasi Kami</h2>
-                            <p className="text-slate-600 text-sm leading-relaxed font-medium mt-3">
+                            <span className="inline-block px-4 py-1.5 rounded-full glass-3d text-emerald-400 text-xs font-bold border border-emerald-500/30 tracking-widest uppercase shadow-[0_0_10px_rgba(16,185,129,0.1)] mb-2">Lokasi & Kontak</span>
+                            <h2 className="text-3xl font-extrabold text-white tracking-tight">Kunjungi Lokasi Kami</h2>
+                            <p className="text-slate-400 text-sm leading-relaxed font-medium mt-3">
                                 Kami terbuka untuk melayani survei kamar secara langsung. Silakan atur jadwal kunjungan dengan menghubungi admin WhatsApp kami.
                             </p>
                         </FadeUp>
 
                         <div className="space-y-4 text-sm">
-                            <div className="flex gap-3 items-start p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                                <svg className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <div className="flex gap-3 items-start p-4 glass-3d rounded-2xl border border-slate-700/50 shadow-[0_0_15px_rgba(0,0,0,0.3)]">
+                                <svg className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                 <div>
-                                    <strong className="text-slate-900 block mb-1">Alamat Kospart PH 18:</strong>
-                                    <span className="text-slate-600 text-xs leading-relaxed block">Samping BNI Kartini, di komplek perukoan belakang Mall Kartini (masuk dari samping Halte Kartini), Palapa, Kec. Tj. Karang Pusat, Kota Bandar Lampung, Lampung 35118</span>
+                                    <strong className="text-white block mb-1">Alamat Kospart PH 18:</strong>
+                                    <span className="text-slate-400 text-xs leading-relaxed block">Samping BNI Kartini, di komplek perukoan belakang Mall Kartini (masuk dari samping Halte Kartini), Palapa, Kec. Tj. Karang Pusat, Kota Bandar Lampung, Lampung 35118</span>
                                 </div>
                             </div>
-                            <div className="flex gap-3 items-center p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                                <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                            <div className="flex gap-3 items-center p-4 glass-3d rounded-2xl border border-slate-700/50 shadow-[0_0_15px_rgba(0,0,0,0.3)]">
+                                <svg className="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
                                 <div>
-                                    <strong className="text-slate-900 block">WhatsApp Admin:</strong>
-                                    <a href="https://wa.me/628980598327" target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700 font-bold">+62 898-0598-327</a>
+                                    <strong className="text-white block">WhatsApp Admin:</strong>
+                                    <a href="https://wa.me/628980598327" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 font-bold text-glow">+62 898-0598-327</a>
                                 </div>
                             </div>
                         </div>
@@ -676,7 +779,7 @@ export default function Welcome({ branches, rooms, auth }) {
                         <a
                             href="https://www.google.com/maps/place/kospart+PH+18/@-5.4164332,105.2538444,19.18z/data=!4m9!3m8!1s0x2e40dbb43262d9df:0xa1cf05d7be03bb72!5m2!4m1!1i2!8m2!3d-5.416147!4d105.2535747!16s%2Fg%2F11yspfw7t2?entry=ttu&g_ep=EgoyMDI2MDYwMS4wIKXMDSoASAFQAw%3D%3D"
                             target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-emerald-gradient hover:opacity-90 text-white font-bold text-sm rounded-xl transition-all shadow-md"
+                            className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] border border-emerald-400/50"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                             Buka Petunjuk Arah
@@ -684,10 +787,10 @@ export default function Welcome({ branches, rooms, auth }) {
                     </SlideIn>
 
                     <SlideIn from="right" className="md:col-span-7">
-                        <div className="h-96 rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-xl">
+                        <div className="h-96 rounded-2xl overflow-hidden glass-3d shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-slate-700/50 p-1">
                             <iframe
                                 src="https://maps.google.com/maps?q=-5.416147,105.2535747&z=17&output=embed"
-                                className="w-full h-full border-0"
+                                className="w-full h-full border-0 rounded-xl mix-blend-luminosity hover:mix-blend-normal transition-all duration-500"
                                 allowFullScreen=""
                                 loading="lazy"
                                 referrerPolicy="no-referrer-when-downgrade"
@@ -807,49 +910,141 @@ export default function Welcome({ branches, rooms, auth }) {
                                     { label: 'No. WhatsApp', key: 'phone', type: 'text', placeholder: '085712345678' },
                                 ].map(f => (
                                     <div key={f.key} className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500 uppercase">{f.label}</label>
-                                        <input type={f.type} required value={bookingForm[f.key]} onChange={(e) => setBookingForm({ ...bookingForm, [f.key]: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder={f.placeholder} />
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{f.label}</label>
+                                        <input type={f.type} required value={bookingForm[f.key]} onChange={(e) => setBookingForm({ ...bookingForm, [f.key]: e.target.value })} className="bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-2.5 text-sm w-full font-medium transition-all" placeholder={f.placeholder} />
                                     </div>
                                 ))}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">NIK (Nomor Induk Kependudukan)</label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        maxLength="16"
+                                        minLength="16"
+                                        pattern="\d{16}"
+                                        title="Harus terdiri dari tepat 16 digit angka"
+                                        value={bookingForm.nik}
+                                        onChange={(e) => setBookingForm({...bookingForm, nik: e.target.value.replace(/\D/g, '')})}
+                                        className="bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-2.5 text-sm w-full font-medium transition-all tracking-widest"
+                                        placeholder="16 Digit NIK Anda"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Foto KTP Asli</label>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <input 
+                                                type="file" 
+                                                required
+                                                accept="image/*"
+                                                onChange={(e) => setBookingForm({...bookingForm, ktp_photo: e.target.files[0]})}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            />
+                                            <div className="bg-slate-50 text-slate-700 rounded-xl px-4 py-2.5 text-xs w-full flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-100 transition-all font-semibold">
+                                                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                                <span className="truncate">{bookingForm.ktp_photo ? bookingForm.ktp_photo.name : 'Pilih File (Galeri)'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="relative flex-1">
+                                            <input 
+                                                type="file" 
+                                                accept="image/*"
+                                                capture="environment"
+                                                onChange={(e) => setBookingForm({...bookingForm, ktp_photo: e.target.files[0]})}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            />
+                                            <div className="bg-emerald-50 text-emerald-700 rounded-xl px-4 py-2.5 text-xs w-full flex items-center justify-center gap-2 border border-emerald-200 hover:bg-emerald-100 transition-all font-semibold">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                                <span>Buka Kamera</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 mt-1">Data NIK dan KTP dijamin kerahasiaannya dan hanya untuk keperluan administrasi Kos.</p>
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500 uppercase">Tipe Sewa</label>
-                                        <select value={bookingForm.rental_type} onChange={(e) => setBookingForm({ ...bookingForm, rental_type: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Tipe Sewa</label>
+                                        <select 
+                                            value={bookingForm.rental_type} 
+                                            onChange={(e) => {
+                                                const newType = e.target.value;
+                                                const start = new Date(bookingForm.start_date || new Date());
+                                                const end = new Date(start);
+                                                if (newType === 'daily') {
+                                                    end.setDate(end.getDate() + 1);
+                                                } else {
+                                                    end.setMonth(end.getMonth() + 1);
+                                                }
+                                                setBookingForm({ ...bookingForm, rental_type: newType, end_date: end.toISOString().split('T')[0] });
+                                            }} 
+                                            className="bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-2.5 text-sm w-full font-medium transition-all"
+                                        >
                                             {selectedRoom.price_monthly > 0 && <option value="monthly">Bulanan</option>}
                                             {selectedRoom.price_daily > 0 && <option value="daily">Harian</option>}
                                         </select>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500 uppercase">Mulai Sewa</label>
-                                        <input type="date" required value={bookingForm.start_date} onChange={(e) => setBookingForm({ ...bookingForm, start_date: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" />
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Mulai Sewa</label>
+                                        <input type="date" required value={bookingForm.start_date} onChange={(e) => setBookingForm({ ...bookingForm, start_date: e.target.value })} className="bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-2.5 text-sm w-full font-medium transition-all text-center" />
                                     </div>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-500 uppercase">Selesai Sewa</label>
-                                    <input type="date" required value={bookingForm.end_date} onChange={(e) => setBookingForm({ ...bookingForm, end_date: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" />
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Selesai Sewa</label>
+                                    <input type="date" required value={bookingForm.end_date} onChange={(e) => setBookingForm({ ...bookingForm, end_date: e.target.value })} className="bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-2.5 text-sm w-full font-medium transition-all text-center" />
                                 </div>
-                                <button type="submit" className="w-full mt-2 py-3 bg-emerald-gradient hover:opacity-90 text-white font-bold rounded-xl text-sm transition-all">
-                                    Kirim & Minta OTP WhatsApp
+
+                                <div className="pt-2 pb-2">
+                                    <label className="flex items-start gap-3 cursor-pointer group p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                                        <div className="relative flex items-center justify-center mt-0.5">
+                                            <input 
+                                                type="checkbox" 
+                                                required
+                                                checked={bookingForm.agree_tnc}
+                                                onChange={(e) => setBookingForm({...bookingForm, agree_tnc: e.target.checked})}
+                                                className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:bg-emerald-500 checked:border-emerald-500 transition-all cursor-pointer"
+                                            />
+                                            <svg className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                                        </div>
+                                        <span className="text-xs text-slate-600 leading-relaxed font-medium">
+                                            Saya setuju dengan <a href="#" className="text-emerald-600 font-bold hover:underline">Syarat & Ketentuan</a> serta peraturan tata tertib Kospart PH 18. Saya menyatakan bahwa data yang saya berikan adalah benar.
+                                        </span>
+                                    </label>
+                                </div>
+
+                                {/* Dynamic Price Preview */}
+                                <div className="mt-4 p-5 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200/50 flex justify-between items-center shadow-inner shadow-white">
+                                    <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest">Total Harga Sewa</span>
+                                    <span className="text-xl font-black text-emerald-600 drop-shadow-sm">
+                                        Rp {(() => {
+                                            const start = new Date(bookingForm.start_date);
+                                            const end = new Date(bookingForm.end_date);
+                                            let total = 0;
+                                            if (start && end && start < end) {
+                                                const diffTime = Math.abs(end - start);
+                                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                if (bookingForm.rental_type === 'daily') {
+                                                    total = Math.max(1, diffDays) * selectedRoom.price_daily;
+                                                } else {
+                                                    const startMonth = start.getFullYear() * 12 + start.getMonth();
+                                                    const endMonth = end.getFullYear() * 12 + end.getMonth();
+                                                    let diffMonths = endMonth - startMonth;
+                                                    if (end.getDate() > start.getDate()) diffMonths += 1;
+                                                    total = Math.max(1, diffMonths) * selectedRoom.price_monthly;
+                                                }
+                                            }
+                                            return total.toLocaleString('id-ID');
+                                        })()}
+                                    </span>
+                                </div>
+
+                                <button disabled={isSubmitting} type="submit" className={`w-full mt-4 py-3 font-bold rounded-xl text-sm transition-all shadow-sm ${isSubmitting ? 'bg-slate-400 text-slate-200 cursor-not-allowed' : 'bg-emerald-gradient hover:opacity-95 text-white'}`}>
+                                    {isSubmitting ? 'Memproses...' : 'Kirim & Verifikasi OTP'}
                                 </button>
                             </form>
                         )}
 
                         {bookingStep === 'otp' && (
                             <div className="p-6 space-y-6">
-                                <div className="bg-slate-50 p-4 rounded-xl border border-emerald-100">
-                                    <span className="text-xs font-bold text-emerald-700 uppercase tracking-widest block mb-2">WhatsApp OTP Simulator</span>
-                                    <div className="bg-[#efeae2] p-3 rounded-lg border border-[#e9edef] max-w-sm mx-auto text-xs">
-                                        <div className="flex items-center gap-2 border-b border-white pb-2 mb-2">
-                                            <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-[10px] text-white">KP</div>
-                                            <div><span className="font-bold text-[#111b21] block text-[11px]">ADMIN KOSPART PH 18</span><span className="text-[#667781] text-[9px]">Online</span></div>
-                                        </div>
-                                        <div className="bg-white p-2.5 rounded-lg rounded-tl-none inline-block max-w-[85%] border border-slate-100 shadow-sm">
-                                            <p className="font-semibold text-emerald-700 text-[11px] mb-1">Halo {bookingForm.name},</p>
-                                            <p className="mb-2">Masukkan kode OTP berikut untuk memverifikasi pemesanan Anda:</p>
-                                            <p className="text-base font-bold text-center bg-[#f0fdf4] py-2 border border-emerald-200 rounded tracking-widest font-mono text-emerald-700">{bookingResponse?.otp_code_simulated}</p>
-                                        </div>
-                                    </div>
-                                </div>
                                 <form onSubmit={handleVerifyOtp} className="space-y-4">
                                     <div className="space-y-1.5 text-center">
                                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Masukkan 6 Digit Kode OTP</label>
@@ -909,20 +1104,21 @@ export default function Welcome({ branches, rooms, auth }) {
                 </div>
             )}
 
+
             {/* ─── FOOTER ─── */}
-            <footer className="mt-auto bg-white border-t border-slate-200 py-10">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+            <footer className="mt-auto glass-3d border-t border-slate-800/50 py-10 relative z-10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-400">
                     <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-100">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
                             <img src="/images/logo 2.jpeg" alt="Logo" className="w-full h-full object-cover" />
                         </div>
-                        <span className="font-extrabold text-slate-900">KOSPART PH 18</span>
+                        <span className="font-extrabold text-white text-glow">KOSPART PH 18</span>
                     </div>
-                    <p className="text-xs text-center">© {new Date().getFullYear()} Kospart PH 18. All rights reserved. <span className="text-emerald-600 font-semibold">Powered by Rifqi Bili.</span></p>
+                    <p className="text-xs text-center">© {new Date().getFullYear()} Kospart PH 18. All rights reserved. <a href="https://api.whatsapp.com/send/?phone=6289528306239&text&type=phone_number&app_absent=0" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-semibold text-glow hover:text-emerald-300 transition-colors">Powered by Rifqi Bili.</a></p>
                     <div className="flex gap-4 text-xs">
-                        <a href="#tentang" className="hover:text-emerald-600 transition-colors">Tentang Kami</a>
-                        <Link href="/kamar" className="hover:text-emerald-600 transition-colors">Cari Kamar</Link>
-                        <a href="#contact" className="hover:text-emerald-600 transition-colors">Kontak</a>
+                        <a href="#tentang" className="hover:text-emerald-400 transition-colors">Tentang Kami</a>
+                        <Link href="/kamar" className="hover:text-emerald-400 transition-colors">Cari Kamar</Link>
+                        <a href="#contact" className="hover:text-emerald-400 transition-colors">Kontak</a>
                     </div>
                 </div>
             </footer>

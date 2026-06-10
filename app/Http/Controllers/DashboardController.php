@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\Complaint;
 use App\Models\Finance;
 use App\Models\User;
+use App\Models\CanteenOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -24,10 +25,21 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
+        // Cleanup abandoned unverified bookings (older than 15 minutes)
+        $abandonedBookings = Booking::with('room')->where('otp_verified', false)
+            ->where('created_at', '<', now()->subMinutes(15))
+            ->get();
+        foreach($abandonedBookings as $abandoned) {
+            if ($abandoned->room && $abandoned->room->status === 'booked') {
+                $abandoned->room->update(['status' => 'available']);
+            }
+            $abandoned->delete();
+        }
+
         // 1. Base counts & filters based on role
         $roomsQuery = Room::query();
         $branchesQuery = Branch::query();
-        $bookingsQuery = Booking::query();
+        $bookingsQuery = Booking::query()->where('otp_verified', true);
         $complaintsQuery = Complaint::query();
         
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
@@ -87,17 +99,13 @@ class DashboardController extends Controller
                 ->sum('amount');
         } elseif ($user->role === 'operator' && is_array($user->assigned_branches)) {
             $incomeThisMonth = Finance::where('transaction_type', 'income')
-                ->whereHas('booking.room', function($q) use ($user) {
-                    $q->whereIn('branch_id', $user->assigned_branches);
-                })
+                ->whereIn('branch_id', $user->assigned_branches)
                 ->whereMonth('transaction_date', now()->month)
                 ->whereYear('transaction_date', now()->year)
                 ->sum('amount');
 
             $expenseThisMonth = Finance::where('transaction_type', 'expense')
-                ->whereHas('booking.room', function($q) use ($user) {
-                    $q->whereIn('branch_id', $user->assigned_branches);
-                })
+                ->whereIn('branch_id', $user->assigned_branches)
                 ->whereMonth('transaction_date', now()->month)
                 ->whereYear('transaction_date', now()->year)
                 ->sum('amount');
@@ -108,20 +116,45 @@ class DashboardController extends Controller
 
         // Base queries for alert generation (scoped to role)
         $unpaidPrevMonthBookingsQuery = Booking::with(['tenant', 'room.branch'])
+            ->where('otp_verified', true)
             ->where('payment_status', 'unpaid')
             ->where('end_date', '<', now()->format('Y-m-d'));
 
         $expiryThreeDaysQuery = Booking::with(['tenant', 'room.branch'])
+            ->where('otp_verified', true)
             ->where('status', 'active')
             ->whereBetween('end_date', [now()->format('Y-m-d'), now()->addDays(3)->format('Y-m-d')]);
 
         $dailyCheckingOutTodayQuery = Booking::with(['tenant', 'room.branch'])
+            ->where('otp_verified', true)
             ->where('rental_type', 'daily')
             ->where('status', 'active')
             ->where('end_date', now()->format('Y-m-d'));
 
         $pendingComplaintsListQuery = Complaint::with(['tenant', 'room.branch'])
             ->where('status', 'pending');
+
+        $unverifiedPaymentsQuery = Booking::with(['tenant', 'room.branch'])
+            ->where('otp_verified', true)
+            ->where('unverified_amount', '>', 0);
+
+        $newBookingsQuery = Booking::with(['tenant', 'room.branch'])
+            ->where('otp_verified', true)
+            ->where('status', 'pending')
+            ->where('unverified_amount', 0); // Still waiting for upload or approval
+
+        // Canteen Queries
+        $canteenAdminAlertsQuery = CanteenOrder::with(['tenant', 'branch'])
+            ->whereIn('status', ['pending_approval'])
+            ->orWhere(function($q) {
+                $q->where('payment_status', 'pending')->whereNotNull('payment_proof');
+            });
+            
+        $canteenTenantReadyQuery = CanteenOrder::with(['branch'])
+            ->where('status', 'ready');
+            
+        $canteenTenantDebtQuery = CanteenOrder::with(['branch'])
+            ->where('payment_status', 'debt_unpaid');
 
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
             $unpaidPrevMonthBookingsQuery->whereHas('room', function($q) use ($user) {
@@ -136,17 +169,37 @@ class DashboardController extends Controller
             $pendingComplaintsListQuery->whereHas('room', function($q) use ($user) {
                 $q->whereIn('branch_id', $user->assigned_branches);
             });
+            $unverifiedPaymentsQuery->whereHas('room', function($q) use ($user) {
+                $q->whereIn('branch_id', $user->assigned_branches);
+            });
+            $newBookingsQuery->whereHas('room', function($q) use ($user) {
+                $q->whereIn('branch_id', $user->assigned_branches);
+            });
         } elseif ($user->role === 'resident') {
             $unpaidPrevMonthBookingsQuery->where('tenant_id', $user->id);
             $expiryThreeDaysQuery->where('tenant_id', $user->id);
             $dailyCheckingOutTodayQuery->where('tenant_id', $user->id);
             $pendingComplaintsListQuery->where('tenant_id', $user->id);
+            $unverifiedPaymentsQuery->where('tenant_id', $user->id);
+            $newBookingsQuery->where('tenant_id', $user->id);
+            
+            $canteenTenantReadyQuery->where('tenant_id', $user->id);
+            $canteenTenantDebtQuery->where('tenant_id', $user->id);
         }
 
         $unpaidPrevMonthBookings = $unpaidPrevMonthBookingsQuery->get();
         $expiryThreeDays = $expiryThreeDaysQuery->get();
         $dailyCheckingOutToday = $dailyCheckingOutTodayQuery->get();
         $pendingComplaintsList = $pendingComplaintsListQuery->get();
+        $unverifiedPayments = $unverifiedPaymentsQuery->get();
+        $newBookings = $newBookingsQuery->get();
+        
+        $canteenAdminAlerts = (in_array($user->role, ['super_admin', 'operator'])) ? clone $canteenAdminAlertsQuery->get() : collect();
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            $canteenAdminAlerts = $canteenAdminAlerts->whereIn('branch_id', $user->assigned_branches);
+        }
+        $canteenTenantReady = ($user->role === 'resident') ? $canteenTenantReadyQuery->get() : collect();
+        $canteenTenantDebt = ($user->role === 'resident') ? $canteenTenantDebtQuery->get() : collect();
 
         foreach ($unpaidPrevMonthBookings as $b) {
             $notifications[] = [
@@ -156,7 +209,8 @@ class DashboardController extends Controller
                 'message' => $user->role === 'resident'
                     ? 'Tagihan sewa Anda di ' . $b->room->branch->name . ' Kamar ' . $b->room->room_number . ' belum lunas dari bulan sebelumnya.'
                     : 'Tagihan sewa bulanan ' . $b->room->branch->name . ' Kamar ' . $b->room->room_number . ' atas nama ' . $b->tenant->name . ' belum lunas dari bulan sebelumnya.',
-                'meta' => ['booking_code' => $b->booking_code, 'tenant' => $b->tenant->name, 'room' => $b->room->room_number, 'amount' => $b->total_amount]
+                'meta' => ['booking_code' => $b->booking_code, 'tenant' => $b->tenant->name, 'room' => $b->room->room_number, 'amount' => $b->total_amount],
+                'timestamp' => $b->updated_at->toIso8601String()
             ];
         }
 
@@ -168,7 +222,8 @@ class DashboardController extends Controller
                 'message' => $user->role === 'resident'
                     ? 'Penyewaan ' . ($b->rental_type === 'daily' ? 'Harian' : 'Bulanan') . ' Kamar ' . $b->room->room_number . ' Anda akan berakhir pada ' . $b->end_date->format('d M Y') . ' (H-3).'
                     : 'Penyewaan ' . ($b->rental_type === 'daily' ? 'Harian' : 'Bulanan') . ' Kamar ' . $b->room->room_number . ' oleh ' . $b->tenant->name . ' akan berakhir pada ' . $b->end_date->format('d M Y') . ' (H-3).',
-                'meta' => ['booking_code' => $b->booking_code, 'tenant' => $b->tenant->name, 'room' => $b->room->room_number, 'end_date' => $b->end_date->format('d M Y')]
+                'meta' => ['booking_code' => $b->booking_code, 'tenant' => $b->tenant->name, 'room' => $b->room->room_number, 'end_date' => $b->end_date->format('d M Y')],
+                'timestamp' => $b->updated_at->toIso8601String()
             ];
         }
 
@@ -180,7 +235,8 @@ class DashboardController extends Controller
                 'message' => $user->role === 'resident'
                     ? 'Penyewaan harian Kamar ' . $b->room->room_number . ' Anda berakhir hari ini.'
                     : 'Penyewaan harian Kamar ' . $b->room->room_number . ' (' . $b->tenant->name . ') berakhir hari ini. Segera konfirmasi status checkout.',
-                'meta' => ['booking_code' => $b->booking_code, 'tenant' => $b->tenant->name, 'room' => $b->room->room_number]
+                'meta' => ['booking_code' => $b->booking_code, 'tenant' => $b->tenant->name, 'room' => $b->room->room_number],
+                'timestamp' => $b->updated_at->toIso8601String()
             ];
         }
 
@@ -192,9 +248,76 @@ class DashboardController extends Controller
                 'message' => $user->role === 'resident'
                     ? 'Komplain Anda: "' . $c->title . '" sedang menunggu respon pengelola.'
                     : 'Komplain masuk: "' . $c->title . '" di Kamar ' . $c->room->room_number . ' (' . $c->tenant->name . '). Butuh konfirmasi.',
-                'meta' => ['complaint_id' => $c->id, 'tenant' => $c->tenant->name, 'room' => $c->room->room_number, 'title' => $c->title]
+                'meta' => ['complaint_id' => $c->id, 'tenant' => $c->tenant->name, 'room' => $c->room->room_number, 'title' => $c->title],
+                'timestamp' => $c->updated_at->toIso8601String()
             ];
         }
+
+        foreach ($unverifiedPayments as $b) {
+            $notifications[] = [
+                'id' => 'payment-' . $b->id,
+                'type' => 'payment_unverified',
+                'title' => 'Pembayaran Menunggu Verifikasi',
+                'message' => $user->role === 'resident'
+                    ? 'Bukti pembayaran Anda untuk Kamar ' . $b->room->room_number . ' sedang menunggu verifikasi pengelola.'
+                    : 'Bukti pembayaran Rp ' . number_format($b->unverified_amount, 0, ',', '.') . ' dari ' . $b->tenant->name . ' (Kamar ' . $b->room->room_number . ') menunggu verifikasi.',
+                'meta' => ['booking_id' => $b->id, 'tenant' => $b->tenant->name, 'room' => $b->room->room_number],
+                'timestamp' => $b->updated_at->toIso8601String()
+            ];
+        }
+
+        foreach ($newBookings as $b) {
+            $notifications[] = [
+                'id' => 'new-booking-' . $b->id,
+                'type' => 'new_booking',
+                'title' => 'Pemesanan Kamar Baru',
+                'message' => $user->role === 'resident'
+                    ? 'Pemesanan Kamar ' . $b->room->room_number . ' Anda sedang diproses.'
+                    : 'Pesanan Kamar ' . $b->room->room_number . ' (' . $b->tenant->name . ') baru masuk dan butuh konfirmasi.',
+                'meta' => ['booking_id' => $b->id, 'tenant' => $b->tenant->name, 'room' => $b->room->room_number],
+                'timestamp' => $b->updated_at->toIso8601String()
+            ];
+        }
+
+        foreach ($canteenAdminAlerts as $c) {
+            $notifications[] = [
+                'id' => 'canteen-admin-' . $c->id,
+                'type' => 'canteen_admin',
+                'title' => $c->status === 'pending_approval' ? 'Pesanan Kantin Baru' : 'Verifikasi Pembayaran Kantin',
+                'message' => $c->status === 'pending_approval' 
+                    ? 'Ada pesanan kantin baru dari ' . ($c->tenant->name ?? 'Penghuni') . ' menunggu diproses.'
+                    : 'Pesanan kantin dari ' . ($c->tenant->name ?? 'Penghuni') . ' menunggu verifikasi bukti transfer.',
+                'meta' => ['order_id' => $c->id],
+                'timestamp' => $c->updated_at->toIso8601String()
+            ];
+        }
+
+        foreach ($canteenTenantReady as $c) {
+            $notifications[] = [
+                'id' => 'canteen-ready-' . $c->id,
+                'type' => 'canteen_ready',
+                'title' => 'Pesanan Kantin Siap!',
+                'message' => 'Pesanan kantin Anda (' . $c->order_code . ') sudah siap! ' . ($c->delivery_method === 'delivery' ? 'Akan diantar ke kamar Anda.' : 'Silakan ambil di kantin.'),
+                'meta' => ['order_id' => $c->id],
+                'timestamp' => $c->updated_at->toIso8601String()
+            ];
+        }
+
+        foreach ($canteenTenantDebt as $c) {
+            $notifications[] = [
+                'id' => 'canteen-debt-' . $c->id,
+                'type' => 'canteen_debt',
+                'title' => 'Tagihan Kasbon Kantin',
+                'message' => 'Anda memiliki tagihan kasbon kantin yang belum dilunasi (' . $c->order_code . '). Harap segera melunasi.',
+                'meta' => ['order_id' => $c->id],
+                'timestamp' => $c->updated_at->toIso8601String()
+            ];
+        }
+
+        // Sort notifications by timestamp descending (newest first)
+        usort($notifications, function($a, $b) {
+            return strtotime($b['timestamp']) - strtotime($a['timestamp']);
+        });
 
         // Active/Recent activities for dashboard list
         $recentBookings = (clone $bookingsQuery)->orderBy('created_at', 'desc')->limit(5)->get();

@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head, usePage, Link } from '@inertiajs/react';
-
+import Layout from '@/Layouts/AuthenticatedLayout';
+import CanteenTab from '@/Components/CanteenTab';
+import FinancesTab from '@/Components/DashboardTabs/FinancesTab';
+import WebSettingsTab from '@/Components/WebSettingsTab';
 // ── CSRF-aware fetch helper ──────────────────────────────────────────────────
 function getCsrfToken() {
     const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
@@ -29,8 +32,7 @@ async function authFetch(url, options = {}) {
 export default function Dashboard() {
     const { auth } = usePage().props;
     
-    // Multi-role simulation state (initialized with user's actual role)
-    const [currentRole, setCurrentRole] = useState(auth.user.role || 'super_admin');
+    const currentRole = auth.user.role;
     
     // Navigation inside Dashboard: 'overview' | 'branches' | 'rooms' | 'bookings' | 'finances' | 'complaints'
     const [activeTab, setActiveTab] = useState('overview');
@@ -44,21 +46,35 @@ export default function Dashboard() {
     const [bookings, setBookings] = useState([]);
     const [finances, setFinances] = useState([]);
     const [complaints, setComplaints] = useState([]);
+    const [bookingSearch, setBookingSearch] = useState('');
+    const [financeSearch, setFinanceSearch] = useState('');
+    const [financeTypeFilter, setFinanceTypeFilter] = useState('all');
+    const [financeCategoryFilter, setFinanceCategoryFilter] = useState('all');
+    const [financeDateFilterType, setFinanceDateFilterType] = useState('all');
+    const [financeDateFilterStart, setFinanceDateFilterStart] = useState('');
+    const [financeDateFilterEnd, setFinanceDateFilterEnd] = useState('');
+    const [tenantPaymentSearch, setTenantPaymentSearch] = useState('');
+    const [canteenItems, setCanteenItems] = useState([]);
+    const [canteenOrders, setCanteenOrders] = useState([]);
+    const [canteenCart, setCanteenCart] = useState([]);
     
     // Modal & Action states
     const [showInvoiceModal, setShowInvoiceModal] = useState(null);
     const [showChangeRoomModal, setShowChangeRoomModal] = useState(null);
     const [showRescheduleModal, setShowRescheduleModal] = useState(null);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
+    const [showExtendTenantModal, setShowExtendTenantModal] = useState(false);
+    const [extendDuration, setExtendDuration] = useState(1);
     // Payment modal for tenant
     const [showPaymentModal, setShowPaymentModal] = useState(null);
-    const [paymentData, setPaymentData] = useState({ paid_amount: '', payment_proof: 'BUKTI_BAYAR_SIMULASI' });
+    const [paymentData, setPaymentData] = useState({ paid_amount: '', payment_proof_file: null });
     const [showVerifyPaymentModal, setShowVerifyPaymentModal] = useState(null);
+    const [showNotifications, setShowNotifications] = useState(false);
     
     // Form Inputs
-    const [newBranch, setNewBranch] = useState({ name: '', address: '', maps_link: '', status: 'active' });
+    const [newBranch, setNewBranch] = useState({ name: '', address: '', maps_link: '', status: 'active', image: null, video: null });
     const [newRoom, setNewRoom] = useState({ branch_id: '', room_number: '', price_monthly: '', price_daily: '', status: 'available', facilities: '', description: '', photos: null, video: null });
-    const [newFinance, setNewFinance] = useState({ transaction_type: 'expense', amount: '', category: 'maintenance', transaction_date: new Date().toISOString().split('T')[0], description: '' });
+    const [newFinance, setNewFinance] = useState({ transaction_type: 'expense', amount: '', category: 'maintenance', transaction_date: new Date().toISOString().split('T')[0], description: '', branch_id: '' });
     const [newComplaint, setNewComplaint] = useState({ room_id: '', title: '', description: '' });
     const [complaintResponse, setComplaintResponse] = useState({ id: null, status: 'processing', admin_response: '' });
     const [rescheduleData, setRescheduleData] = useState({ start_date: '', end_date: '' });
@@ -66,6 +82,15 @@ export default function Dashboard() {
 
     // Toast/Alert triggers
     const [toasts, setToasts] = useState([]);
+
+    const addToast = (toastParams) => {
+        const id = toastParams.id || Date.now() + Math.random();
+        const toast = { ...toastParams, id };
+        setToasts(prev => [toast, ...prev].slice(0, 3));
+        setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+        }, 3000);
+    };
 
     // Chart ref
     const chartRef = useRef(null);
@@ -106,6 +131,31 @@ export default function Dashboard() {
         }
     };
 
+    // Specific ringtone for canteen orders (Ting-Ting! bell sound)
+    const playCanteenRingtone = () => {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const playTone = (freq, startTime, duration) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(0.3, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            };
+            
+            // "Ting-Ting!" double bell chime
+            playTone(1046.50, ctx.currentTime, 0.4); // C6
+            playTone(1318.51, ctx.currentTime + 0.15, 0.6); // E6
+        } catch(e) {
+            console.error('AudioContext not supported or blocked', e);
+        }
+    };
+
     // Trigger dummy/simulation notifications (real-time popups)
     const triggerSimulationNotification = (type) => {
         playNotificationSound();
@@ -129,34 +179,85 @@ export default function Dashboard() {
                 id: Date.now(),
                 title: 'Pembayaran Masuk Real-Time',
                 message: 'Penghuni Dani Trisna baru saja mengunggah bukti bayar Rp 300.000 untuk Kamar 102. (WhatsApp Notif terkirim ke Owner)',
-                color: 'border-emerald-200 text-emerald-800 bg-emerald-50 shadow-lg'
+                color: 'border-blue-200 text-blue-800 bg-blue-50 shadow-lg'
             };
         } else if (type === 'complaint') {
             toast = {
                 id: Date.now(),
                 title: 'Komplain Baru Masuk (Real-Time)',
                 message: 'Kamar 101 - Dani Trisna mengajukan aduan: "Kran Air Kamar Mandi Bocor". (Badge menu ter-update)',
-                color: 'border-blue-200 text-blue-800 bg-blue-50 shadow-lg'
+                color: 'border-slate-200 text-slate-800 bg-slate-50 shadow-lg'
+            };
+        } else if (type === 'new_booking') {
+            toast = {
+                id: Date.now(),
+                title: 'Penyewa Baru Masuk (Real-Time)',
+                message: 'Penghuni Budi Santoso baru saja memesan Kamar 203. Menunggu verifikasi OTP dan pembayaran.',
+                color: 'border-emerald-200 text-emerald-800 bg-emerald-50 shadow-lg'
             };
         }
-        setToasts(prev => [toast, ...prev].slice(0, 3)); // keep max 3 toasts
+        addToast(toast); // keep max 3 toasts and auto-remove after 3s
     };
+
+    // Auto-detect and spawn toasts for REAL database notifications
+    const prevNotifsRef = useRef([]);
+    useEffect(() => {
+        if (prevNotifsRef.current.length > 0 && notifications.length > prevNotifsRef.current.length) {
+            const newNotifs = notifications.filter(n => !prevNotifsRef.current.find(p => p.id === n.id));
+            if (newNotifs.length > 0) {
+                if (newNotifs.some(n => n.type === 'canteen_admin' || n.type === 'canteen_ready')) {
+                    playCanteenRingtone();
+                } else {
+                    playNotificationSound();
+                }
+            }
+            
+            const newToasts = newNotifs.map(n => {
+                let color = 'border-slate-200 text-slate-800 bg-white shadow-lg';
+                if (n.type === 'unpaid_bill') color = 'border-red-200 text-red-800 bg-red-50 shadow-lg';
+                else if (n.type === 'rental_expiry') color = 'border-amber-200 text-amber-800 bg-amber-50 shadow-lg';
+                else if (n.type === 'payment_unverified') color = 'border-blue-200 text-blue-800 bg-blue-50 shadow-lg';
+                else if (n.type === 'new_booking') color = 'border-emerald-200 text-emerald-800 bg-emerald-50 shadow-lg';
+                else if (n.type === 'new_complaint') color = 'border-slate-200 text-slate-800 bg-slate-50 shadow-lg';
+                else if (n.type === 'canteen_admin' || n.type === 'canteen_ready') color = 'border-fuchsia-200 text-fuchsia-800 bg-fuchsia-50 shadow-lg';
+                
+                return {
+                    id: Date.now() + Math.random(),
+                    title: n.title + ' (Sistem)',
+                    message: n.message,
+                    color: color
+                };
+            });
+            
+            if (newToasts.length > 0) {
+                newToasts.forEach(t => addToast(t));
+            }
+        }
+        prevNotifsRef.current = notifications;
+    }, [notifications]);
 
     // Load DB Data (parallel fetches)
     const loadAllData = async () => {
         try {
-            const [statsRes, branchesRes, roomsRes, bookingsRes, complaintsRes] = await Promise.all([
-                fetch('/api/dashboard/data'),
-                fetch('/api/branches'),
-                fetch('/api/rooms'),
-                fetch('/api/bookings'),
-                fetch('/api/complaints'),
+            const [statsRes, branchesRes, roomsRes, bookingsRes, complaintsRes, financesRes, canteenItemsRes, canteenOrdersRes] = await Promise.all([
+                authFetch('/api/dashboard/data'),
+                authFetch('/api/branches'),
+                authFetch('/api/rooms'),
+                authFetch('/api/bookings'),
+                authFetch('/api/complaints'),
+                authFetch('/api/finances'),
+                authFetch('/api/canteen-items'),
+                authFetch('/api/canteen-orders'),
             ]);
+            
             const statsData      = await statsRes.json();
             const branchesData   = await branchesRes.json();
             const roomsData      = await roomsRes.json();
             const bookingsData   = await bookingsRes.json();
             const complaintsData = await complaintsRes.json();
+            const financesData   = await financesRes.json();
+            const canteenItemsData = await canteenItemsRes.json();
+            const canteenOrdersData = await canteenOrdersRes.json();
 
             setStats(statsData.stats || {});
             setNotifications(statsData.notifications || []);
@@ -165,31 +266,40 @@ export default function Dashboard() {
             setRooms(Array.isArray(roomsData) ? roomsData : []);
             setBookings(Array.isArray(bookingsData) ? bookingsData : []);
             setComplaints(Array.isArray(complaintsData) ? complaintsData : []);
-
-            const financesRes  = await fetch('/api/finances');
-            const financesData = await financesRes.json();
             setFinances(Array.isArray(financesData) ? financesData : []);
+            setCanteenItems(Array.isArray(canteenItemsData) ? canteenItemsData : []);
+            setCanteenOrders(Array.isArray(canteenOrdersData) ? canteenOrdersData : []);
         } catch (err) {
             console.error('Error loading data', err);
         }
     };
 
-    // Background polling for notifications every 60s
+    // Background polling for notifications every 10s
     const loadNotificationsOnly = async () => {
         try {
-            const res  = await fetch('/api/dashboard/data');
+            const res  = await authFetch('/api/dashboard/data');
             const data = await res.json();
             setStats(data.stats || {});
             setNotifications(data.notifications || []);
-        } catch (_) { /* silent */ }
+            
+            // Fetch canteen orders for real-time updates
+            if (['super_admin', 'operator'].includes(currentRole)) {
+                const canteenRes = await authFetch('/api/canteen-orders');
+                const canteenData = await canteenRes.json();
+                setCanteenOrders(canteenData);
+            }
+        } catch (e) {
+            console.error('Polling error', e);
+        }
     };
 
+    // Auto-refresh Dashboard data (Initial load based on role)
     useEffect(() => { loadAllData(); }, [currentRole]);
 
     useEffect(() => {
-        const interval = setInterval(loadNotificationsOnly, 60000);
+        const interval = setInterval(loadNotificationsOnly, 10000);
         return () => clearInterval(interval);
-    }, []);
+    }, [currentRole]);
 
     // Initialize Chart.js
     const initChart = async () => {
@@ -280,15 +390,23 @@ export default function Dashboard() {
             error:   'border-red-200 text-red-800 bg-red-50 shadow-lg',
         };
         const icon = type === 'success' ? '✅' : '❌';
-        setToasts(prev => [{ id: Date.now(), title: `${icon} ${type === 'success' ? 'Berhasil' : 'Gagal'}`, message, color: colorMap[type] }, ...prev].slice(0, 3));
+        addToast({ title: `${icon} ${type === 'success' ? 'Berhasil' : 'Gagal'}`, message, color: colorMap[type] });
     };
 
     // Handle Forms
     const handleAddBranch = async (e) => {
         e.preventDefault();
-        const res = await authFetch('/api/branches', { method: 'POST', body: JSON.stringify(newBranch) });
+        const payload = new FormData();
+        payload.append('name', newBranch.name);
+        payload.append('address', newBranch.address || '');
+        payload.append('maps_link', newBranch.maps_link || '');
+        payload.append('status', newBranch.status);
+        if (newBranch.image) payload.append('image', newBranch.image);
+        if (newBranch.video) payload.append('video', newBranch.video);
+
+        const res = await authFetch('/api/branches', { method: 'POST', body: payload });
         if (res.ok) {
-            setNewBranch({ name: '', address: '', maps_link: '', status: 'active' });
+            setNewBranch({ name: '', address: '', maps_link: '', status: 'active', image: null, video: null });
             loadAllData();
             showToast('Cabang berhasil ditambahkan!');
         } else { const d = await res.json(); showToast(d.message || 'Gagal menambah cabang.', 'error'); }
@@ -326,11 +444,72 @@ export default function Dashboard() {
         } else { const d = await res.json(); showToast(d.message || 'Gagal menambah kamar.', 'error'); }
     };
 
+    const handleFinishCleaning = async (roomId) => {
+        if (!confirm('Tandai kamar ini selesai dibersihkan dan siap disewa?')) return;
+        const res = await authFetch(`/api/rooms/${roomId}/finish-cleaning`, { method: 'POST' });
+        if (res.ok) {
+            loadAllData();
+            showToast('Pembersihan selesai. Kamar kini tersedia!');
+        } else {
+            const d = await res.json();
+            showToast(d.message || 'Gagal mengubah status kamar.', 'error');
+        }
+    };
+
+    const handleExportCSV = () => {
+        const headers = ['Kode Booking', 'Penyewa', 'Cabang', 'Kamar', 'Jenis Sewa', 'Tgl Mulai', 'Tgl Selesai', 'Tagihan', 'Status Sewa', 'Status Bayar'];
+        
+        const csvData = visibleBookings.map(b => {
+            return [
+                b.booking_code,
+                b.tenant?.name || '-',
+                b.room?.branch?.name?.replace('Kospart PH 18 - ', '') || '-',
+                `Kamar ${b.room?.room_number || '-'}`,
+                b.rental_type === 'daily' ? 'Harian' : 'Bulanan',
+                b.start_date,
+                b.end_date,
+                b.total_amount,
+                b.status,
+                b.payment_status
+            ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(',');
+        });
+        
+        const csvContent = [headers.join(','), ...csvData].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Export_Penyewaan_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    };
+
+    const handleExportFinanceCSV = () => {
+        const headers = ['Tanggal', 'Kategori', 'Deskripsi', 'Jumlah', 'Tipe Transaksi', 'Kamar', 'Cabang', 'Penyewa'];
+        const csvData = visibleFinances.map(f => {
+            return [
+                new Date(f.transaction_date).toLocaleDateString('id-ID'),
+                f.category,
+                f.description,
+                f.transaction_type === 'income' ? f.amount : -f.amount,
+                f.transaction_type === 'income' ? 'Pemasukan' : 'Pengeluaran',
+                f.booking ? `Kamar ${f.booking.room?.room_number || '-'}` : '-',
+                f.branch?.name?.replace('Kospart PH 18 - ', '') || '-',
+                f.booking?.tenant?.name || '-'
+            ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(',');
+        });
+        const csvContent = [headers.join(','), ...csvData].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Export_Laporan_Keuangan_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    };
+
     const handleAddFinance = async (e) => {
         e.preventDefault();
         const res = await authFetch('/api/finances', { method: 'POST', body: JSON.stringify(newFinance) });
         if (res.ok) {
-            setNewFinance({ transaction_type: 'expense', amount: '', category: 'maintenance', transaction_date: new Date().toISOString().split('T')[0], description: '' });
+            setNewFinance({ transaction_type: 'expense', amount: '', category: 'maintenance', transaction_date: new Date().toISOString().split('T')[0], description: '', branch_id: '' });
             loadAllData();
             showToast('Transaksi kas berhasil dicatat!');
         } else { const d = await res.json(); showToast(d.message || 'Gagal mencatat transaksi.', 'error'); }
@@ -363,11 +542,18 @@ export default function Dashboard() {
     const handleTenantPayment = async (e) => {
         e.preventDefault();
         if (!showPaymentModal) return;
-        const res  = await authFetch(`/api/bookings/${showPaymentModal.id}/pay`, { method: 'POST', body: JSON.stringify(paymentData) });
+        
+        const formData = new FormData();
+        formData.append('paid_amount', paymentData.paid_amount);
+        if (paymentData.payment_proof_file) {
+            formData.append('payment_proof', paymentData.payment_proof_file);
+        }
+
+        const res  = await authFetch(`/api/bookings/${showPaymentModal.id}/pay`, { method: 'POST', body: formData });
         const data = await res.json();
         if (res.ok) {
             setShowPaymentModal(null);
-            setPaymentData({ paid_amount: '', payment_proof: 'BUKTI_BAYAR_SIMULASI' });
+            setPaymentData({ paid_amount: '', payment_proof_file: null });
             loadAllData();
             showToast(data.message);
         } else { showToast(data.message || 'Gagal memproses pembayaran.', 'error'); }
@@ -408,6 +594,37 @@ export default function Dashboard() {
         else { const d = await res.json(); showToast(d.message || 'Gagal checkout.', 'error'); }
     };
 
+    const handleSendReminder = async (id) => {
+        if (!confirm('Kirim pesan otomatis reminder WhatsApp via Fonnte?')) return;
+        const res = await authFetch(`/api/bookings/${id}/remind`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(data.message);
+        } else {
+            showToast(data.message || 'Gagal mengirim pesan via Fonnte.', 'error');
+        }
+    };
+
+    const handleExtendBooking = async (e) => {
+        e.preventDefault();
+        const activeBooking = bookings.find(b => Number(b.tenant_id) === auth.user.id && (b.status === 'active' || b.status === 'pending'));
+        if (!activeBooking) return;
+        
+        const res = await authFetch(`/api/bookings/${activeBooking.id}/extend`, {
+            method: 'POST',
+            body: JSON.stringify({ duration: extendDuration })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            setShowExtendTenantModal(false);
+            setExtendDuration(1);
+            loadAllData();
+            showToast(data.message);
+        } else {
+            showToast(data.message || 'Gagal memperpanjang masa sewa.', 'error');
+        }
+    };
+
     const handleChangeRoom = async (e) => {
         e.preventDefault();
         const res = await authFetch(`/api/bookings/${showChangeRoomModal.id}/change-room`, { method: 'POST', body: JSON.stringify({ new_room_id: newRoomIdInput }) });
@@ -440,29 +657,114 @@ export default function Dashboard() {
 
     // Use optional chaining to prevent crashes when related data not yet loaded
     const visibleRooms = rooms.filter(r => {
-        if (currentRole === 'operator') return operatorBranches.includes(r.branch_id);
+        if (currentRole === 'operator') return operatorBranches.some(b => Number(b) === Number(r.branch_id));
         if (currentRole === 'resident') {
-            const resId = getSimulatedResidentId();
-            return bookings.some(b => b.room_id === r.id && b.tenant_id === resId && b.status === 'active');
+            const resId = auth.user.id;
+            return bookings.some(b => Number(b.room_id) === Number(r.id) && Number(b.tenant_id) === resId && b.status === 'active');
         }
         return true;
     });
 
     const visibleBookings = bookings.filter(b => {
-        if (currentRole === 'operator') return operatorBranches.includes(b.room?.branch_id);
-        if (currentRole === 'resident') return b.tenant_id === getSimulatedResidentId();
+        if (currentRole === 'operator' && !operatorBranches.some(br => Number(br) === Number(b.room?.branch_id))) return false;
+        if (currentRole === 'resident' && Number(b.tenant_id) !== auth.user.id) return false;
+        
+        if (bookingSearch) {
+            const query = bookingSearch.toLowerCase();
+            const codeMatch = b.booking_code && b.booking_code.toLowerCase().includes(query);
+            const nameMatch = b.tenant?.name && b.tenant.name.toLowerCase().includes(query);
+            const roomMatch = b.room?.room_number && b.room.room_number.toString().toLowerCase().includes(query);
+            if (!codeMatch && !nameMatch && !roomMatch) return false;
+        }
+        
         return true;
+    }).sort((a, b) => {
+        if (a.status === 'active' && b.status !== 'active') return -1;
+        if (a.status !== 'active' && b.status === 'active') return 1;
+        return new Date(a.end_date) - new Date(b.end_date);
     });
 
     const visibleComplaints = complaints.filter(c => {
-        if (currentRole === 'operator') return operatorBranches.includes(c.room?.branch_id);
-        if (currentRole === 'resident') return c.tenant_id === getSimulatedResidentId();
+        if (currentRole === 'operator') return operatorBranches.some(br => Number(br) === Number(c.room?.branch_id));
+        if (currentRole === 'resident') return Number(c.tenant_id) === auth.user.id;
         return true;
     });
 
+    const checkDateFilter = (dateStr) => {
+        if (!dateStr || financeDateFilterType === 'all') return true;
+        const d = new Date(dateStr);
+        if (isNaN(d)) return true;
+        
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const localDateStr = `${year}-${month}-${day}`;
+        const localMonthStr = `${year}-${month}`;
+
+        if (financeDateFilterType === 'daily') {
+            if (!financeDateFilterStart) return true;
+            return localDateStr === financeDateFilterStart;
+        } else if (financeDateFilterType === 'monthly') {
+            if (!financeDateFilterStart) return true;
+            return localMonthStr === financeDateFilterStart;
+        } else if (financeDateFilterType === 'yearly') {
+            if (!financeDateFilterStart) return true;
+            return year.toString() === financeDateFilterStart.toString();
+        } else if (financeDateFilterType === 'custom') {
+            if (financeDateFilterStart && localDateStr < financeDateFilterStart) return false;
+            if (financeDateFilterEnd && localDateStr > financeDateFilterEnd) return false;
+            return true;
+        }
+        return true;
+    };
+
+    const baseVisibleFinances = finances.filter(f => {
+        if (!checkDateFilter(f.transaction_date)) return false;
+
+        const isCanteen = f.description && f.description.toLowerCase().includes('kantin');
+        if (financeTypeFilter === 'room' && isCanteen) return false;
+        if (financeTypeFilter === 'canteen' && !isCanteen) return false;
+        if (financeCategoryFilter !== 'all' && f.category !== financeCategoryFilter) return false;
+
+        if (!financeSearch) return true;
+        const q = financeSearch.toLowerCase();
+        return (
+            (f.category && f.category.toLowerCase().includes(q)) ||
+            (f.description && f.description.toLowerCase().includes(q)) ||
+            (f.booking?.tenant?.name && f.booking.tenant.name.toLowerCase().includes(q))
+        );
+    });
+
+    const kasbonFinances = canteenOrders
+        .filter(o => o.payment_status === 'debt_unpaid')
+        .filter(o => {
+            if (!checkDateFilter(o.created_at)) return false;
+
+            if (financeTypeFilter === 'room') return false;
+            if (financeCategoryFilter !== 'all' && financeCategoryFilter !== 'Kasbon Kantin') return false;
+            if (!financeSearch) return true;
+            const q = financeSearch.toLowerCase();
+            return (
+                'kasbon kantin'.includes(q) ||
+                (o.order_code && o.order_code.toLowerCase().includes(q)) ||
+                (o.tenant?.name && o.tenant.name.toLowerCase().includes(q))
+            );
+        })
+        .map(o => ({
+            id: `kasbon-${o.id}`,
+            transaction_date: o.created_at,
+            category: 'Kasbon Kantin',
+            description: `Kasbon Kantin: ${o.order_code} - ${o.tenant?.name || 'Unknown'}`,
+            transaction_type: 'income',
+            amount: o.total_amount,
+            is_kasbon: true
+        }));
+
+    const visibleFinances = [...baseVisibleFinances, ...kasbonFinances].sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date));
+
     const getSimulatedResidentName = () => {
         if (auth.user.role === 'resident') return auth.user.name;
-        const resId = getSimulatedResidentId();
+        const resId = auth.user.id;
         return bookings.find(b => b.tenant_id === resId)?.tenant?.name || auth.user.name;
     };
 
@@ -476,12 +778,19 @@ export default function Dashboard() {
                 const complaint = complaints.find(c => c.id === notif.meta?.complaint_id);
                 return complaint && operatorBranches.includes(complaint.room?.branch_id);
             }
+            if (['payment_unverified', 'new_booking'].includes(notif.type)) {
+                const booking = bookings.find(b => b.id === notif.meta?.booking_id);
+                return booking && operatorBranches.includes(booking.room?.branch_id);
+            }
             return false;
         }
         if (currentRole === 'resident') {
-            const resId = getSimulatedResidentId();
+            const resId = auth.user.id;
             if (notif.meta?.booking_code) {
                 return bookings.find(b => b.booking_code === notif.meta.booking_code)?.tenant_id === resId;
+            }
+            if (notif.meta?.booking_id) {
+                return bookings.find(b => b.id === notif.meta.booking_id)?.tenant_id === resId;
             }
             if (notif.meta?.complaint_id !== undefined) {
                 return complaints.find(c => c.id === notif.meta.complaint_id)?.tenant_id === resId;
@@ -492,6 +801,9 @@ export default function Dashboard() {
     });
 
     const pendingComplaintsBadgeCount = visibleComplaints.filter(c => c.status === 'pending').length;
+
+    // Menghitung jumlah alert untuk Penyewaan/Sewa (semua notifikasi kecuali komplain)
+    const urgentSewaCount = visibleNotifications.filter(n => n.type !== 'new_complaint').length;
     const urgentNotifCount = visibleNotifications.filter(n => ['unpaid_bill', 'rental_expiry', 'daily_checkout_today'].includes(n.type)).length;
 
     return (
@@ -520,7 +832,7 @@ export default function Dashboard() {
                         }`}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z"></path></svg>
-                        Ringkasan
+                        {currentRole === 'resident' ? 'Sewa Saya' : 'Ringkasan'}
                     </button>
 
                     {currentRole === 'super_admin' && (
@@ -549,12 +861,19 @@ export default function Dashboard() {
 
                     <button 
                         onClick={() => setActiveTab('bookings')} 
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                             activeTab === 'bookings' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                         }`}
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                        {currentRole === 'resident' ? 'Riwayat Pembayaran' : 'Penyewaan / Sewa'}
+                        <div className="flex items-center gap-3">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                            {currentRole === 'resident' ? 'Riwayat Pembayaran' : 'Penyewaan / Sewa'}
+                        </div>
+                        {urgentSewaCount > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                                {urgentSewaCount}
+                            </span>
+                        )}
                     </button>
 
                     <button 
@@ -574,6 +893,24 @@ export default function Dashboard() {
                         )}
                     </button>
 
+                    {/* Tab Kantin */}
+                    <button 
+                        onClick={() => setActiveTab('canteen')} 
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                            activeTab === 'canteen' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            {currentRole === 'resident' ? 'Kantin Kos' : 'Master Kantin'}
+                        </div>
+                        {currentRole !== 'resident' && canteenOrders.filter(o => o.status === 'pending_approval' || o.status === 'processing').length > 0 && (
+                            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                {canteenOrders.filter(o => o.status === 'pending_approval' || o.status === 'processing').length}
+                            </span>
+                        )}
+                    </button>
+
                     {['super_admin', 'operator'].includes(currentRole) && (
                         <button 
                             onClick={() => setActiveTab('finances')} 
@@ -583,6 +920,18 @@ export default function Dashboard() {
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             Laporan Keuangan
+                        </button>
+                    )}
+
+                    {currentRole === 'super_admin' && (
+                        <button 
+                            onClick={() => setActiveTab('web_settings')} 
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                activeTab === 'web_settings' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                            }`}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                            Konten Website
                         </button>
                     )}
                 </nav>
@@ -619,78 +968,75 @@ export default function Dashboard() {
                 <header className="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 shadow-sm">
                     <div>
                         <h2 className="font-extrabold text-2xl text-slate-900">
-                            {activeTab === 'overview' ? 'Ringkasan Dashboard' : 
+                            {activeTab === 'overview' ? (currentRole === 'resident' ? 'Informasi Sewa Saya' : 'Ringkasan Dashboard') : 
                              activeTab === 'branches' ? 'Master Cabang Kos' :
                              activeTab === 'rooms' ? 'Master Kamar Kos' :
                              activeTab === 'bookings' ? (currentRole === 'resident' ? 'Riwayat Pembayaran' : 'Log Transaksi Penyewaan') :
-                             activeTab === 'complaints' ? 'Pengaduan Komplain & Perbaikan' : 'Laporan Keuangan'}
+                             activeTab === 'canteen' ? (currentRole === 'resident' ? 'Kantin Kos' : 'Pesanan & Stok Kantin') :
+                             activeTab === 'complaints' ? 'Pengaduan Komplain & Perbaikan' : 
+                             activeTab === 'web_settings' ? 'Pengaturan Konten Website' : 'Laporan Keuangan'}
                         </h2>
                     </div>
 
-                    {/* Role Switcher for Simulation (Only visible to real super_admin) */}
-                    {auth.user.role === 'super_admin' && (
-                        <div className="flex items-center gap-4">
-                            <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2 text-xs">
-                                <span className="text-slate-500 font-semibold">Simulasi Role:</span>
-                                <div className="flex gap-1">
-                                    {['super_admin', 'operator', 'resident'].map(role => (
-                                        <button 
-                                            key={role}
-                                            onClick={() => {
-                                                setCurrentRole(role);
-                                                setActiveTab('overview');
-                                            }}
-                                            className={`px-2.5 py-1 rounded-md font-bold uppercase transition-all ${
-                                                currentRole === role ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                                            }`}
-                                        >
-                                            {role === 'super_admin' ? 'Admin' : role === 'operator' ? 'Operator' : 'Tenant'}
-                                        </button>
-                                    ))}
+                    {/* Notification Bell */}
+                    <div className="relative flex items-center gap-4 ml-auto">
+                        <button 
+                            onClick={() => setShowNotifications(!showNotifications)}
+                            className="relative p-2 text-slate-500 hover:text-emerald-600 transition-colors bg-slate-50 hover:bg-emerald-50 rounded-full border border-slate-200 hover:border-emerald-200"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                            {visibleNotifications.length > 0 && (
+                                <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>
+                            )}
+                        </button>
+
+                        {/* Notification Dropdown */}
+                        {showNotifications && (
+                            <div className="absolute right-0 top-12 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
+                                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                    <h4 className="font-bold text-sm text-slate-800">Notifikasi</h4>
+                                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">{visibleNotifications.length} Baru</span>
+                                </div>
+                                <div className="max-h-80 overflow-y-auto">
+                                    {visibleNotifications.length === 0 ? (
+                                        <div className="p-6 text-center text-slate-400">
+                                            <p className="text-xs">Tidak ada notifikasi baru</p>
+                                        </div>
+                                    ) : (
+                                        visibleNotifications.map((notif, idx) => (
+                                            <div key={idx} className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors text-xs">
+                                                <div className="flex gap-3">
+                                                    <div className={`w-2 h-2 mt-1 rounded-full shrink-0 ${
+                                                        ['unpaid_bill', 'canteen_debt'].includes(notif.type) ? 'bg-red-500' :
+                                                        ['rental_expiry', 'canteen_admin'].includes(notif.type) ? 'bg-amber-500' :
+                                                        ['payment_unverified'].includes(notif.type) ? 'bg-blue-500' :
+                                                        'bg-emerald-500'
+                                                    }`}></div>
+                                                    <div>
+                                                        <strong className="block font-bold text-slate-800 mb-0.5">{notif.title}</strong>
+                                                        <span className="block text-slate-500 leading-relaxed">{notif.message}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </div>
-
-                            {/* Real-time Simulator buttons */}
-                            {['super_admin', 'operator'].includes(currentRole) && (
-                                <div className="flex gap-2">
-                                    <button 
-                                        onClick={() => triggerSimulationNotification('unpaid')}
-                                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl border border-red-200 transition-all"
-                                        title="Notifikasi tagihan bulanan tidak lunas"
-                                    >
-                                        Unpaid Notif
-                                    </button>
-                                    <button 
-                                        onClick={() => triggerSimulationNotification('expiry')}
-                                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-xl border border-amber-200 transition-all"
-                                        title="Notifikasi sewa berakhir H-3"
-                                    >
-                                        Expiry Notif
-                                    </button>
-                                    <button 
-                                        onClick={() => triggerSimulationNotification('payment')}
-                                        className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-xl border border-emerald-200 transition-all"
-                                        title="Notifikasi pembayaran masuk dari tenant"
-                                    >
-                                        Payment Notif
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </header>
 
                 {/* Toast Notification Container */}
                 <div className="fixed top-24 right-8 z-50 flex flex-col gap-3 max-w-sm">
                     {toasts.map(toast => (
-                        <div key={toast.id} className={`p-4 rounded-xl border shadow-xl flex gap-3 animate-float ${toast.color}`}>
+                        <div key={toast.id} onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className={`p-4 rounded-xl border shadow-xl flex gap-3 animate-float cursor-pointer hover:opacity-90 transition-opacity ${toast.color}`}>
                             <div className="shrink-0 mt-0.5">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                             </div>
                             <div>
                                 <h4 className="font-extrabold text-xs uppercase tracking-wider">{toast.title}</h4>
                                 <p className="text-slate-650 text-[11px] mt-1 leading-relaxed font-medium">{toast.message}</p>
-                                <button onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="text-[10px] text-slate-500 hover:text-slate-800 block mt-2 font-bold underline uppercase">Tutup</button>
+                                <span className="text-[10px] text-slate-500 block mt-2 font-bold underline uppercase">Klik untuk menutup</span>
                             </div>
                         </div>
                     ))}
@@ -712,7 +1058,7 @@ export default function Dashboard() {
                                                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider block">Kamar Saya</span>
                                                 <span className="text-slate-900 font-extrabold text-2xl block mt-1">
                                                     {(() => {
-                                                        const resId = getSimulatedResidentId();
+                                                        const resId = auth.user.id;
                                                         const activeBooking = bookings.find(b => b.tenant_id === resId && b.status === 'active');
                                                         const booking = activeBooking || bookings.find(b => b.tenant_id === resId);
                                                         return booking ? `Kamar ${booking.room?.room_number || '-'}` : 'Belum Ada';
@@ -720,7 +1066,7 @@ export default function Dashboard() {
                                                 </span>
                                                 <span className="text-xs text-slate-400 block mt-1">
                                                     {(() => {
-                                                        const resId = getSimulatedResidentId();
+                                                        const resId = auth.user.id;
                                                         const activeBooking = bookings.find(b => b.tenant_id === resId && b.status === 'active');
                                                         const booking = activeBooking || bookings.find(b => b.tenant_id === resId);
                                                         return booking ? (booking.room?.branch?.name || '').replace('Kospart PH 18 - ', '') : 'Tidak ada hunian aktif';
@@ -738,7 +1084,7 @@ export default function Dashboard() {
                                                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider block">Status Hunian</span>
                                                 <span className="text-slate-900 font-extrabold text-2xl block mt-1 uppercase">
                                                     {(() => {
-                                                        const resId = getSimulatedResidentId();
+                                                        const resId = auth.user.id;
                                                         const activeBooking = bookings.find(b => b.tenant_id === resId && b.status === 'active');
                                                         const booking = activeBooking || bookings.find(b => b.tenant_id === resId);
                                                         return booking ? (booking.status === 'active' ? 'Aktif' : booking.status === 'pending' ? 'Pending' : 'Selesai') : 'Tidak Aktif';
@@ -746,7 +1092,7 @@ export default function Dashboard() {
                                                 </span>
                                                 <span className="text-xs text-slate-400 block mt-1">
                                                     {(() => {
-                                                        const resId = getSimulatedResidentId();
+                                                        const resId = auth.user.id;
                                                         const activeBooking = bookings.find(b => b.tenant_id === resId && b.status === 'active');
                                                         const booking = activeBooking || bookings.find(b => b.tenant_id === resId);
                                                         return booking ? `Sewa ${booking.rental_type === 'daily' ? 'Harian' : 'Bulanan'}` : 'Hubungi pengelola';
@@ -764,7 +1110,7 @@ export default function Dashboard() {
                                                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider block">Biaya Sewa</span>
                                                 <span className="text-slate-900 font-extrabold text-2xl block mt-1">
                                                     {(() => {
-                                                        const resId = getSimulatedResidentId();
+                                                        const resId = auth.user.id;
                                                         const activeBooking = bookings.find(b => b.tenant_id === resId && b.status === 'active');
                                                         const booking = activeBooking || bookings.find(b => b.tenant_id === resId);
                                                         return booking ? `Rp ${parseFloat(booking.total_amount).toLocaleString('id-ID')}` : 'Rp 0';
@@ -772,7 +1118,7 @@ export default function Dashboard() {
                                                 </span>
                                                 <span className="text-xs font-bold block mt-1">
                                                     {(() => {
-                                                        const resId = getSimulatedResidentId();
+                                                        const resId = auth.user.id;
                                                         const activeBooking = bookings.find(b => b.tenant_id === resId && b.status === 'active');
                                                         const booking = activeBooking || bookings.find(b => b.tenant_id === resId);
                                                         if (!booking) return '-';
@@ -849,7 +1195,7 @@ export default function Dashboard() {
                             <div className="grid lg:grid-cols-12 gap-8">
                                 {/* Chart */}
                                 {['super_admin', 'operator'].includes(currentRole) && (
-                                    <div className="lg:col-span-8 glass-panel p-6 rounded-2xl flex flex-col justify-between">
+                                    <div className="lg:col-span-12 glass-panel p-6 rounded-2xl flex flex-col justify-between">
                                         <div>
                                             <h3 className="font-extrabold text-lg text-slate-900">Grafik Keuangan Laba Rugi</h3>
                                             <p className="text-xs text-slate-550">Menampilkan grafik pemasukan vs pengeluaran 6 bulan terakhir.</p>
@@ -859,47 +1205,11 @@ export default function Dashboard() {
                                         </div>
                                     </div>
                                 )}
-
-                                {/* Real-time Alerts Panel */}
-                                <div className={`glass-panel p-6 rounded-2xl flex flex-col ${['super_admin', 'operator'].includes(currentRole) ? 'lg:col-span-4' : 'lg:col-span-12'}`}>
-                                    <div className="border-b border-slate-205 pb-4 mb-4 flex items-center justify-between">
-                                        <div>
-                                            <h3 className="font-extrabold text-lg text-slate-900">Notifikasi Alert Real-Time</h3>
-                                            <p className="text-xs text-slate-550">Pop-up notifikasi realtime pembayaran, jatuh tempo, & sewa harian.</p>
-                                        </div>
-                                        <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold px-2.5 py-0.5 rounded-full">Active</span>
-                                    </div>
-                                    <div className="flex-grow space-y-4 overflow-y-auto max-h-[300px] pr-1">
-                                        {visibleNotifications.length === 0 ? (
-                                            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
-                                                <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                                <span className="text-xs font-semibold">Tidak ada peringatan aktif</span>
-                                            </div>
-                                        ) : (
-                                            visibleNotifications.map((notif, idx) => (
-                                                <div key={idx} className={`p-3 rounded-xl border flex gap-3 text-xs leading-relaxed ${
-                                                    notif.type === 'unpaid_bill' ? 'border-red-200 bg-red-50 text-red-805' :
-                                                    notif.type === 'rental_expiry' ? 'border-amber-200 bg-amber-50 text-amber-805' :
-                                                    notif.type === 'daily_checkout_today' ? 'border-emerald-200 bg-emerald-50 text-emerald-805' :
-                                                    'border-blue-200 bg-blue-50 text-blue-805'
-                                                }`}>
-                                                    <div className="shrink-0 mt-0.5">
-                                                        <span className="w-2 h-2 rounded-full bg-current block"></span>
-                                                    </div>
-                                                    <div>
-                                                        <strong className="block font-bold">{notif.title}</strong>
-                                                        <span className="mt-1 block text-slate-600 text-[11px] font-medium">{notif.message}</span>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
                             </div>
 
                             {/* ── RIWAYAT & PROGRESS khusus TENANT ── */}
                             {currentRole === 'resident' && (() => {
-                                const resId = getSimulatedResidentId();
+                                const resId = auth.user.id;
                                 const myBookings = bookings.filter(b => b.tenant_id === resId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                                 const activeBooking = myBookings.find(b => b.status === 'active') || myBookings.find(b => b.status === 'pending');
                                 const myComplaints = visibleComplaints.filter(c => c.tenant_id === resId);
@@ -977,7 +1287,7 @@ export default function Dashboard() {
                                                                 </button>
                                                             ) : (
                                                                 <button
-                                                                    onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof: 'BUKTI_BAYAR_SIMULASI' }); }}
+                                                                    onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof_file: null }); }}
                                                                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2"
                                                                 >
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
@@ -985,8 +1295,12 @@ export default function Dashboard() {
                                                                 </button>
                                                             )
                                                         )}
+                                                        <button onClick={() => setShowExtendTenantModal(true)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-blue-700/20 flex items-center justify-center gap-2">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                                            Perpanjang
+                                                        </button>
                                                         <button onClick={() => setShowInvoiceModal(activeBooking)} className="w-full py-2.5 bg-white text-slate-700 font-bold rounded-xl text-sm border border-slate-200 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center">
-                                                            Cetak Invoice
+                                                            Invoice
                                                         </button>
                                                     </div>
                                                 </>
@@ -1132,7 +1446,25 @@ export default function Dashboard() {
                                             placeholder="https://maps.app.goo.gl/..."
                                         />
                                     </div>
-                                    <button type="submit" className="py-2.5 bg-emerald-600 hover:bg-emerald-505 text-white font-bold rounded-xl text-sm transition-all">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-slate-500">Foto Cabang</label>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*"
+                                            onChange={(e) => setNewBranch({...newBranch, image: e.target.files[0]})} 
+                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-slate-500">Video Cabang (Opsional)</label>
+                                        <input 
+                                            type="file" 
+                                            accept="video/mp4,video/x-m4v,video/*"
+                                            onChange={(e) => setNewBranch({...newBranch, video: e.target.files[0]})} 
+                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                                        />
+                                    </div>
+                                    <button type="submit" className="md:col-span-4 py-2.5 bg-emerald-600 hover:bg-emerald-505 text-white font-bold rounded-xl text-sm transition-all">
                                         Simpan Cabang
                                     </button>
                                 </form>
@@ -1146,6 +1478,7 @@ export default function Dashboard() {
                                             <th className="p-4 pl-6">ID</th>
                                             <th className="p-4">Nama Cabang</th>
                                             <th className="p-4">Alamat</th>
+                                            <th className="p-4">Media</th>
                                             <th className="p-4">Maps Link</th>
                                             <th className="p-4 pr-6">Status</th>
                                         </tr>
@@ -1155,8 +1488,27 @@ export default function Dashboard() {
                                             <tr key={b.id} className="hover:bg-slate-50">
                                                 <td className="p-4 pl-6 font-mono text-slate-400">{b.id}</td>
                                                 <td className="p-4 font-bold text-slate-800">{b.name}</td>
-                                                <td className="p-4 text-slate-600">{b.address}</td>
-                                                <td className="p-4"><a href={b.maps_link} target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-semibold underline">Buka Maps</a></td>
+                                                <td className="p-4 text-slate-600">{b.address || '-'}</td>
+                                                <td className="p-4">
+                                                    <div className="flex items-center gap-2">
+                                                        {b.image_path ? (
+                                                            <a href={b.image_path} target="_blank" rel="noopener noreferrer">
+                                                                <img src={b.image_path} alt="Foto Cabang" className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:scale-110 transition-transform" />
+                                                            </a>
+                                                        ) : <span className="text-xs text-slate-400">No Image</span>}
+                                                        
+                                                        {b.video_path && (
+                                                            <a href={b.video_path} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors" title="Lihat Video">
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    {b.maps_link ? (
+                                                        <a href={b.maps_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-xs font-semibold underline">Buka Maps</a>
+                                                    ) : '-'}
+                                                </td>
                                                 <td className="p-4 pr-6"><span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs rounded-full font-semibold">Aktif</span></td>
                                             </tr>
                                         ))}
@@ -1170,90 +1522,92 @@ export default function Dashboard() {
                     {activeTab === 'rooms' && ['super_admin', 'operator'].includes(currentRole) && (
                         <div className="space-y-8">
                             {/* Form Tambah */}
-                            <div className="glass-panel p-6 rounded-2xl">
-                                <h3 className="font-extrabold text-lg text-slate-900 mb-4">Tambah Kamar Baru</h3>
-                                <form onSubmit={handleAddRoom} className="grid md:grid-cols-4 gap-4 items-end">
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500">Pilih Cabang</label>
-                                        <select 
-                                            required
-                                            value={newRoom.branch_id}
-                                            onChange={(e) => setNewRoom({...newRoom, branch_id: e.target.value})}
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                        >
-                                            <option value="">-- Pilih Cabang --</option>
-                                            {branches.map(b => (
-                                                <option key={b.id} value={b.id}>{b.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500">Nomor Kamar</label>
-                                        <input 
-                                            type="text" 
-                                            required
-                                            value={newRoom.room_number}
-                                            onChange={(e) => setNewRoom({...newRoom, room_number: e.target.value})}
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                            placeholder="105"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500">Harga Bulanan (Rp)</label>
-                                        <input 
-                                            type="number" 
-                                            required
-                                            value={newRoom.price_monthly}
-                                            onChange={(e) => setNewRoom({...newRoom, price_monthly: e.target.value})}
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                            placeholder="1200000"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-505">Harga Harian (Rp)</label>
-                                        <input 
-                                            type="number" 
-                                            required
-                                            value={newRoom.price_daily}
-                                            onChange={(e) => setNewRoom({...newRoom, price_daily: e.target.value})}
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                            placeholder="100000"
-                                        />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-4">
-                                        <label className="text-xs font-semibold text-slate-500">Fasilitas (pisahkan dengan koma)</label>
-                                        <input 
-                                            type="text" 
-                                            value={newRoom.facilities}
-                                            onChange={(e) => setNewRoom({...newRoom, facilities: e.target.value})}
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                            placeholder="AC, Wi-Fi, Kamar Mandi Dalam, Kasur Springbed"
-                                        />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-xs font-semibold text-slate-500">Upload Foto Kamar (Bisa lebih dari 1)</label>
-                                        <input 
-                                            type="file" 
-                                            multiple
-                                            accept="image/*"
-                                            onChange={(e) => setNewRoom({...newRoom, photos: e.target.files})}
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                                        />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-xs font-semibold text-slate-500">Upload Video Kamar (Maks 20MB)</label>
-                                        <input 
-                                            type="file" 
-                                            accept="video/mp4,video/x-m4v,video/*"
-                                            onChange={(e) => setNewRoom({...newRoom, video: e.target.files[0]})}
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                                        />
-                                    </div>
-                                    <button type="submit" className="py-2.5 bg-emerald-600 hover:bg-emerald-505 text-white font-bold rounded-xl text-sm transition-all">
-                                        Simpan Kamar
-                                    </button>
-                                </form>
-                            </div>
+                            {currentRole === 'super_admin' && (
+                                <div className="glass-panel p-6 rounded-2xl">
+                                    <h3 className="font-extrabold text-lg text-slate-900 mb-4">Tambah Kamar Baru</h3>
+                                    <form onSubmit={handleAddRoom} className="grid md:grid-cols-4 gap-4 items-end">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-semibold text-slate-500">Pilih Cabang</label>
+                                            <select 
+                                                required
+                                                value={newRoom.branch_id}
+                                                onChange={(e) => setNewRoom({...newRoom, branch_id: e.target.value})}
+                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
+                                            >
+                                                <option value="">-- Pilih Cabang --</option>
+                                                {branches.map(b => (
+                                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-semibold text-slate-500">Nomor Kamar</label>
+                                            <input 
+                                                type="text" 
+                                                required
+                                                value={newRoom.room_number}
+                                                onChange={(e) => setNewRoom({...newRoom, room_number: e.target.value})}
+                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
+                                                placeholder="105"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-semibold text-slate-500">Harga Bulanan (Rp)</label>
+                                            <input 
+                                                type="number" 
+                                                required
+                                                value={newRoom.price_monthly}
+                                                onChange={(e) => setNewRoom({...newRoom, price_monthly: e.target.value})}
+                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
+                                                placeholder="1200000"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-semibold text-slate-505">Harga Harian (Rp)</label>
+                                            <input 
+                                                type="number" 
+                                                required
+                                                value={newRoom.price_daily}
+                                                onChange={(e) => setNewRoom({...newRoom, price_daily: e.target.value})}
+                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
+                                                placeholder="100000"
+                                            />
+                                        </div>
+                                        <div className="space-y-1 md:col-span-4">
+                                            <label className="text-xs font-semibold text-slate-500">Fasilitas (pisahkan dengan koma)</label>
+                                            <input 
+                                                type="text" 
+                                                value={newRoom.facilities}
+                                                onChange={(e) => setNewRoom({...newRoom, facilities: e.target.value})}
+                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
+                                                placeholder="AC, Wi-Fi, Kamar Mandi Dalam, Kasur Springbed"
+                                            />
+                                        </div>
+                                        <div className="space-y-1 md:col-span-2">
+                                            <label className="text-xs font-semibold text-slate-500">Upload Foto Kamar (Bisa lebih dari 1)</label>
+                                            <input 
+                                                type="file" 
+                                                multiple
+                                                accept="image/*"
+                                                onChange={(e) => setNewRoom({...newRoom, photos: e.target.files})}
+                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                                            />
+                                        </div>
+                                        <div className="space-y-1 md:col-span-2">
+                                            <label className="text-xs font-semibold text-slate-500">Upload Video Kamar (Maks 20MB)</label>
+                                            <input 
+                                                type="file" 
+                                                accept="video/mp4,video/x-m4v,video/*"
+                                                onChange={(e) => setNewRoom({...newRoom, video: e.target.files[0]})}
+                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                                            />
+                                        </div>
+                                        <button type="submit" className="py-2.5 bg-emerald-600 hover:bg-emerald-505 text-white font-bold rounded-xl text-sm transition-all">
+                                            Simpan Kamar
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
 
                             {/* List Kamar */}
                             <div className="glass-panel rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
@@ -1264,6 +1618,7 @@ export default function Dashboard() {
                                             <th className="p-4">Cabang</th>
                                             <th className="p-4">Sewa Bulanan</th>
                                             <th className="p-4">Sewa Harian</th>
+                                            <th className="p-4">Media</th>
                                             <th className="p-4">Fasilitas</th>
                                             <th className="p-4 pr-6">Status</th>
                                         </tr>
@@ -1276,6 +1631,21 @@ export default function Dashboard() {
                                                 <td className="p-4 font-mono text-slate-700">Rp {parseFloat(room.price_monthly).toLocaleString('id-ID')}</td>
                                                 <td className="p-4 font-mono text-emerald-600">Rp {parseFloat(room.price_daily).toLocaleString('id-ID')}</td>
                                                 <td className="p-4">
+                                                    <div className="flex items-center gap-2">
+                                                        {room.photos && room.photos.length > 0 ? (
+                                                            <a href={room.photos[0]} target="_blank" rel="noopener noreferrer">
+                                                                <img src={room.photos[0]} alt={`Kamar ${room.room_number}`} className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:scale-110 transition-transform" />
+                                                            </a>
+                                                        ) : <span className="text-xs text-slate-400">No Image</span>}
+                                                        
+                                                        {room.video && (
+                                                            <a href={room.video} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors" title="Lihat Video">
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
                                                     <div className="flex flex-wrap gap-1 max-w-xs">
                                                         {room.facilities && JSON.parse(JSON.stringify(room.facilities)).map((fac, idx) => (
                                                             <span key={idx} className="bg-slate-50 border border-slate-100 text-[10px] px-1.5 py-0.5 rounded text-slate-600 font-medium">{fac}</span>
@@ -1283,16 +1653,31 @@ export default function Dashboard() {
                                                     </div>
                                                 </td>
                                                 <td className="p-4 pr-6">
-                                                    <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full uppercase tracking-wider ${
-                                                        room.status === 'available' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                                                        room.status === 'occupied' ? 'bg-red-100 text-red-800 border border-red-200' :
-                                                        room.status === 'booked' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                                                        'bg-slate-50 text-slate-500 border border-slate-200'
-                                                    }`}>
-                                                        {room.status === 'available' ? 'Tersedia' : 
-                                                         room.status === 'occupied' ? 'Terisi' : 
-                                                         room.status === 'booked' ? 'Dibooking' : 'Maintenance'}
-                                                    </span>
+                                                    <div className="flex flex-col gap-2">
+                                                        <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full uppercase tracking-wider ${
+                                                            room.status === 'available' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                                            room.status === 'occupied' ? 'bg-red-100 text-red-800 border border-red-200' :
+                                                            room.status === 'booked' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                                                            room.status === 'maintenance' ? 'bg-slate-700 text-white border border-slate-800' :
+                                                            room.status === 'cleaning' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                                            'bg-slate-50 text-slate-500 border border-slate-200'
+                                                        }`}>
+                                                            {room.status === 'available' ? 'Tersedia' : 
+                                                             room.status === 'occupied' ? 'Terisi' : 
+                                                             room.status === 'booked' ? 'Dibooking' : 
+                                                             room.status === 'maintenance' ? 'Maintenance' : 
+                                                             room.status === 'cleaning' ? 'Pembersihan' : room.status}
+                                                        </span>
+                                                        
+                                                        {room.status === 'cleaning' && ['super_admin', 'operator'].includes(currentRole) && (
+                                                            <button
+                                                                onClick={() => handleFinishCleaning(room.id)}
+                                                                className="text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded-lg transition-colors"
+                                                            >
+                                                                Selesai Bersihkan
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -1307,25 +1692,76 @@ export default function Dashboard() {
                         <div className="space-y-8">
                             <div className="glass-panel rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
                                 {currentRole === 'resident' ? (() => {
-                                    const resId = getSimulatedResidentId();
-                                    const myBookings = bookings.filter(b => b.tenant_id === resId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                                    const resId = auth.user.id;
+                                    const myBookings = bookings.filter(b => Number(b.tenant_id) === resId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                                     const activeBooking = myBookings.find(b => b.status === 'active') || myBookings.find(b => b.status === 'pending');
-                                    const myFinances = finances.filter(f => f.booking_id === activeBooking?.id).sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date));
+                                    // Modified to show payment history for ALL bookings of the tenant, per account.
+                                    const myFinances = finances.filter(f => myBookings.some(b => Number(b.id) === Number(f.booking_id))).sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date));
+                                    
+                                    const visibleTenantPayments = myFinances.filter(f => {
+                                        if (!tenantPaymentSearch) return true;
+                                        const q = tenantPaymentSearch.toLowerCase();
+                                        return (
+                                            (f.description && f.description.toLowerCase().includes(q)) ||
+                                            (f.booking?.room?.room_number && String(f.booking.room.room_number).toLowerCase().includes(q))
+                                        );
+                                    });
                                     
                                     return (
-                                        <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
-                                                    <th className="p-4 pl-6">Tanggal</th>
-                                                    <th className="p-4">Deskripsi</th>
-                                                    <th className="p-4 pr-6 text-right">Nominal</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 text-sm">
-                                                {myFinances.map(f => (
+                                        <div className="flex flex-col">
+                                            <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                                                <button 
+                                                    onClick={() => {
+                                                        const headers = ['Tanggal', 'Kamar', 'Deskripsi', 'Nominal'];
+                                                        const csvData = visibleTenantPayments.map(f => {
+                                                            return [
+                                                                new Date(f.transaction_date).toLocaleDateString('id-ID'),
+                                                                `Kamar ${f.booking?.room?.room_number || '-'}`,
+                                                                f.description,
+                                                                f.amount
+                                                            ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(',');
+                                                        });
+                                                        const csvContent = [headers.join(','), ...csvData].join('\n');
+                                                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                                                        const link = document.createElement('a');
+                                                        link.href = URL.createObjectURL(blob);
+                                                        link.download = `Export_Riwayat_Pembayaran_${new Date().toISOString().split('T')[0]}.csv`;
+                                                        link.click();
+                                                    }}
+                                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm flex items-center gap-2"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                                    Export Spreadsheet
+                                                </button>
+                                                <div className="relative w-full sm:w-72">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Cari deskripsi, atau nomor kamar..." 
+                                                        value={tenantPaymentSearch} 
+                                                        onChange={(e) => setTenantPaymentSearch(e.target.value)} 
+                                                        className="glass-input rounded-xl pl-10 pr-4 py-2 text-sm w-full border-slate-200 shadow-sm"
+                                                    />
+                                                    <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                                </div>
+                                            </div>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead>
+                                                        <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
+                                                            <th className="p-4 pl-6">Tanggal</th>
+                                                            <th className="p-4">Kamar</th>
+                                                            <th className="p-4">Deskripsi</th>
+                                                            <th className="p-4 pr-6 text-right">Nominal</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100 text-sm">
+                                                        {visibleTenantPayments.map(f => (
                                                     <tr key={f.id} className="hover:bg-slate-50">
                                                         <td className="p-4 pl-6 font-mono text-slate-600 text-xs">
                                                             {new Date(f.transaction_date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}
+                                                        </td>
+                                                        <td className="p-4 font-semibold text-slate-700">
+                                                            Kamar {f.booking?.room?.room_number || '-'}
                                                         </td>
                                                         <td className="p-4 font-semibold text-slate-800">{f.description}</td>
                                                         <td className="p-4 pr-6 text-right font-mono font-bold text-emerald-600">
@@ -1333,19 +1769,42 @@ export default function Dashboard() {
                                                         </td>
                                                     </tr>
                                                 ))}
-                                                {myFinances.length === 0 && (
+                                                {visibleTenantPayments.length === 0 && (
                                                     <tr>
-                                                        <td colSpan="3" className="p-8 text-center text-slate-400">
-                                                            Belum ada riwayat pembayaran untuk hunian ini.
+                                                        <td colSpan="4" className="p-8 text-center text-slate-400">
+                                                            Belum ada riwayat pembayaran yang sesuai.
                                                         </td>
                                                     </tr>
                                                 )}
                                             </tbody>
                                         </table>
+                                        </div>
+                                    </div>
                                     );
                                 })() : (
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
+                                    <div className="flex flex-col">
+                                        <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                                            <button 
+                                                onClick={handleExportCSV}
+                                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm flex items-center gap-2"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                                Export Spreadsheet
+                                            </button>
+                                            <div className="relative w-full sm:w-72">
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="Cari kode, penyewa, atau kamar..." 
+                                                    value={bookingSearch} 
+                                                    onChange={(e) => setBookingSearch(e.target.value)} 
+                                                    className="glass-input rounded-xl pl-10 pr-4 py-2 text-sm w-full border-slate-200 shadow-sm"
+                                                />
+                                                <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                            </div>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
                                             <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
                                                 <th className="p-4 pl-6">Kode Booking</th>
                                                 <th className="p-4">Tenant / Kamar</th>
@@ -1367,7 +1826,21 @@ export default function Dashboard() {
                                                     <td className="p-4 uppercase text-xs font-bold tracking-wider text-emerald-600">{b.rental_type === 'daily' ? 'Harian' : 'Bulanan'}</td>
                                                     <td className="p-4 font-mono text-slate-600 text-xs">
                                                         {new Date(b.start_date).toLocaleDateString('id-ID')} s.d <br />
-                                                        {new Date(b.end_date).toLocaleDateString('id-ID')}
+                                                        {new Date(b.end_date).toLocaleDateString('id-ID')} <br />
+                                                        {b.status === 'active' && (
+                                                            <span className={`inline-block mt-1.5 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider ${
+                                                                Math.ceil((new Date(b.end_date) - new Date()) / (1000 * 60 * 60 * 24)) > 3 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 
+                                                                Math.ceil((new Date(b.end_date) - new Date()) / (1000 * 60 * 60 * 24)) >= 0 ? 'bg-amber-100 text-amber-700 border border-amber-200' : 
+                                                                'bg-red-100 text-red-700 border border-red-200 animate-pulse'
+                                                            }`}>
+                                                                {(() => {
+                                                                    const days = Math.ceil((new Date(b.end_date) - new Date()) / (1000 * 60 * 60 * 24));
+                                                                    if (days > 0) return `SISA ${days} HARI`;
+                                                                    if (days === 0) return 'HARI INI TERAKHIR';
+                                                                    return `LEWAT ${Math.abs(days)} HARI`;
+                                                                })()}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td className="p-4 font-mono font-semibold text-slate-800">Rp {parseFloat(b.total_amount).toLocaleString('id-ID')}</td>
                                                     <td className="p-4">
@@ -1396,6 +1869,12 @@ export default function Dashboard() {
                                                                         Verifikasi Bayar
                                                                     </button>
                                                                 )}
+                                                                {['unpaid', 'dp'].includes(b.payment_status) && (
+                                                                    <button onClick={() => handleSendReminder(b.id)} className="px-2.5 py-1 bg-green-600 hover:bg-green-500 text-white font-bold text-xs rounded-md transition-colors flex items-center gap-1 shadow-sm">
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                                                        Kirim Reminder WA
+                                                                    </button>
+                                                                )}
                                                                 {b.status === 'pending' && (
                                                                     <button onClick={() => handleApproveBooking(b.id)} className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-md transition-colors">
                                                                         Approve
@@ -1417,14 +1896,28 @@ export default function Dashboard() {
                                                             </div>
                                                         )}
                                                         
-                                                        <button onClick={() => setShowInvoiceModal(b)} className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200 w-full sm:w-auto shadow-sm">
-                                                            Cetak Invoice
-                                                        </button>
+                                                        <div className="flex gap-2 w-full sm:w-auto">
+                                                            <button onClick={() => setShowInvoiceModal(b)} className="flex-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200 shadow-sm">
+                                                                Cetak Invoice
+                                                            </button>
+                                                            <a href={`/api/bookings/${b.id}/contract`} className="flex-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-md transition-colors border border-indigo-200 shadow-sm text-center inline-block">
+                                                                Surat Kontrak (DOC)
+                                                            </a>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
+                                            {visibleBookings.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="7" className="p-8 text-center text-slate-400">
+                                                        {bookingSearch ? 'Tidak ada transaksi yang cocok dengan pencarian Anda.' : 'Belum ada data penyewaan / transaksi.'}
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
+                                    </div>
+                                </div>
                                 )}
                             </div>
                         </div>
@@ -1432,114 +1925,47 @@ export default function Dashboard() {
 
                     {/* Laporan Keuangan (Tab: Finances) */}
                     {activeTab === 'finances' && (
-                        <div className="space-y-8">
-                            <div className="grid lg:grid-cols-12 gap-8">
-                                {/* Arus Kas Form */}
-                                {['super_admin', 'operator'].includes(currentRole) && (
-                                    <div className="lg:col-span-4 glass-panel p-6 rounded-2xl flex flex-col justify-between border border-slate-200 shadow-sm">
-                                        <div>
-                                            <h3 className="font-extrabold text-lg text-slate-800 mb-4">Catat Keuangan Manual</h3>
-                                            <form onSubmit={handleAddFinance} className="space-y-4">
-                                                <div className="space-y-1">
-                                                    <label className="text-xs font-semibold text-slate-500">Jenis Transaksi</label>
-                                                    <select 
-                                                        required
-                                                        value={newFinance.transaction_type}
-                                                        onChange={(e) => setNewFinance({...newFinance, transaction_type: e.target.value})}
-                                                        className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                    >
-                                                        <option value="expense">Pengeluaran (Kas Keluar)</option>
-                                                        <option value="income">Pemasukan (Kas Masuk)</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-xs font-semibold text-slate-500">Jumlah Uang (Rp)</label>
-                                                    <input 
-                                                        type="number" 
-                                                        required
-                                                        value={newFinance.amount}
-                                                        onChange={(e) => setNewFinance({...newFinance, amount: e.target.value})}
-                                                        className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                        placeholder="250000"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-xs font-semibold text-slate-500">Kategori</label>
-                                                    <select 
-                                                        required
-                                                        value={newFinance.category}
-                                                        onChange={(e) => setNewFinance({...newFinance, category: e.target.value})}
-                                                        className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                    >
-                                                        <option value="maintenance">Perawatan Fasilitas</option>
-                                                        <option value="electricity">Listrik & Air</option>
-                                                        <option value="salary">Gaji Operator</option>
-                                                        <option value="internet">Internet/Wi-Fi</option>
-                                                        <option value="rental">Sewa Kamar</option>
-                                                        <option value="other">Lain-lain</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-xs font-semibold text-slate-500">Tanggal</label>
-                                                    <input 
-                                                        type="date" 
-                                                        required
-                                                        value={newFinance.transaction_date}
-                                                        onChange={(e) => setNewFinance({...newFinance, transaction_date: e.target.value})}
-                                                        className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-xs font-semibold text-slate-500">Deskripsi</label>
-                                                    <textarea 
-                                                        value={newFinance.description}
-                                                        onChange={(e) => setNewFinance({...newFinance, description: e.target.value})}
-                                                        className="glass-input rounded-xl px-4 py-2.5 text-sm w-full h-16 resize-none"
-                                                        placeholder="Beli token listrik atau keran toilet bocor..."
-                                                    />
-                                                </div>
-                                                <button type="submit" className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all">
-                                                    Catat Arus Kas
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                )}
+                        <FinancesTab
+                            currentRole={currentRole}
+                            operatorBranches={operatorBranches}
+                            branches={branches}
+                            newFinance={newFinance}
+                            setNewFinance={setNewFinance}
+                            handleAddFinance={handleAddFinance}
+                            financeTypeFilter={financeTypeFilter}
+                            setFinanceTypeFilter={setFinanceTypeFilter}
+                            financeCategoryFilter={financeCategoryFilter}
+                            setFinanceCategoryFilter={setFinanceCategoryFilter}
+                            financeSearch={financeSearch}
+                            setFinanceSearch={setFinanceSearch}
+                            financeDateFilterType={financeDateFilterType}
+                            setFinanceDateFilterType={setFinanceDateFilterType}
+                            financeDateFilterStart={financeDateFilterStart}
+                            setFinanceDateFilterStart={setFinanceDateFilterStart}
+                            financeDateFilterEnd={financeDateFilterEnd}
+                            setFinanceDateFilterEnd={setFinanceDateFilterEnd}
+                            handleExportFinanceCSV={handleExportFinanceCSV}
+                            visibleFinances={visibleFinances}
+                        />
+                    )}
 
-                                {/* Arus Kas List */}
-                                <div className={`glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm ${['super_admin', 'operator'].includes(currentRole) ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
-                                    <h3 className="font-extrabold text-lg text-slate-800 mb-4">Laporan Arus Kas Keluar & Masuk</h3>
-                                    <div className="overflow-hidden border border-slate-200 rounded-xl">
-                                        <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase border-b border-slate-200">
-                                                    <th className="p-3 pl-4">Tanggal</th>
-                                                    <th className="p-3">Kategori</th>
-                                                    <th className="p-3">Keterangan</th>
-                                                    <th className="p-3 text-right pr-4">Jumlah</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 text-sm">
-                                                {finances.map(f => (
-                                                    <tr key={f.id} className="hover:bg-slate-50">
-                                                        <td className="p-3 pl-4 font-mono text-slate-500 text-xs">{new Date(f.transaction_date).toLocaleDateString('id-ID')}</td>
-                                                        <td className="p-3">
-                                                            <span className="capitalize text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">{f.category}</span>
-                                                        </td>
-                                                        <td className="p-3 text-slate-600 truncate max-w-xs">{f.description}</td>
-                                                        <td className={`p-3 text-right pr-4 font-mono font-bold ${
-                                                            f.transaction_type === 'income' ? 'text-emerald-600' : 'text-red-600'
-                                                        }`}>
-                                                            {f.transaction_type === 'income' ? '+' : '-'} Rp {parseFloat(f.amount).toLocaleString('id-ID')}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    {/* Canteen Tab */}
+                    {activeTab === 'canteen' && (
+                        <CanteenTab 
+                            currentRole={currentRole}
+                            auth={auth}
+                            branches={branches}
+                            operatorBranches={operatorBranches}
+                            canteenItems={canteenItems}
+                            setCanteenItems={setCanteenItems}
+                            canteenOrders={canteenOrders}
+                            setCanteenOrders={setCanteenOrders}
+                            canteenCart={canteenCart}
+                            setCanteenCart={setCanteenCart}
+                            showToast={showToast}
+                            loadAllData={loadAllData}
+                            authFetch={authFetch}
+                        />
                     )}
 
                     {/* Komplain & Perbaikan (Tab: Complaints) */}
@@ -1553,7 +1979,7 @@ export default function Dashboard() {
                                         <div className="space-y-1">
                                             <label className="text-xs font-semibold text-slate-500">Pilih Kamar Anda</label>
                                             {(() => {
-                                                const resId = getSimulatedResidentId();
+                                                const resId = auth.user.id;
                                                 const residentOccupiedRooms = rooms.filter(r => 
                                                     bookings.some(b => b.room_id === r.id && b.tenant_id === resId && b.status === 'active')
                                                 );
@@ -1670,6 +2096,11 @@ export default function Dashboard() {
                             </div>
 
                         </div>
+                    )}
+
+                    {/* Konten Website (Tab: Web Settings) */}
+                    {activeTab === 'web_settings' && currentRole === 'super_admin' && (
+                        <WebSettingsTab authFetch={authFetch} />
                     )}
                 </main>
             </div>
@@ -1799,14 +2230,26 @@ export default function Dashboard() {
                             <div className="space-y-1">
                                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Bukti Transfer:</label>
                                 <div className="w-full h-48 bg-slate-100 rounded-xl border border-slate-200 border-dashed flex items-center justify-center overflow-hidden relative group">
-                                    {showVerifyPaymentModal.unverified_proof?.startsWith('data:') || showVerifyPaymentModal.unverified_proof?.startsWith('http') ? (
-                                        <img src={showVerifyPaymentModal.unverified_proof} alt="Bukti Transfer" className="max-w-full max-h-full object-contain" />
-                                    ) : (
-                                        <div className="text-center text-slate-500">
-                                            <svg className="w-8 h-8 mx-auto mb-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                            <span className="text-xs font-medium bg-slate-200 px-2.5 py-1 rounded-md text-slate-600 block">{showVerifyPaymentModal.unverified_proof || 'Bukti Tidak Tersedia'}</span>
-                                        </div>
-                                    )}
+                                    {(() => {
+                                        let proofUrl = showVerifyPaymentModal.unverified_proof;
+                                        if (proofUrl && !proofUrl.startsWith('data:') && !proofUrl.startsWith('http') && !proofUrl.startsWith('/')) {
+                                            proofUrl = `/storage/${proofUrl}`;
+                                        }
+                                        return proofUrl ? (
+                                            <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="w-full h-full flex items-center justify-center" title="Klik untuk memperbesar">
+                                                <img 
+                                                    src={proofUrl} 
+                                                    alt="Bukti Transfer" 
+                                                    className="max-w-full max-h-full object-contain cursor-pointer hover:opacity-90 transition-opacity" 
+                                                />
+                                            </a>
+                                        ) : (
+                                            <div className="text-center text-slate-500">
+                                                <svg className="w-8 h-8 mx-auto mb-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                <span className="text-xs font-medium bg-slate-200 px-2.5 py-1 rounded-md text-slate-600 block">Bukti Tidak Tersedia</span>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         </div>
@@ -1930,6 +2373,8 @@ export default function Dashboard() {
                     </div>
                 </div>
             )}
+
+
             {/* ── Payment Modal for Tenant (root-level) ── */}
             {showPaymentModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -1951,9 +2396,9 @@ export default function Dashboard() {
                                 <input type="number" required min="1" value={paymentData.paid_amount} onChange={(e) => setPaymentData({...paymentData, paid_amount: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder={`Maks Rp ${parseFloat(showPaymentModal.total_amount).toLocaleString('id-ID')}`} />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Bukti Pembayaran (Simulasi)</label>
-                                <input type="text" required value={paymentData.payment_proof} onChange={(e) => setPaymentData({...paymentData, payment_proof: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder="Nama file / URL bukti transfer" />
-                                <p className="text-[10px] text-slate-400">Isi dengan nama file atau URL gambar bukti transfer (simulasi).</p>
+                                <label className="text-xs font-semibold text-slate-500">Bukti Pembayaran / Transfer</label>
+                                <input type="file" required accept="image/*,video/*" onChange={(e) => setPaymentData({...paymentData, payment_proof_file: e.target.files[0]})} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
+                                <p className="text-[10px] text-slate-400 mt-1">Unggah foto atau video bukti transfer (Maks. 10MB).</p>
                             </div>
                             <div className="flex gap-3 pt-1">
                                 <button type="button" onClick={() => setShowPaymentModal(null)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm border border-slate-200 transition-all">Batal</button>
@@ -1963,6 +2408,46 @@ export default function Dashboard() {
                     </div>
                 </div>
             )}
+
+            {showExtendTenantModal && (() => {
+                const activeBooking = bookings.find(b => Number(b.tenant_id) === auth.user.id && (b.status === 'active' || b.status === 'pending'));
+                if (!activeBooking) return null;
+                const typeLabel = activeBooking.rental_type === 'daily' ? 'Hari' : 'Bulan';
+                return (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200 animate-slide-up">
+                            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                <h3 className="font-extrabold text-slate-800 text-lg">Perpanjang Masa Sewa</h3>
+                                <button onClick={() => setShowExtendTenantModal(false)} className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                            <form onSubmit={handleExtendBooking} className="p-5 space-y-4">
+                                <p className="text-sm text-slate-600 leading-relaxed">
+                                    Masa sewa Anda saat ini berakhir pada <strong className="text-slate-800">{new Date(activeBooking.end_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.
+                                    Silakan masukkan durasi perpanjangan. Tagihan akan otomatis ditambahkan ke akun Anda.
+                                </p>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Durasi Perpanjangan ({typeLabel})</label>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        required
+                                        value={extendDuration} 
+                                        onChange={(e) => setExtendDuration(e.target.value)}
+                                        className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-bold text-slate-800 bg-slate-50"
+                                    />
+                                </div>
+                                <div className="pt-2">
+                                    <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all shadow-md shadow-emerald-600/20 active:scale-[0.98]">
+                                        Konfirmasi Perpanjangan
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            })()}
 
         </div>
     );

@@ -28,8 +28,8 @@ export default function Register() {
 
             {/* Header Form */}
             <div className="mb-8 text-center">
-                <h2 className="text-2xl font-extrabold text-slate-800 font-outfit tracking-tight">Daftar Akun Baru</h2>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                <h2 className="text-3xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-800 bg-clip-text text-transparent tracking-tight font-outfit mb-2">Daftar Akun Baru</h2>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">
                     Bergabunglah bersama Kospart PH 18 untuk memesan kamar premium pilihan Anda secara online.
                 </p>
             </div>
@@ -49,13 +49,12 @@ export default function Register() {
                         <input
                             id="name"
                             name="name"
-                            type="text"
                             value={data.name}
                             autoComplete="name"
                             autoFocus
                             onChange={(e) => setData('name', e.target.value)}
-                            className="pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 w-full focus:border-emerald-600 focus:ring focus:ring-emerald-100 transition-all text-sm text-slate-800 placeholder-slate-400 font-medium"
-                            placeholder="Contoh: Rian Aditya"
+                            className="pl-11 pr-4 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm w-full focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-emerald-300"
+                            placeholder="John Doe"
                             required
                         />
                     </div>
@@ -80,7 +79,7 @@ export default function Register() {
                             value={data.email}
                             autoComplete="username"
                             onChange={(e) => setData('email', e.target.value)}
-                            className="pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 w-full focus:border-emerald-600 focus:ring focus:ring-emerald-100 transition-all text-sm text-slate-800 placeholder-slate-400 font-medium"
+                            className="pl-11 pr-4 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm w-full focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-emerald-300"
                             placeholder="rianaditya@gmail.com"
                             required
                         />
@@ -91,7 +90,7 @@ export default function Register() {
                 {/* Field: Phone (WhatsApp) */}
                 <div className="space-y-1">
                     <label htmlFor="phone" className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
-                        Nomor WhatsApp / Telepon
+                        Nomor WhatsApp
                     </label>
                     <div className="relative rounded-xl shadow-sm">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -105,7 +104,7 @@ export default function Register() {
                             name="phone"
                             value={data.phone}
                             onChange={(e) => setData('phone', e.target.value)}
-                            className="pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 w-full focus:border-emerald-600 focus:ring focus:ring-emerald-100 transition-all text-sm text-slate-800 placeholder-slate-400 font-medium"
+                            className="pl-11 pr-4 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm w-full focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-emerald-300"
                             placeholder="Contoh: 089876543210"
                             required
                         />
@@ -131,7 +130,7 @@ export default function Register() {
                             value={data.password}
                             autoComplete="new-password"
                             onChange={(e) => setData('password', e.target.value)}
-                            className="pl-11 pr-10 py-2.5 rounded-xl border border-slate-200 w-full focus:border-emerald-600 focus:ring focus:ring-emerald-100 transition-all text-sm text-slate-800 placeholder-slate-400 font-medium"
+                            className="pl-11 pr-10 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm w-full focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-emerald-300"
                             placeholder="Minimal 8 karakter"
                             required
                         />
@@ -173,8 +172,8 @@ export default function Register() {
                             value={data.password_confirmation}
                             autoComplete="new-password"
                             onChange={(e) => setData('password_confirmation', e.target.value)}
-                            className="pl-11 pr-10 py-2.5 rounded-xl border border-slate-200 w-full focus:border-emerald-600 focus:ring focus:ring-emerald-100 transition-all text-sm text-slate-800 placeholder-slate-400 font-medium"
-                            placeholder="Ulangi password Anda"
+                            className="pl-11 pr-10 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm w-full focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-emerald-300"
+                            placeholder="Ulangi password"
                             required
                         />
                         <button
@@ -197,14 +196,14 @@ export default function Register() {
                     <InputError message={errors.password_confirmation} className="mt-1" />
                 </div>
 
-                {/* Submit & Navigation */}
-                <div className="pt-2">
+                {/* Submit Button */}
+                <div className="pt-4">
                     <button
                         type="submit"
-                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:opacity-50"
+                        className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-2xl text-sm transition-all duration-300 shadow-lg shadow-emerald-600/25 active:scale-[0.98] hover:shadow-xl hover:shadow-emerald-600/40 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:opacity-50"
                         disabled={processing}
                     >
-                        {processing ? 'Memproses Pendaftaran...' : 'Daftar Sekarang'}
+                        {processing ? 'Memproses Pendaftaran...' : 'Daftar Akun Sekarang'}
                     </button>
                 </div>
 

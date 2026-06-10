@@ -36,9 +36,21 @@ class BranchController extends Controller
             'address' => 'nullable|string',
             'maps_link' => 'nullable|string',
             'status' => 'required|in:active,inactive',
+            'image' => 'nullable|image|max:5120',
+            'video' => 'nullable|mimes:mp4,mov,ogg,qt|max:20480',
         ]);
 
-        $branch = Branch::create($request->all());
+        $data = $request->except(['image', 'video']);
+
+        if ($request->hasFile('image')) {
+            $data['image_path'] = '/storage/' . $request->file('image')->store('branch_images', 'public');
+        }
+
+        if ($request->hasFile('video')) {
+            $data['video_path'] = '/storage/' . $request->file('video')->store('branch_videos', 'public');
+        }
+
+        $branch = Branch::create($data);
 
         return response()->json(['message' => 'Cabang berhasil ditambahkan.', 'branch' => $branch]);
     }
@@ -54,10 +66,22 @@ class BranchController extends Controller
             'address' => 'nullable|string',
             'maps_link' => 'nullable|string',
             'status' => 'required|in:active,inactive',
+            'image' => 'nullable|image|max:5120',
+            'video' => 'nullable|mimes:mp4,mov,ogg,qt|max:20480',
         ]);
 
         $branch = Branch::findOrFail($id);
-        $branch->update($request->all());
+        $data = $request->except(['image', 'video']);
+
+        if ($request->hasFile('image')) {
+            $data['image_path'] = '/storage/' . $request->file('image')->store('branch_images', 'public');
+        }
+
+        if ($request->hasFile('video')) {
+            $data['video_path'] = '/storage/' . $request->file('video')->store('branch_videos', 'public');
+        }
+
+        $branch->update($data);
 
         return response()->json(['message' => 'Cabang berhasil diperbarui.', 'branch' => $branch]);
     }

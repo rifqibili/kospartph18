@@ -29,7 +29,7 @@ class RoomController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        if (!in_array($user->role, ['super_admin', 'operator'])) {
+        if ($user->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -38,7 +38,7 @@ class RoomController extends Controller
             'room_number' => 'required|string|max:50',
             'price_monthly' => 'required|numeric|min:0',
             'price_daily' => 'required|numeric|min:0',
-            'status' => 'required|in:available,occupied,booked,maintenance',
+            'status' => 'required|in:available,occupied,booked,maintenance,cleaning',
             'facilities' => 'nullable|array',
             'description' => 'nullable|string',
             'image' => 'nullable|string',
@@ -84,7 +84,7 @@ class RoomController extends Controller
             'room_number' => 'required|string|max:50',
             'price_monthly' => 'required|numeric|min:0',
             'price_daily' => 'required|numeric|min:0',
-            'status' => 'required|in:available,occupied,booked,maintenance',
+            'status' => 'required|in:available,occupied,booked,maintenance,cleaning',
             'facilities' => 'nullable|array',
             'description' => 'nullable|string',
             'image' => 'nullable|string',
@@ -138,5 +138,29 @@ class RoomController extends Controller
         $room->delete();
 
         return response()->json(['message' => 'Kamar berhasil dihapus.']);
+    }
+
+    public function finishCleaning($id)
+    {
+        $user = Auth::user();
+        if (!in_array($user->role, ['super_admin', 'operator'])) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $room = Room::findOrFail($id);
+
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            if (!in_array($room->branch_id, $user->assigned_branches)) {
+                return response()->json(['message' => 'Unauthorized branch access.'], 403);
+            }
+        }
+
+        if ($room->status !== 'cleaning') {
+            return response()->json(['message' => 'Kamar tidak sedang dalam proses pembersihan.'], 400);
+        }
+
+        $room->update(['status' => 'available']);
+
+        return response()->json(['message' => 'Pembersihan selesai, kamar kini tersedia.']);
     }
 }

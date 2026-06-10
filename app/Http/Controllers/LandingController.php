@@ -18,9 +18,12 @@ class LandingController extends Controller
             ->whereIn('status', ['available', 'occupied', 'booked', 'maintenance'])
             ->get();
 
+        $faqs = \App\Models\Faq::where('is_active', true)->orderBy('order')->get();
+
         return Inertia::render('Welcome', [
             'branches' => $branches,
             'rooms' => $rooms,
+            'faqs' => $faqs,
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
         ]);

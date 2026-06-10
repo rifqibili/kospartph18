@@ -6,8 +6,8 @@ export default function GuestLayout({ children }) {
             {/* Left Column - Premium Branding Banner */}
             <div className="hidden lg:flex lg:w-5/12 bg-slate-900 relative overflow-hidden flex-col justify-between p-12 text-white border-r border-slate-800">
                 {/* Decorative gradients */}
-                <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-700/20 rounded-full blur-3xl pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-800/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-gradient-to-br from-emerald-500/30 to-teal-700/20 rounded-full blur-[100px] pointer-events-none animate-pulse duration-10000"></div>
+                <div className="absolute bottom-[-10%] left-[-10%] w-96 h-96 bg-gradient-to-tr from-emerald-800/40 to-slate-800/10 rounded-full blur-[100px] pointer-events-none"></div>
 
                 {/* Logo & Header */}
                 <div className="relative z-10">
@@ -72,9 +72,11 @@ export default function GuestLayout({ children }) {
             </div>
 
             {/* Right Column - Form Container */}
-            <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 bg-slate-50 relative overflow-y-auto">
-                <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-100/30 rounded-full blur-3xl pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-200/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 bg-gradient-to-br from-slate-50 to-slate-100 relative overflow-y-auto">
+                <div className="absolute top-0 right-0 w-full h-full overflow-hidden pointer-events-none">
+                    <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-emerald-200/40 rounded-full blur-[120px] mix-blend-multiply opacity-70"></div>
+                    <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-teal-100/50 rounded-full blur-[120px] mix-blend-multiply opacity-70"></div>
+                </div>
 
                 {/* Mobile Logo Header */}
                 <div className="lg:hidden mb-8 text-center flex flex-col items-center">
@@ -88,7 +90,7 @@ export default function GuestLayout({ children }) {
                 </div>
 
                 {/* Form card */}
-                <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200/80 shadow-xl p-8 relative z-10">
+                <div className="w-full max-w-md bg-white/70 backdrop-blur-2xl rounded-3xl border border-white shadow-[0_8px_40px_rgba(0,0,0,0.04)] p-8 relative z-10 transition-all duration-500 hover:shadow-[0_16px_50px_rgba(16,185,129,0.06)]">
                     {children}
                 </div>
                 

@@ -13,7 +13,8 @@ class Finance extends Model
         'category',
         'transaction_date',
         'description',
-        'booking_id'
+        'booking_id',
+        'branch_id',
     ];
 
     protected $casts = [
@@ -24,5 +25,10 @@ class Finance extends Model
     public function booking(): BelongsTo
     {
         return $this->belongsTo(Booking::class);
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

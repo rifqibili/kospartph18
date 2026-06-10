@@ -14,15 +14,11 @@ class FinanceController extends Controller
         $user = Auth::user();
 
         if ($user->role === 'operator') {
-            // Operator can only see finances related to bookings in their branches
-            // or general finances.
+            // Operator can only see finances related to their branches
             $finances = Finance::with('booking.room.branch')
-                ->where(function($q) use ($user) {
-                    $q->whereHas('booking.room', function($sq) use ($user) {
-                        $sq->whereIn('branch_id', $user->assigned_branches);
-                    })->orWhereNull('booking_id');
-                })
+                ->whereIn('branch_id', $user->assigned_branches)
                 ->orderBy('transaction_date', 'desc')
+                ->orderBy('created_at', 'desc')
                 ->get();
         } elseif ($user->role === 'resident') {
             $finances = Finance::with('booking.room.branch')
@@ -30,10 +26,12 @@ class FinanceController extends Controller
                     $q->where('tenant_id', $user->id);
                 })
                 ->orderBy('transaction_date', 'desc')
+                ->orderBy('created_at', 'desc')
                 ->get();
         } elseif ($user->role === 'super_admin') {
             $finances = Finance::with('booking.room.branch')
                 ->orderBy('transaction_date', 'desc')
+                ->orderBy('created_at', 'desc')
                 ->get();
         } else {
             return response()->json(['message' => 'Unauthorized.'], 403);
@@ -55,6 +53,7 @@ class FinanceController extends Controller
             'category' => 'required|string',
             'transaction_date' => 'required|date',
             'description' => 'nullable|string',
+            'branch_id' => 'required|exists:branches,id',
         ]);
 
         $finance = Finance::create($request->all());
@@ -78,35 +77,28 @@ class FinanceController extends Controller
             $months[] = now()->subMonths($i)->format('Y-m');
         }
 
+        $startDate = now()->subMonths(5)->startOfMonth();
+        $query = Finance::selectRaw('
+                DATE_FORMAT(transaction_date, "%Y-%m") as month_year,
+                SUM(CASE WHEN transaction_type = "income" THEN amount ELSE 0 END) as income,
+                SUM(CASE WHEN transaction_type = "expense" THEN amount ELSE 0 END) as expense
+            ')
+            ->where('transaction_date', '>=', $startDate->toDateString());
+
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            $query->whereIn('branch_id', $user->assigned_branches);
+        }
+
+        $groupedData = $query->groupBy('month_year')->get()->keyBy('month_year');
+
         $chartData = [];
         foreach ($months as $month) {
-            $yearStr = substr($month, 0, 4);
-            $monthStr = substr($month, 5, 2);
-
-            $incomeQuery = Finance::where('transaction_type', 'income')
-                ->whereYear('transaction_date', $yearStr)
-                ->whereMonth('transaction_date', $monthStr);
-
-            $expenseQuery = Finance::where('transaction_type', 'expense')
-                ->whereYear('transaction_date', $yearStr)
-                ->whereMonth('transaction_date', $monthStr);
-
-            if ($user->role === 'operator' && is_array($user->assigned_branches)) {
-                $incomeQuery->whereHas('booking.room', function($q) use ($user) {
-                    $q->whereIn('branch_id', $user->assigned_branches);
-                });
-                $expenseQuery->where(function($q) use ($user) {
-                    $q->whereHas('booking.room', function($sq) use ($user) {
-                        $sq->whereIn('branch_id', $user->assigned_branches);
-                    })->orWhereNull('booking_id');
-                });
-            }
-
-            $income = $incomeQuery->sum('amount');
-            $expense = $expenseQuery->sum('amount');
-
             $dateObj = \DateTime::createFromFormat('Y-m', $month);
             $monthName = $dateObj ? $dateObj->format('M Y') : $month;
+
+            $monthData = $groupedData->get($month);
+            $income = $monthData ? $monthData->income : 0;
+            $expense = $monthData ? $monthData->expense : 0;
 
             $chartData[] = [
                 'name' => $monthName,

@@ -42,10 +42,10 @@ export default function Login({ status, canResetPassword }) {
             <Head title="Masuk Akun - Kospart PH 18" />
 
             {/* Header Form */}
-            <div className="mb-8 text-center">
-                <h2 className="text-2xl font-extrabold text-slate-800 font-outfit tracking-tight">Selamat Datang</h2>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                    Masuk dengan alamat email atau nomor telepon WhatsApp Anda yang terdaftar.
+            <div className="mb-10 text-center">
+                <h2 className="text-3xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-800 bg-clip-text text-transparent tracking-tight font-outfit mb-2">Selamat Datang</h2>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                    Masuk dengan email atau nomor WhatsApp terdaftar.
                 </p>
             </div>
 
@@ -75,8 +75,8 @@ export default function Login({ status, canResetPassword }) {
                             autoComplete="username"
                             autoFocus
                             onChange={(e) => setData('email', e.target.value)}
-                            className="pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 w-full focus:border-emerald-600 focus:ring focus:ring-emerald-100 transition-all text-sm text-slate-800 placeholder-slate-400 font-medium"
-                            placeholder="rian@gmail.com / 085712345678"
+                            className="pl-11 pr-4 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm w-full focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-emerald-300"
+                            placeholder="Email atau No. WA"
                             required
                         />
                     </div>
@@ -111,7 +111,7 @@ export default function Login({ status, canResetPassword }) {
                             value={data.password}
                             autoComplete="current-password"
                             onChange={(e) => setData('password', e.target.value)}
-                            className="pl-11 pr-10 py-2.5 rounded-xl border border-slate-200 w-full focus:border-emerald-600 focus:ring focus:ring-emerald-100 transition-all text-sm text-slate-800 placeholder-slate-400 font-medium"
+                            className="pl-11 pr-10 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm w-full focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-emerald-300"
                             placeholder="••••••••"
                             required
                         />
@@ -151,10 +151,10 @@ export default function Login({ status, canResetPassword }) {
                 </div>
 
                 {/* Submit Button */}
-                <div className="pt-2">
+                <div className="pt-3">
                     <button
                         type="submit"
-                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:opacity-50"
+                        className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-2xl text-sm transition-all duration-300 shadow-lg shadow-emerald-600/25 active:scale-[0.98] hover:shadow-xl hover:shadow-emerald-600/40 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:opacity-50"
                         disabled={processing}
                     >
                         {processing ? 'Memproses Masuk...' : 'Masuk Sekarang'}
@@ -174,25 +174,7 @@ export default function Login({ status, canResetPassword }) {
             </form>
 
             {/* Quick Login Section */}
-            <div className="mt-6 pt-5 border-t border-slate-150">
-                <span className="text-slate-550 text-xs font-bold block mb-3 text-center uppercase tracking-wider">
-                    ⚡ Akses Masuk Instan (Demo)
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                    {quickLogins.map((acc, i) => (
-                        <button
-                            key={i}
-                            type="button"
-                            onClick={() => handleQuickLogin(acc.email, acc.password)}
-                            className={`p-2 rounded-xl border text-left transition-all text-xs font-bold shadow-sm active:scale-[0.97] flex flex-col justify-between ${acc.bg}`}
-                            title={`Masuk sebagai ${acc.role}`}
-                        >
-                            <span className="block text-slate-800">{acc.name}</span>
-                            <span className="text-[9px] opacity-75 font-semibold mt-0.5">{acc.role}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
+           
         </GuestLayout>
     );
 }

@@ -108,3 +108,102 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #198754;
 }
+
+/* 21st Century Glassmorphism Theme (Dark & Neon) */
+.bg-mesh-dark {
+  background-color: #020617; /* Slate 950 fallback */
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.12), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(20, 184, 166, 0.12), transparent 25%),
+    radial-gradient(circle at 50% 80%, rgba(5, 150, 105, 0.08), transparent 30%),
+    linear-gradient(to bottom, rgba(2, 6, 23, 0.85), rgba(2, 6, 23, 0.95)),
+    url('/images/tampak depan.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+.glass-21st {
+  background: rgba(15, 23, 42, 0.4); /* Slate 900 with high transparency */
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-21st:hover {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  box-shadow: 0 10px 40px rgba(16, 185, 129, 0.1);
+  transform: translateY(-4px);
+}
+
+.glass-21st-input {
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  transition: all 0.3s ease;
+}
+
+.glass-21st-input:focus {
+  border-color: rgba(16, 185, 129, 0.5);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.text-glow {
+  text-shadow: 0 0 20px rgba(16, 185, 129, 0.4), 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.animate-blob {
+  animation: blob 10s infinite alternate;
+}
+
+@keyframes blob {
+  0% { transform: scale(1) translate(0, 0); }
+  33% { transform: scale(1.1) translate(20px, -30px); }
+  66% { transform: scale(0.9) translate(-20px, 20px); }
+  100% { transform: scale(1.05) translate(10px, -10px); }
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* 3D Glassmorphism Panel */
+.glass-3d {
+  background: rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+      8px 8px 24px rgba(0, 0, 0, 0.4),
+      inset 1px 1px 0px rgba(255, 255, 255, 0.05),
+      inset -1px -1px 0px rgba(0, 0, 0, 0.1);
+  transform-style: preserve-3d;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-3d:hover {
+  transform: translateY(-8px) scale(1.02);
+  background: rgba(15, 23, 42, 0.35);
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 
+      12px 15px 30px rgba(16, 185, 129, 0.15),
+      inset 1px 1px 0px rgba(255, 255, 255, 0.1),
+      inset -1px -1px 0px rgba(0, 0, 0, 0.2);
+}
+
+.glass-transparent {
+  background: rgba(15, 23, 42, 0.1) !important;
+  backdrop-filter: blur(12px) !important;
+  border-color: rgba(255, 255, 255, 0.03) !important;
+}

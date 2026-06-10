@@ -91,6 +91,15 @@ class ComplaintController extends Controller
             'repair_photo' => $request->repair_photo,
         ]);
 
+        if ($request->status === 'processing') {
+            $complaint->room->update(['status' => 'maintenance']);
+        } elseif ($request->status === 'completed') {
+            $hasActiveBooking = \App\Models\Booking::where('room_id', $complaint->room_id)
+                ->where('status', 'active')
+                ->exists();
+            $complaint->room->update(['status' => $hasActiveBooking ? 'occupied' : 'available']);
+        }
+
         return response()->json([
             'message' => 'Status komplain berhasil diperbarui menjadi ' . ucfirst($request->status),
             'complaint' => $complaint
