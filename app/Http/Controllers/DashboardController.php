@@ -241,14 +241,16 @@ class DashboardController extends Controller
         }
 
         foreach ($pendingComplaintsList as $c) {
+            $roomNumber = $c->room->room_number ?? 'N/A';
+            $tenantName = $c->tenant->name ?? 'N/A';
             $notifications[] = [
                 'id' => 'complaint-' . $c->id,
                 'type' => 'new_complaint',
                 'title' => 'Aduan Komplain Baru',
                 'message' => $user->role === 'resident'
                     ? 'Komplain Anda: "' . $c->title . '" sedang menunggu respon pengelola.'
-                    : 'Komplain masuk: "' . $c->title . '" di Kamar ' . $c->room->room_number . ' (' . $c->tenant->name . '). Butuh konfirmasi.',
-                'meta' => ['complaint_id' => $c->id, 'tenant' => $c->tenant->name, 'room' => $c->room->room_number, 'title' => $c->title],
+                    : 'Komplain masuk: "' . $c->title . '" di Kamar ' . $roomNumber . ' (' . $tenantName . '). Butuh konfirmasi.',
+                'meta' => ['complaint_id' => $c->id, 'tenant' => $tenantName, 'room' => $roomNumber, 'title' => $c->title],
                 'timestamp' => $c->updated_at->toIso8601String()
             ];
         }
