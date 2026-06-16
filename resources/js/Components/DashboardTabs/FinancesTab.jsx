@@ -7,10 +7,14 @@ export default function FinancesTab({
     newFinance,
     setNewFinance,
     handleAddFinance,
+    financeBranchFilter,
+    setFinanceBranchFilter,
     financeTypeFilter,
     setFinanceTypeFilter,
     financeCategoryFilter,
     setFinanceCategoryFilter,
+    financePaymentMethodFilter,
+    setFinancePaymentMethodFilter,
     financeSearch,
     setFinanceSearch,
     financeDateFilterType,
@@ -22,14 +26,15 @@ export default function FinancesTab({
     handleExportFinanceCSV,
     visibleFinances
 }) {
-    const totalIncome = visibleFinances.reduce((acc, f) => f.transaction_type === 'income' ? acc + parseFloat(f.amount) : acc, 0);
+    const totalIncome = visibleFinances.reduce((acc, f) => f.transaction_type === 'income' && !f.is_kasbon ? acc + parseFloat(f.amount) : acc, 0);
     const totalExpense = visibleFinances.reduce((acc, f) => f.transaction_type === 'expense' ? acc + parseFloat(f.amount) : acc, 0);
+    const totalPendingKasbon = visibleFinances.reduce((acc, f) => f.is_kasbon ? acc + parseFloat(f.amount) : acc, 0);
     const netProfit = totalIncome - totalExpense;
 
     return (
         <div className="space-y-6">
             {/* Ringkasan Arus Kas (Berdasarkan Filter) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                 <div className="glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between bg-white">
                     <div>
                         <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider block">Total Pemasukan</span>
@@ -55,6 +60,15 @@ export default function FinancesTab({
                     </div>
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${netProfit >= 0 ? 'bg-indigo-100 border-indigo-200 text-indigo-700' : 'bg-red-100 border-red-200 text-red-700'}`}>
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                </div>
+                <div className="glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between bg-gradient-to-br from-orange-50 to-amber-50">
+                    <div>
+                        <span className="text-slate-600 text-xs font-semibold uppercase tracking-wider block">Kasbon (Tertunda)</span>
+                        <span className="text-orange-600 font-extrabold text-2xl block mt-1">Rp {totalPendingKasbon.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center text-orange-700">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
                 </div>
             </div>
@@ -119,6 +133,19 @@ export default function FinancesTab({
                                     </select>
                                 </div>
                                 <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-slate-500">Metode Pembayaran</label>
+                                    <select 
+                                        required
+                                        value={newFinance.payment_method || 'cash'}
+                                        onChange={(e) => setNewFinance({...newFinance, payment_method: e.target.value})}
+                                        className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
+                                    >
+                                        <option value="cash">Tunai (Cash)</option>
+                                        <option value="transfer">Transfer Bank / QRIS</option>
+                                        <option value="other">Lainnya</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
                                     <label className="text-xs font-semibold text-slate-500">Tanggal</label>
                                     <input 
                                         type="date" 
@@ -150,6 +177,21 @@ export default function FinancesTab({
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                         <div className="flex flex-wrap items-center gap-3">
                             <h3 className="font-extrabold text-lg text-slate-800 w-full sm:w-auto">Laporan Arus Kas</h3>
+
+                            {/* Pilihan Cabang (Hanya untuk Admin / Operator yang memiliki akses multi-cabang) */}
+                            {currentRole !== 'resident' && (
+                                <select 
+                                    value={financeBranchFilter} 
+                                    onChange={e => setFinanceBranchFilter(e.target.value)}
+                                    className="glass-input rounded-xl px-3 py-1.5 text-xs font-bold border-slate-200"
+                                >
+                                    {currentRole !== 'operator' && <option value="">Semua Cabang</option>}
+                                    {branches.filter(b => currentRole === 'operator' ? operatorBranches.some(br => Number(br) === Number(b.id)) : true).map(b => (
+                                        <option key={b.id} value={b.id}>{b.name.replace('Kospart PH 18 - ', '')}</option>
+                                    ))}
+                                </select>
+                            )}
+
                             <select 
                                 value={financeTypeFilter} 
                                 onChange={e => setFinanceTypeFilter(e.target.value)}
@@ -173,6 +215,19 @@ export default function FinancesTab({
                                 <option value="salary">Gaji Karyawan</option>
                                 <option value="canteen_purchase">Kulakan Kantin</option>
                                 <option value="Kasbon Kantin">Kasbon Kantin</option>
+                                <option value="pendapatan_kantin">Pendapatan Kantin</option>
+                                <option value="other">Lainnya</option>
+                            </select>
+
+                            <select 
+                                value={financePaymentMethodFilter} 
+                                onChange={e => setFinancePaymentMethodFilter(e.target.value)}
+                                className="glass-input rounded-xl px-3 py-1.5 text-xs font-bold border-slate-200"
+                            >
+                                <option value="all">Semua Metode Pembayaran</option>
+                                <option value="cash">Tunai (Cash)</option>
+                                <option value="transfer">Transfer Bank / QRIS</option>
+                                <option value="debt">Kasbon / Hutang</option>
                                 <option value="other">Lainnya</option>
                             </select>
 
@@ -235,6 +290,7 @@ export default function FinancesTab({
                                 <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase border-b border-slate-200">
                                     <th className="p-3 pl-4">Tanggal</th>
                                     <th className="p-3">Kategori</th>
+                                    <th className="p-3">Metode</th>
                                     <th className="p-3">Keterangan</th>
                                     <th className="p-3 text-right pr-4">Jumlah</th>
                                 </tr>
@@ -242,9 +298,23 @@ export default function FinancesTab({
                             <tbody className="divide-y divide-slate-100 text-sm">
                                 {visibleFinances.map(f => (
                                     <tr key={f.id} className="hover:bg-slate-50">
-                                        <td className="p-3 pl-4 font-mono text-slate-500 text-xs">{new Date(f.transaction_date).toLocaleDateString('id-ID')}</td>
+                                        <td className="p-3 pl-4 font-mono text-xs">
+                                            <div className="text-slate-600">{new Date(f.transaction_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                                            {f.created_at && (
+                                                <div className="text-slate-400 text-[10px] mt-0.5">{new Date(f.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB</div>
+                                            )}
+                                        </td>
                                         <td className="p-3">
                                             <span className={`capitalize text-xs font-bold px-2 py-0.5 rounded border ${f.is_kasbon ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{f.category}</span>
+                                        </td>
+                                        <td className="p-3">
+                                            <span className="capitalize text-xs font-bold text-slate-500">
+                                                {f.payment_method === 'cash' ? 'Tunai (Cash)' : 
+                                                 f.payment_method === 'transfer' ? 'Transfer Bank' : 
+                                                 f.payment_method === 'qris' ? 'QRIS' : 
+                                                 f.payment_method === 'debt' ? 'Kasbon' : 
+                                                 (f.payment_method || '-')}
+                                            </span>
                                         </td>
                                         <td className="p-3 text-slate-600 truncate max-w-xs">
                                             {f.description}

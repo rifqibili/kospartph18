@@ -95,7 +95,7 @@
         <tr>
             <td class="label">Total Harga</td>
             <td class="colon">:</td>
-            <td class="value">Rp {{ number_format($booking->total_price, 0, ',', '.') }}</td>
+            <td class="value">Rp {{ number_format($booking->total_amount, 0, ',', '.') }}</td>
         </tr>
     </table>
 

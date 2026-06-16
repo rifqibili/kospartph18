@@ -81,6 +81,14 @@ class BranchController extends Controller
             $data['video_path'] = '/storage/' . $request->file('video')->store('branch_videos', 'public');
         }
 
+        if ($request->boolean('remove_image')) {
+            $data['image_path'] = null;
+        }
+
+        if ($request->boolean('remove_video')) {
+            $data['video_path'] = null;
+        }
+
         $branch->update($data);
 
         return response()->json(['message' => 'Cabang berhasil diperbarui.', 'branch' => $branch]);

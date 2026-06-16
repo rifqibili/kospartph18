@@ -58,7 +58,7 @@ const ScaleIn = ({ children, delay = 0, className = '' }) => {
     );
 };
 
-export default function Welcome({ branches, rooms, faqs, auth }) {
+export default function Welcome({ branches, rooms, faqs, virtualTours = [], testimonials = [], auth }) {
     const [selectedBranch, setSelectedBranch] = useState('all');
     const [rentalType, setRentalType] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -76,26 +76,30 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
     const [showRoomDetail, setShowRoomDetail] = useState(null);
     const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
     const [activeTourIndex, setActiveTourIndex] = useState(0);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    const virtualTourVideos = [
-        { title: "Tur Resepsionis & Ruang Tunggu", src: "/images/ruang tunggu, kursi pijat, resepsionis.mp4" },
-        { title: "Tur Suasana Kamar Eksklusif", src: "/images/suasana kamar 2.500.000.mp4" },
-        { title: "Tur Kamar Mandi Eksklusif", src: "/images/kamar mandi.mp4" }
-    ];
 
     const getRoomMedia = (room) => {
         if (!room) return [];
-        const media = [
-            { type: 'image', src: room.image || '/images/foto kamar 1.jpeg' },
-            { type: 'image', src: '/images/ruang tamu.jpeg' },
-            { type: 'image', src: '/images/ruang tunggu dan respsionis.jpeg' },
-            { type: 'image', src: '/images/tampak depan.jpeg' },
-            { type: 'video', src: '/images/kamar mandi.mp4' },
-            { type: 'video', src: '/images/ruang tunggu, kursi pijat, resepsionis.mp4' }
-        ];
-        if (parseFloat(room.price_monthly) >= 2500000) {
-            media.push({ type: 'video', src: '/images/suasana kamar 2.500.000.mp4' });
+        let media = [];
+        
+        // Ambil dari database jika ada
+        if (room.photos && room.photos.length > 0) {
+            room.photos.forEach(photo => {
+                media.push({ type: 'image', src: photo });
+            });
         }
+        if (room.videos && room.videos.length > 0) {
+            room.videos.forEach(video => {
+                media.push({ type: 'video', src: video });
+            });
+        }
+
+        // Fallback jika tidak ada gambar yang diunggah
+        if (media.length === 0) {
+            media.push({ type: 'image', src: (room.photos && room.photos.length > 0) ? room.photos[0] : '/images/foto kamar 1.jpeg' });
+        }
+        
         return media;
     };
 
@@ -103,7 +107,9 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
         const matchesBranch = selectedBranch === 'all' || room.branch_id === parseInt(selectedBranch);
         const matchesType = rentalType === 'all' ||
             (rentalType === 'daily' && parseFloat(room.price_daily) > 0) ||
-            (rentalType === 'monthly' && parseFloat(room.price_monthly) > 0);
+            (rentalType === 'weekly' && parseFloat(room.price_weekly) > 0) ||
+            (rentalType === 'monthly' && parseFloat(room.price_monthly) > 0) ||
+            (rentalType === 'yearly' && parseFloat(room.price_yearly) > 0);
         const matchesSearch = room.room_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
             room.description?.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesBranch && matchesType && matchesSearch;
@@ -117,12 +123,16 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
         }
 
         setSelectedRoom(room);
-        const defaultRentalType = room.price_daily > 0 && room.price_monthly > 0 ? 'monthly' : (room.price_monthly > 0 ? 'monthly' : 'daily');
+        const defaultRentalType = room.price_monthly > 0 ? 'monthly' : (room.price_yearly > 0 ? 'yearly' : (room.price_weekly > 0 ? 'weekly' : 'daily'));
         const endDate = new Date();
         if (defaultRentalType === 'daily') {
             endDate.setDate(endDate.getDate() + 1);
-        } else {
+        } else if (defaultRentalType === 'weekly') {
+            endDate.setDate(endDate.getDate() + 7);
+        } else if (defaultRentalType === 'monthly') {
             endDate.setMonth(endDate.getMonth() + 1);
+        } else {
+            endDate.setFullYear(endDate.getFullYear() + 1);
         }
 
         setBookingForm({
@@ -179,7 +189,11 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                 body: JSON.stringify({ booking_id: bookingResponse.booking_id, otp_code: otpCodeInput })
             });
             const data = await res.json();
-            if (res.ok) { setPaidAmountInput(selectedRoom.price_monthly); setBookingStep('payment_proof'); }
+            if (res.ok) { 
+                setBookingResponse(prev => ({...prev, booking: data.booking}));
+                setPaidAmountInput(data.booking.total_amount); 
+                setBookingStep('payment_proof'); 
+            }
             else { setOtpError(data.message || 'OTP salah'); }
         } catch (err) { console.error(err); setOtpError('Gagal memverifikasi OTP.'); }
     };
@@ -251,19 +265,53 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
 
                     <div className="flex items-center gap-4">
                         {auth.user ? (
-                            <Link href="/dashboard" className="px-5 py-2.5 bg-emerald-600/90 hover:bg-emerald-500 text-white font-semibold rounded-xl text-sm transition-all shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-400/30">
+                            <Link href="/dashboard" className="hidden sm:inline-flex px-5 py-2.5 bg-emerald-600/90 hover:bg-emerald-500 text-white font-semibold rounded-xl text-sm transition-all shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-400/30">
                                 Masuk Dashboard
                             </Link>
                         ) : (
-                            <>
+                            <div className="hidden md:flex items-center gap-4">
                                 <Link href="/login" className="text-slate-300 hover:text-white text-sm font-semibold transition-colors">Login</Link>
-                                <Link href="/register" className="hidden sm:inline-block px-5 py-2.5 glass-3d hover:bg-slate-800/60 text-white font-semibold rounded-xl text-sm transition-all">
+                                <Link href="/register" className="px-5 py-2.5 glass-3d hover:bg-slate-800/60 text-white font-semibold rounded-xl text-sm transition-all">
                                     Daftar
                                 </Link>
-                            </>
+                            </div>
                         )}
+                        
+                        {/* Hamburger Button for Mobile */}
+                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-slate-300 hover:text-emerald-400 focus:outline-none transition-colors">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {isMobileMenuOpen ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                                ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
+                                )}
+                            </svg>
+                        </button>
                     </div>
                 </div>
+
+                {/* Mobile Dropdown Menu */}
+                {isMobileMenuOpen && (
+                    <div className="md:hidden bg-slate-950 shadow-2xl border-t border-slate-700/50 p-4 space-y-4 absolute w-full left-0 z-50">
+                        <Link href="/" className="block text-slate-300 hover:text-emerald-400 font-semibold py-2">Beranda</Link>
+                        <Link href="/kamar" className="block text-slate-300 hover:text-emerald-400 font-semibold py-2">Cari Kamar</Link>
+                        <Link href="/cabang" className="block text-slate-300 hover:text-emerald-400 font-semibold py-2">Cabang Kos</Link>
+                        <a href="#contact" onClick={() => setIsMobileMenuOpen(false)} className="block text-slate-300 hover:text-emerald-400 font-semibold py-2">Kontak</a>
+                        
+                        <div className="pt-4 border-t border-slate-700/50 flex flex-col gap-3">
+                            {auth.user ? (
+                                <Link href="/dashboard" className="w-full text-center px-5 py-3 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition-all">
+                                    Masuk Dashboard
+                                </Link>
+                            ) : (
+                                <>
+                                    <Link href="/login" className="w-full text-center px-5 py-3 glass-3d hover:bg-slate-800 text-white font-bold rounded-xl transition-all">Login</Link>
+                                    <Link href="/register" className="w-full text-center px-5 py-3 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition-all">Daftar Akun Baru</Link>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
             </header>
 
             {/* ─── HERO ─── */}
@@ -309,6 +357,18 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                     </div>
                 </div>
             </section>
+
+            {/* 📢 RUNNING TEXT / MARQUEE */}
+            <div className="bg-emerald-600/20 border-y border-emerald-500/30 overflow-hidden relative backdrop-blur-md flex items-center h-12 z-20 shadow-lg">
+                <div className="flex w-full">
+                    <div className="flex-shrink-0 flex items-center whitespace-nowrap animate-marquee text-base font-extrabold text-emerald-300 tracking-[0.2em] uppercase">
+                        KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; 
+                    </div>
+                    <div className="flex-shrink-0 flex items-center whitespace-nowrap animate-marquee text-base font-extrabold text-emerald-300 tracking-[0.2em] uppercase" aria-hidden="true">
+                        KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; KOSPART PH 18 &nbsp; ✨ &nbsp; 
+                    </div>
+                </div>
+            </div>
 
             {/* ─── TENTANG / PROFIL ─── */}
             <section id="tentang" className="py-20 relative z-10">
@@ -437,7 +497,7 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                                 </div>
 
                                 <div className="relative h-56 overflow-hidden">
-                                    <img src={room.image || '/images/foto kamar 1.jpeg'} alt={`Kamar ${room.room_number}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 mix-blend-overlay opacity-80" />
+                                    <img src={(room.photos && room.photos.length > 0) ? room.photos[0] : (room.image || '/images/foto kamar 1.jpeg')} alt={`Kamar ${room.room_number}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 mix-blend-overlay opacity-80" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent"></div>
                                     <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
                                         <h3 className="text-white font-extrabold text-2xl font-mono drop-shadow-md">No. {room.room_number}</h3>
@@ -471,6 +531,9 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                                                 <div className="text-right">
                                                     <span className="text-slate-400 text-xs font-medium block">Sewa Harian</span>
                                                     <span className="text-emerald-400 font-extrabold text-lg text-glow">Rp {parseFloat(room.price_daily).toLocaleString('id-ID')} <span className="text-xs text-slate-400 font-normal">/hari</span></span>
+                                                    {room.price_weekend > 0 && (
+                                                        <span className="text-orange-400 font-bold text-[10px] block mt-0.5 whitespace-nowrap overflow-visible">Wknd: Rp {parseFloat(room.price_weekend).toLocaleString('id-ID')}</span>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -508,13 +571,15 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                 </FadeUp>
             </main>
 
+
             {/* ─── VIDEO TOUR ─── */}
+            {virtualTours && virtualTours.length > 0 && (
             <section id="video-tour" className="py-20 relative z-10 border-t border-slate-800/50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
                     <FadeUp className="space-y-3 text-center max-w-2xl mx-auto">
                         <span className="px-3.5 py-1.5 rounded-full glass-3d text-emerald-400 text-xs font-semibold border border-emerald-500/30 tracking-wide uppercase shadow-[0_0_10px_rgba(16,185,129,0.1)]">Video Virtual Tour</span>
                         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Virtual Tour Kos & Fasilitas</h2>
-                        <p className="text-slate-400 font-medium">Saksikan suasana ruang tunggu, kursi pijat, dan kamar eksklusif secara langsung.</p>
+                        <p className="text-slate-400 font-medium">Saksikan suasana fasilitas kami secara langsung.</p>
                     </FadeUp>
 
                     <div className="max-w-4xl mx-auto relative group">
@@ -522,199 +587,104 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                             <div className="space-y-4">
                                 <div className="text-center">
                                     <span className="text-sm font-bold text-emerald-400 uppercase tracking-widest block text-glow">
-                                        {virtualTourVideos[activeTourIndex].title}
+                                        {virtualTours[activeTourIndex]?.title}
                                     </span>
                                 </div>
                                 <div className="rounded-3xl overflow-hidden glass-3d shadow-[0_0_40px_rgba(0,0,0,0.6)] border border-slate-700/50 aspect-video p-1.5 relative">
                                     <video 
                                         key={activeTourIndex}
-                                        src={virtualTourVideos[activeTourIndex].src} 
+                                        src={virtualTours[activeTourIndex]?.video_path} 
                                         controls 
                                         className="w-full h-full object-cover rounded-2xl bg-slate-950"
                                     ></video>
                                     
-                                    {/* Navigation Overlay */}
-                                    <button 
-                                        onClick={() => setActiveTourIndex(prev => prev === 0 ? virtualTourVideos.length - 1 : prev - 1)}
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full glass-3d flex items-center justify-center text-white hover:text-emerald-400 border border-slate-600/50 hover:border-emerald-500/50 shadow-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                                        </svg>
-                                    </button>
-                                    
-                                    <button 
-                                        onClick={() => setActiveTourIndex(prev => prev === virtualTourVideos.length - 1 ? 0 : prev + 1)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full glass-3d flex items-center justify-center text-white hover:text-emerald-400 border border-slate-600/50 hover:border-emerald-500/50 shadow-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                        </svg>
-                                    </button>
+                                    {virtualTours.length > 1 && (
+                                        <>
+                                            <button 
+                                                onClick={() => setActiveTourIndex(prev => prev === 0 ? virtualTours.length - 1 : prev - 1)}
+                                                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full glass-3d flex items-center justify-center text-white hover:text-emerald-400 border border-slate-600/50 hover:border-emerald-500/50 shadow-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                                                </svg>
+                                            </button>
+                                            <button 
+                                                onClick={() => setActiveTourIndex(prev => prev === virtualTours.length - 1 ? 0 : prev + 1)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full glass-3d flex items-center justify-center text-white hover:text-emerald-400 border border-slate-600/50 hover:border-emerald-500/50 shadow-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                                </svg>
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                                 
                                 {/* Indicators */}
-                                <div className="flex items-center justify-center gap-3 pt-4">
-                                    {virtualTourVideos.map((_, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => setActiveTourIndex(idx)}
-                                            className={`h-2.5 rounded-full transition-all duration-300 ${activeTourIndex === idx ? 'w-8 bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'w-2.5 bg-slate-600 hover:bg-slate-500'}`}
-                                            aria-label={`Go to slide ${idx + 1}`}
-                                        />
-                                    ))}
-                                </div>
+                                {virtualTours.length > 1 && (
+                                    <div className="flex items-center justify-center gap-3 pt-4">
+                                        {virtualTours.map((_, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => setActiveTourIndex(idx)}
+                                                className={`h-2.5 rounded-full transition-all duration-300 ${activeTourIndex === idx ? 'w-8 bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'w-2.5 bg-slate-600 hover:bg-slate-500'}`}
+                                                aria-label={`Go to slide ${idx + 1}`}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </FadeUp>
                     </div>
                 </div>
             </section>
+            )}
 
             {/* ─── TESTIMONI ─── */}
+            {testimonials && testimonials.length > 0 && (
             <section id="testimoni" className="py-20 relative z-10 border-t border-slate-800/50 overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-                    {/* Heading */}
                     <FadeUp className="text-center max-w-2xl mx-auto mb-14 space-y-3">
                         <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-3d text-amber-400 text-xs font-bold border border-amber-500/30 tracking-widest uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)]">
-                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                             Testimoni Penghuni
                         </span>
                         <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">
                             Apa Kata Mereka tentang <span className="text-emerald-400 text-glow">Kospart PH 18?</span>
                         </h2>
-                        <p className="text-slate-400 font-medium">Ribuan penghuni telah merasakan kenyamanan hunian kami. Ini adalah cerita mereka.</p>
                     </FadeUp>
 
-                    {/* Rating summary bar */}
-                    <FadeUp delay={0.1} className="flex flex-col sm:flex-row items-center justify-center gap-8 mb-14">
-                        <div className="text-center">
-                            <div className="text-6xl font-extrabold text-white leading-none text-glow">4.9</div>
-                            <div className="flex gap-1 justify-center mt-2 mb-1">
-                                {[1,2,3,4,5].map(s => (
-                                    <svg key={s} className="w-5 h-5 text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                                ))}
-                            </div>
-                            <div className="text-slate-400 text-xs font-semibold">dari 200+ ulasan</div>
-                        </div>
-                        <div className="w-px h-16 bg-slate-700 hidden sm:block"></div>
-                        <div className="flex flex-col gap-2 w-48">
-                            {[['5 bintang', 92], ['4 bintang', 6], ['3 bintang', 2]].map(([label, pct]) => (
-                                <div key={label} className="flex items-center gap-2 text-xs">
-                                    <span className="text-slate-400 w-16 shrink-0">{label}</span>
-                                    <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                        <div className="h-full bg-amber-400 rounded-full shadow-[0_0_5px_rgba(251,191,36,0.8)]" style={{ width: `${pct}%`, transition: 'width 1s ease' }}></div>
-                                    </div>
-                                    <span className="text-slate-300 font-bold w-8 text-right">{pct}%</span>
-                                </div>
-                            ))}
-                        </div>
-                    </FadeUp>
-
-                    {/* Cards grid */}
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-                        {[
-                            {
-                                name: 'Andi Pratama',
-                                role: 'Mahasiswa Unila',
-                                avatar: '🧑‍🎓',
-                                rating: 5,
-                                date: 'Januari 2026',
-                                text: 'Kosnya bersih banget, fasilitas lengkap dari AC, TV Android, sampai kamar mandi dalam. Yang bikin betah ada kursi pijatnya di lounge — cocok banget abis kuliah seharian!',
-                                badge: 'Penghuni Aktif'
-                            },
-                            {
-                                name: 'Siti Rahayu',
-                                role: 'Karyawan Swasta',
-                                avatar: '👩‍💼',
-                                rating: 5,
-                                date: 'Maret 2026',
-                                text: 'Sudah 6 bulan tinggal di sini, dan saya sangat puas. Wi-Fi-nya cepat banget untuk kerja remote. Resto rumahannya enak dan harganya ramah di kantong. Recommended banget!',
-                                badge: 'Verified'
-                            },
-                            {
-                                name: 'Rizky Firmansyah',
-                                role: 'Wirausahawan Muda',
-                                avatar: '👨‍💻',
-                                rating: 5,
-                                date: 'April 2026',
-                                text: 'Pas pertama lihat langsung jatuh cinta sama suasananya. Rasanya kayak tinggal di apartemen, bukan kos biasa. Proses booking online-nya juga mudah dan cepat!',
-                                badge: 'Penghuni Lama'
-                            },
-                            {
-                                name: 'Dewi Anggraeni',
-                                role: 'Guru Sekolah',
-                                avatar: '👩‍🏫',
-                                rating: 5,
-                                date: 'Februari 2026',
-                                text: 'Lokasinya strategis banget, dekat Mall Kartini dan akses transportasi mudah. Keamanan 24 jam dengan CCTV bikin saya dan keluarga tenang. Pokoknya juara!',
-                                badge: 'Verified'
-                            },
-                            {
-                                name: 'Bagas Nugroho',
-                                role: 'Mahasiswa Pascasarjana',
-                                avatar: '🧑‍💻',
-                                rating: 5,
-                                date: 'Mei 2026',
-                                text: 'Laundry dalam kos, resto enak, lounge buat kerja — semua ada di satu tempat. Saya bisa fokus belajar tanpa pusing mikirin urusan sehari-hari. Nilainya sempurna!',
-                                badge: 'Penghuni Aktif'
-                            },
-                            {
-                                name: 'Nabila Putri',
-                                role: 'Fresh Graduate',
-                                avatar: '👩‍🎓',
-                                rating: 5,
-                                date: 'Juni 2026',
-                                text: 'Staf adminnya ramah dan responsif di WhatsApp. Kamar selalu terjaga kebersihannya. Water heater di kamar mandi jadi nilai plus buat saya. Sangat worth it!',
-                                badge: 'Baru Pindah'
-                            },
-                        ].map((t, idx) => (
-                            <ScaleIn key={idx} delay={idx * 0.07}>
+                        {testimonials.map((t, idx) => (
+                            <ScaleIn key={t.id || idx} delay={idx * 0.07}>
                                 <div className="glass-3d rounded-2xl p-6 space-y-4 h-full flex flex-col">
-                                    {/* Header */}
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-3">
                                             <div className="w-11 h-11 rounded-full bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-xl shrink-0">
-                                                {t.avatar}
+                                                {t.avatar || '👤'}
                                             </div>
                                             <div>
                                                 <div className="font-extrabold text-white text-sm">{t.name}</div>
                                                 <div className="text-slate-400 text-xs">{t.role}</div>
                                             </div>
                                         </div>
-                                        <span className="text-[10px] font-bold px-2 py-1 rounded-full glass-3d text-emerald-400 border border-emerald-500/30 shrink-0">{t.badge}</span>
+                                        {t.badge && <span className="text-[10px] font-bold px-2 py-1 rounded-full glass-3d text-emerald-400 border border-emerald-500/30 shrink-0">{t.badge}</span>}
                                     </div>
-
-                                    {/* Stars */}
                                     <div className="flex gap-0.5">
-                                        {Array.from({ length: t.rating }).map((_, i) => (
+                                        {Array.from({ length: t.rating || 5 }).map((_, i) => (
                                             <svg key={i} className="w-4 h-4 text-amber-400 drop-shadow-[0_0_2px_rgba(251,191,36,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                                         ))}
                                     </div>
-
-                                    {/* Quote */}
                                     <p className="text-slate-300 text-sm leading-relaxed flex-grow">
-                                        <span className="text-emerald-400 text-2xl leading-none font-serif mr-1 text-glow">"</span>
-                                        {t.text}
-                                        <span className="text-emerald-400 text-2xl leading-none font-serif ml-1 text-glow">"</span>
+                                        "{t.text}"
                                     </p>
-
-                                    {/* Date */}
-                                    <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{t.date}</div>
+                                    <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{t.date_text}</div>
                                 </div>
                             </ScaleIn>
                         ))}
                     </div>
-
-                    {/* CTA */}
-                    <FadeUp delay={0.15} className="text-center">
-                        <a href="https://wa.me/628980598327" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-7 py-3.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-xl border border-slate-200 shadow-sm transition-all hover:-translate-y-0.5">
-                            <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                            Bagikan Pengalaman Anda via WhatsApp
-                        </a>
-                    </FadeUp>
                 </div>
             </section>
+            )}
 
             {/* ─── FAQ SECTION ─── */}
             <div className="py-24 relative z-10">
@@ -802,16 +772,16 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
 
             {/* ─── ROOM DETAIL MODAL ─── */}
             {showRoomDetail && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-                    <div className="w-full max-w-lg bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xl relative my-6" style={{ animation: 'modalIn 0.3s ease' }}>
-                        <style>{`@keyframes modalIn { from { opacity:0; transform:scale(0.94) translateY(16px); } to { opacity:1; transform:scale(1) translateY(0); } }`}</style>
-                        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md overflow-y-auto">
+                    <div className="w-full max-w-lg bg-white/95 backdrop-blur-xl rounded-3xl border border-white/60 overflow-hidden shadow-2xl shadow-emerald-900/20 relative my-6" style={{ animation: 'modalIn 0.3s ease' }}>
+                        <style>{`@keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }`}</style>
+                        <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100/50 flex items-center justify-between">
                             <div>
-                                <h3 className="font-extrabold text-xl text-slate-900">Detail Kamar {showRoomDetail.room_number}</h3>
-                                <p className="text-xs text-emerald-600 font-semibold">{showRoomDetail.branch.name}</p>
+                                <h3 className="font-extrabold text-2xl text-slate-800 tracking-tight">Kamar Nomor {showRoomDetail.room_number}</h3>
+                                <span className="text-emerald-600 text-xs font-bold tracking-wide uppercase bg-emerald-100/50 px-2.5 py-1 rounded-full mt-1.5 inline-block">{showRoomDetail.branch?.name?.replace('Kospart PH 18 - ', 'KOSPART PH 18 - ')}</span>
                             </div>
-                            <button onClick={() => setShowRoomDetail(null)} className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-lg hover:bg-slate-100">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            <button onClick={() => setShowRoomDetail(null)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
 
@@ -861,10 +831,22 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                             </div>
 
                             <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center">
+                                {showRoomDetail.price_yearly > 0 && (
+                                    <div>
+                                        <span className="text-slate-500 text-[10px] uppercase font-bold block">Sewa Tahunan</span>
+                                        <strong className="text-slate-900 text-lg font-mono">Rp {parseFloat(showRoomDetail.price_yearly).toLocaleString('id-ID')}</strong>
+                                    </div>
+                                )}
                                 {showRoomDetail.price_monthly > 0 && (
                                     <div>
                                         <span className="text-slate-500 text-[10px] uppercase font-bold block">Sewa Bulanan</span>
                                         <strong className="text-slate-900 text-lg font-mono">Rp {parseFloat(showRoomDetail.price_monthly).toLocaleString('id-ID')}</strong>
+                                    </div>
+                                )}
+                                {showRoomDetail.price_weekly > 0 && (
+                                    <div>
+                                        <span className="text-slate-500 text-[10px] uppercase font-bold block">Sewa Mingguan</span>
+                                        <strong className="text-slate-900 text-lg font-mono">Rp {parseFloat(showRoomDetail.price_weekly).toLocaleString('id-ID')}</strong>
                                     </div>
                                 )}
                                 {showRoomDetail.price_daily > 0 && (
@@ -876,12 +858,12 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                             </div>
                         </div>
 
-                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex gap-3">
-                            <button onClick={() => setShowRoomDetail(null)} className="flex-1 py-3 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-all border border-slate-200">Kembali</button>
+                        <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex justify-between gap-4">
+                            <button onClick={() => setShowRoomDetail(null)} className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-100 transition-colors">Kembali</button>
                             {showRoomDetail.status === 'available' ? (
-                                <button onClick={() => { setShowRoomDetail(null); handleOpenBooking(showRoomDetail); }} className="flex-1 py-3 bg-emerald-gradient hover:opacity-95 text-white text-sm font-bold rounded-xl transition-all shadow-md">Sewa Kamar Ini</button>
+                                <button onClick={() => { setShowRoomDetail(null); handleOpenBooking(showRoomDetail); }} className="px-8 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">Sewa Kamar Ini</button>
                             ) : (
-                                <button disabled className="flex-1 py-3 bg-slate-100 border border-slate-200 text-slate-400 text-sm font-bold rounded-xl cursor-not-allowed">Tidak Tersedia</button>
+                                <button disabled className="px-8 py-2.5 rounded-xl bg-slate-200 text-slate-500 font-bold cursor-not-allowed">Tidak Tersedia</button>
                             )}
                         </div>
                     </div>
@@ -890,15 +872,15 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
 
             {/* ─── BOOKING MODAL ─── */}
             {selectedRoom && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-                    <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xl relative my-6" style={{ animation: 'modalIn 0.3s ease' }}>
-                        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md overflow-y-auto">
+                    <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl border border-white/60 overflow-hidden shadow-2xl shadow-emerald-900/20 relative my-6" style={{ animation: 'modalIn 0.3s ease' }}>
+                        <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100/50 flex items-center justify-between">
                             <div>
-                                <h3 className="font-extrabold text-xl text-slate-900">Booking Kamar {selectedRoom.room_number}</h3>
-                                <p className="text-xs text-emerald-600 font-semibold">{selectedRoom.branch.name}</p>
+                                <h3 className="font-extrabold text-2xl text-slate-800 tracking-tight">Formulir Pemesanan</h3>
+                                <p className="text-emerald-600 text-xs font-bold tracking-wide uppercase bg-emerald-100/50 px-2.5 py-1 rounded-full mt-1.5 inline-block">Kamar {selectedRoom.room_number}</p>
                             </div>
-                            <button onClick={resetBookingModal} className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-lg hover:bg-slate-100">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            <button onClick={resetBookingModal} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
 
@@ -968,24 +950,36 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                                             value={bookingForm.rental_type} 
                                             onChange={(e) => {
                                                 const newType = e.target.value;
-                                                const start = new Date(bookingForm.start_date || new Date());
+                                                const start = new Date(bookingForm.start_date || new Date().toISOString().split('T')[0]);
                                                 const end = new Date(start);
-                                                if (newType === 'daily') {
-                                                    end.setDate(end.getDate() + 1);
-                                                } else {
-                                                    end.setMonth(end.getMonth() + 1);
-                                                }
+                                                if (newType === 'daily') end.setDate(end.getDate() + 1);
+                                                else if (newType === 'weekly') end.setDate(end.getDate() + 7);
+                                                else if (newType === 'monthly') end.setMonth(end.getMonth() + 1);
+                                                else if (newType === 'yearly') end.setFullYear(end.getFullYear() + 1);
                                                 setBookingForm({ ...bookingForm, rental_type: newType, end_date: end.toISOString().split('T')[0] });
                                             }} 
                                             className="bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-2.5 text-sm w-full font-medium transition-all"
                                         >
+                                            {selectedRoom.price_yearly > 0 && <option value="yearly">Tahunan</option>}
                                             {selectedRoom.price_monthly > 0 && <option value="monthly">Bulanan</option>}
+                                            {selectedRoom.price_weekly > 0 && <option value="weekly">Mingguan</option>}
                                             {selectedRoom.price_daily > 0 && <option value="daily">Harian</option>}
                                         </select>
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Mulai Sewa</label>
-                                        <input type="date" required value={bookingForm.start_date} onChange={(e) => setBookingForm({ ...bookingForm, start_date: e.target.value })} className="bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-2.5 text-sm w-full font-medium transition-all text-center" />
+                                        <input type="date" required value={bookingForm.start_date} onChange={(e) => {
+                                            const newStartStr = e.target.value;
+                                            if (!newStartStr) { setBookingForm({ ...bookingForm, start_date: '' }); return; }
+                                            const start = new Date(newStartStr);
+                                            const end = new Date(start);
+                                            const type = bookingForm.rental_type;
+                                            if (type === 'daily') end.setDate(end.getDate() + 1);
+                                            else if (type === 'weekly') end.setDate(end.getDate() + 7);
+                                            else if (type === 'monthly') end.setMonth(end.getMonth() + 1);
+                                            else if (type === 'yearly') end.setFullYear(end.getFullYear() + 1);
+                                            setBookingForm({ ...bookingForm, start_date: newStartStr, end_date: end.toISOString().split('T')[0] });
+                                        }} className="bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-2.5 text-sm w-full font-medium transition-all text-center" />
                                     </div>
                                 </div>
                                 <div className="space-y-1">
@@ -1023,13 +1017,31 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                                                 const diffTime = Math.abs(end - start);
                                                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                                                 if (bookingForm.rental_type === 'daily') {
-                                                    total = Math.max(1, diffDays) * selectedRoom.price_daily;
-                                                } else {
+                                                    let days = Math.max(1, diffDays);
+                                                    total = 0;
+                                                    let iterDate = new Date(start);
+                                                    for (let i = 0; i < days; i++) {
+                                                        let dayOfWeek = iterDate.getDay();
+                                                        if ((dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) && selectedRoom.price_weekend > 0) {
+                                                            total += parseFloat(selectedRoom.price_weekend);
+                                                        } else {
+                                                            total += parseFloat(selectedRoom.price_daily);
+                                                        }
+                                                        iterDate.setDate(iterDate.getDate() + 1);
+                                                    }
+                                                } else if (bookingForm.rental_type === 'weekly') {
+                                                    const diffWeeks = Math.floor(diffDays / 7);
+                                                    total = Math.max(1, diffWeeks) * selectedRoom.price_weekly;
+                                                } else if (bookingForm.rental_type === 'monthly') {
                                                     const startMonth = start.getFullYear() * 12 + start.getMonth();
                                                     const endMonth = end.getFullYear() * 12 + end.getMonth();
                                                     let diffMonths = endMonth - startMonth;
                                                     if (end.getDate() > start.getDate()) diffMonths += 1;
                                                     total = Math.max(1, diffMonths) * selectedRoom.price_monthly;
+                                                } else {
+                                                    let diffYears = end.getFullYear() - start.getFullYear();
+                                                    if (end.getMonth() > start.getMonth() || (end.getMonth() === start.getMonth() && end.getDate() > start.getDate())) diffYears += 1;
+                                                    total = Math.max(1, diffYears) * selectedRoom.price_yearly;
                                                 }
                                             }
                                             return total.toLocaleString('id-ID');
@@ -1037,7 +1049,7 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                                     </span>
                                 </div>
 
-                                <button disabled={isSubmitting} type="submit" className={`w-full mt-4 py-3 font-bold rounded-xl text-sm transition-all shadow-sm ${isSubmitting ? 'bg-slate-400 text-slate-200 cursor-not-allowed' : 'bg-emerald-gradient hover:opacity-95 text-white'}`}>
+                                <button disabled={isSubmitting} type="submit" className={`w-full mt-4 py-3 font-bold rounded-xl text-sm transition-all shadow-lg ${isSubmitting ? 'bg-slate-400 text-slate-200 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white'}`}>
                                     {isSubmitting ? 'Memproses...' : 'Kirim & Verifikasi OTP'}
                                 </button>
                             </form>
@@ -1052,8 +1064,8 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                                         {otpError && <p className="text-red-600 text-xs mt-1">{otpError}</p>}
                                     </div>
                                     <div className="flex gap-3">
-                                        <button type="button" onClick={() => setBookingStep('booking')} className="flex-1 py-3 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl border border-slate-200">Kembali</button>
-                                        <button type="submit" className="flex-1 py-3 bg-emerald-gradient hover:opacity-90 text-white text-xs font-bold rounded-xl">Verifikasi OTP</button>
+                                        <button type="button" onClick={() => setBookingStep('booking')} className="flex-1 py-3 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-all border border-slate-200">Kembali</button>
+                                        <button type="submit" className="flex-1 py-3 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">Verifikasi OTP</button>
                                     </div>
                                 </form>
                             </div>
@@ -1062,8 +1074,14 @@ export default function Welcome({ branches, rooms, faqs, auth }) {
                         {bookingStep === 'payment_proof' && (
                             <form onSubmit={handleUploadPayment} className="p-6 space-y-4">
                                 <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-xs text-emerald-800 leading-relaxed">
-                                    <h4 className="font-bold mb-1">Batas Waktu Pembayaran: 6 Jam</h4>
-                                    Selesaikan pembayaran ke rekening <strong>BCA 1234-5678-90 a.n KOSPART PH 18</strong> dan unggah bukti transfer di bawah ini.
+                                    <h4 className="font-bold mb-2 text-sm border-b border-emerald-200 pb-2">Informasi Pembayaran (Batas Waktu: 1 Jam)</h4>
+                                    <p className="mb-2">Total yang harus dibayar: <strong className="text-emerald-700 text-sm">Rp {bookingResponse?.booking?.total_amount ? parseFloat(bookingResponse.booking.total_amount).toLocaleString('id-ID') : (bookingForm.rental_type === 'daily' ? selectedRoom.price_daily : selectedRoom.price_monthly).toLocaleString('id-ID')}</strong></p>
+                                    <p>Selesaikan pembayaran ke rekening berikut:</p>
+                                    <ul className="list-disc pl-5 mt-2 mb-3 space-y-1 font-bold text-slate-800">
+                                        <li>BCA: 8447060961</li>
+                                    </ul>
+                                    <p className="mb-3">ATAS NAMA: <strong className="text-emerald-900">PRAYOGA HERIYANTO</strong></p>
+                                    <p>Masukkan nominal yang Anda transfer dan unggah bukti transfer di bawah ini.</p>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-xs font-semibold text-slate-500 uppercase">Jumlah yang Ditransfer (Rp)</label>

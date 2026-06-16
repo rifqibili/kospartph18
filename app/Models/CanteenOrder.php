@@ -10,7 +10,7 @@ class CanteenOrder extends Model
     use HasFactory;
 
     protected $fillable = [
-        'branch_id', 'tenant_id', 'order_code', 'total_amount', 'payment_method',
+        'branch_id', 'tenant_id', 'customer_name', 'order_code', 'total_amount', 'payment_method',
         'payment_status', 'status', 'payment_proof', 'notes', 'delivery_method'
     ];
 

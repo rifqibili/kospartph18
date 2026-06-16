@@ -77,7 +77,7 @@ class DashboardController extends Controller
                 ->whereHas('bookings.room', function($q) use ($user) {
                     $q->whereIn('branch_id', $user->assigned_branches);
                 })->count();
-        } elseif ($user->role === 'resident') {
+        } elseif (in_array($user->role, ['resident', 'karyawan'])) {
             $totalTenants = 0;
         } else {
             $totalTenants = User::where('role', 'resident')->count();
@@ -147,7 +147,7 @@ class DashboardController extends Controller
         $canteenAdminAlertsQuery = CanteenOrder::with(['tenant', 'branch'])
             ->whereIn('status', ['pending_approval'])
             ->orWhere(function($q) {
-                $q->where('payment_status', 'pending')->whereNotNull('payment_proof');
+                $q->where('payment_status', 'pending');
             });
             
         $canteenTenantReadyQuery = CanteenOrder::with(['branch'])
@@ -185,6 +185,16 @@ class DashboardController extends Controller
             
             $canteenTenantReadyQuery->where('tenant_id', $user->id);
             $canteenTenantDebtQuery->where('tenant_id', $user->id);
+        } elseif ($user->role === 'karyawan') {
+            // Karyawan has no bookings or debt
+            $unpaidPrevMonthBookingsQuery->whereRaw('1 = 0');
+            $expiryThreeDaysQuery->whereRaw('1 = 0');
+            $dailyCheckingOutTodayQuery->whereRaw('1 = 0');
+            $pendingComplaintsListQuery->whereRaw('1 = 0');
+            $unverifiedPaymentsQuery->whereRaw('1 = 0');
+            $newBookingsQuery->whereRaw('1 = 0');
+            $canteenTenantReadyQuery->whereRaw('1 = 0');
+            $canteenTenantDebtQuery->whereRaw('1 = 0');
         }
 
         $unpaidPrevMonthBookings = $unpaidPrevMonthBookingsQuery->get();
@@ -288,7 +298,7 @@ class DashboardController extends Controller
                 'title' => $c->status === 'pending_approval' ? 'Pesanan Kantin Baru' : 'Verifikasi Pembayaran Kantin',
                 'message' => $c->status === 'pending_approval' 
                     ? 'Ada pesanan kantin baru dari ' . ($c->tenant->name ?? 'Penghuni') . ' menunggu diproses.'
-                    : 'Pesanan kantin dari ' . ($c->tenant->name ?? 'Penghuni') . ' menunggu verifikasi bukti transfer.',
+                    : 'Pembayaran kantin dari ' . ($c->tenant->name ?? 'Penghuni') . ' menunggu verifikasi.',
                 'meta' => ['order_id' => $c->id],
                 'timestamp' => $c->updated_at->toIso8601String()
             ];

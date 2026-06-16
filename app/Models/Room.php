@@ -13,19 +13,26 @@ class Room extends Model
         'room_number',
         'price_monthly',
         'price_daily',
+        'price_weekly',
+        'price_yearly',
+        'price_weekend',
         'status',
         'facilities',
         'description',
         'image',
         'photos',
-        'video'
+        'videos'
     ];
 
     protected $casts = [
         'facilities' => 'array',
         'photos' => 'array',
+        'videos' => 'array',
         'price_monthly' => 'decimal:2',
-        'price_daily' => 'decimal:2'
+        'price_daily' => 'decimal:2',
+        'price_weekly' => 'decimal:2',
+        'price_yearly' => 'decimal:2',
+        'price_weekend' => 'decimal:2'
     ];
 
     public function branch(): BelongsTo

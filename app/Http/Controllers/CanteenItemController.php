@@ -14,7 +14,7 @@ class CanteenItemController extends Controller
         $user = Auth::user();
         $query = CanteenItem::with(['branch', 'recipes.ingredient']);
 
-        if ($user && $user->role === 'operator' && is_array($user->assigned_branches)) {
+        if ($user && in_array($user->role, ['operator', 'karyawan']) && is_array($user->assigned_branches)) {
             $query->whereIn('branch_id', $user->assigned_branches);
         }
 
@@ -23,8 +23,8 @@ class CanteenItemController extends Controller
             $query->where('branch_id', $request->branch_id);
         }
 
-        // For residents, only show sellable items
-        if ($user && $user->role === 'resident') {
+        // For residents and karyawan, only show sellable items
+        if ($user && in_array($user->role, ['resident', 'karyawan'])) {
             $query->where('is_sellable', true);
             // Optionally, we can also filter by their active booking branch
             $activeBooking = \App\Models\Booking::where('tenant_id', $user->id)

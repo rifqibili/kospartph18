@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 
 class BookingController extends Controller
 {
@@ -38,7 +39,7 @@ class BookingController extends Controller
     {
         $request->validate([
             'room_id' => 'required|exists:rooms,id',
-            'rental_type' => 'required|in:daily,monthly',
+            'rental_type' => 'required|in:daily,weekly,monthly,yearly',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'required|date|after:start_date',
             'name' => 'required|string|max:255',
@@ -61,12 +62,29 @@ class BookingController extends Controller
         if ($request->rental_type === 'daily') {
             $days = $diff->days;
             if ($days < 1) $days = 1;
-            $totalAmount = $days * $room->price_daily;
-        } else {
-            // monthly
+            $totalAmount = 0;
+            $currentDate = clone $startDate;
+            for ($i = 0; $i < $days; $i++) {
+                $dayOfWeek = $currentDate->format('w');
+                if (($dayOfWeek == 0 || $dayOfWeek == 5 || $dayOfWeek == 6) && $room->price_weekend > 0) {
+                    $totalAmount += $room->price_weekend;
+                } else {
+                    $totalAmount += $room->price_daily;
+                }
+                $currentDate->modify('+1 day');
+            }
+        } elseif ($request->rental_type === 'weekly') {
+            $weeks = ceil($diff->days / 7);
+            if ($weeks < 1) $weeks = 1;
+            $totalAmount = $weeks * $room->price_weekly;
+        } elseif ($request->rental_type === 'monthly') {
             $months = ($diff->y * 12) + $diff->m + ($diff->d > 0 ? 1 : 0);
             if ($months < 1) $months = 1;
             $totalAmount = $months * $room->price_monthly;
+        } else {
+            $years = $diff->y + ($diff->m > 0 || $diff->d > 0 ? 1 : 0);
+            if ($years < 1) $years = 1;
+            $totalAmount = $years * $room->price_yearly;
         }
 
         // Handle KTP Upload
@@ -93,8 +111,8 @@ class BookingController extends Controller
 
             // Generate OTP
             $otp = strval(rand(100000, 999999));
-            if ($request->email === 'rian@gmail.com') {
-                $otp = '166345'; // Matching PDF example if needed
+            if (app()->environment('local') && $request->email === 'rian@gmail.com') {
+                $otp = '166345'; // Debug OTP, hanya aktif di environment local
             }
 
             $booking = Booking::create([
@@ -105,6 +123,11 @@ class BookingController extends Controller
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
                 'total_amount' => $totalAmount,
+                'price_monthly' => $room->price_monthly,
+                'price_daily' => $room->price_daily,
+                'price_weekly' => $room->price_weekly,
+                'price_yearly' => $room->price_yearly,
+                'price_weekend' => $room->price_weekend,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
                 'otp_code' => $otp,
@@ -141,6 +164,152 @@ class BookingController extends Controller
                 'message' => 'Pemesanan berhasil diajukan. Kode OTP verifikasi dikirim ke nomor WhatsApp Anda.',
                 'booking_code' => $booking->booking_code,
                 'otp_code_simulated' => $otp, // Exposed only for simulator UI
+                'booking_id' => $booking->id
+            ]);
+        });
+    }
+
+    // Submit a booking manually (Admin/Operator)
+    public function storeManual(Request $request)
+    {
+        $admin = Auth::user();
+        if (!in_array($admin->role, ['super_admin', 'operator'])) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'room_id' => 'required|exists:rooms,id',
+            'rental_type' => 'required|in:daily,weekly,monthly,yearly',
+            'start_date' => 'required|date|after_or_equal:today',
+            'end_date' => 'required|date|after:start_date',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => ['required', 'string', 'min:9', 'max:20', 'regex:/^[0-9\-\+\s]+$/'],
+            'nik' => 'required|string|min:16|max:16',
+            'ktp_photo' => 'required|image|max:5120',
+            'payment_status' => 'required|in:paid,unpaid'
+        ]);
+
+        $room = Room::findOrFail($request->room_id);
+        
+        // Authorization check for operator
+        if ($admin->role === 'operator' && is_array($admin->assigned_branches)) {
+            if (!in_array($room->branch_id, $admin->assigned_branches)) {
+                return response()->json(['message' => 'Unauthorized branch access.'], 403);
+            }
+        }
+
+        if ($room->status !== 'available') {
+            return response()->json(['message' => 'Kamar tidak tersedia untuk disewa.'], 422);
+        }
+
+        // Calculate price
+        $startDate = new \DateTime($request->start_date);
+        $endDate = new \DateTime($request->end_date);
+        $diff = $startDate->diff($endDate);
+        
+        if ($request->rental_type === 'daily') {
+            $days = $diff->days;
+            if ($days < 1) $days = 1;
+            $totalAmount = 0;
+            $currentDate = clone $startDate;
+            for ($i = 0; $i < $days; $i++) {
+                $dayOfWeek = $currentDate->format('w');
+                if (($dayOfWeek == 0 || $dayOfWeek == 5 || $dayOfWeek == 6) && $room->price_weekend > 0) {
+                    $totalAmount += $room->price_weekend;
+                } else {
+                    $totalAmount += $room->price_daily;
+                }
+                $currentDate->modify('+1 day');
+            }
+        } elseif ($request->rental_type === 'weekly') {
+            $weeks = ceil($diff->days / 7);
+            if ($weeks < 1) $weeks = 1;
+            $totalAmount = $weeks * $room->price_weekly;
+        } elseif ($request->rental_type === 'monthly') {
+            $months = ($diff->y * 12) + $diff->m + ($diff->d > 0 ? 1 : 0);
+            if ($months < 1) $months = 1;
+            $totalAmount = $months * $room->price_monthly;
+        } else {
+            $years = $diff->y + ($diff->m > 0 || $diff->d > 0 ? 1 : 0);
+            if ($years < 1) $years = 1;
+            $totalAmount = $years * $room->price_yearly;
+        }
+
+        // Handle KTP Upload
+        $ktpPath = null;
+        if ($request->hasFile('ktp_photo')) {
+            $file = $request->file('ktp_photo');
+            $filename = time() . '_manual_ktp_' . \Illuminate\Support\Str::random(10) . '.' . $file->getClientOriginalExtension();
+            $ktpPath = $file->storeAs('ktp', $filename, 'public');
+        }
+
+        return DB::transaction(function () use ($request, $room, $totalAmount, $ktpPath) {
+            // Find existing user by phone or email, or create new
+            $tenant = User::where('phone', $request->phone)->orWhere('email', $request->email)->first();
+            
+            if (!$tenant) {
+                $tenant = User::create([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'nik' => $request->nik,
+                    'ktp_photo' => $ktpPath,
+                    'password' => Hash::make('kospart123'),
+                    'role' => 'resident'
+                ]);
+            } else {
+                // Update missing info
+                $tenantUpdates = [];
+                if (!$tenant->nik) $tenantUpdates['nik'] = $request->nik;
+                if (!$tenant->ktp_photo && $ktpPath) $tenantUpdates['ktp_photo'] = $ktpPath;
+                if (!empty($tenantUpdates)) {
+                    $tenant->update($tenantUpdates);
+                }
+            }
+
+            $bookingStatus = $request->payment_status === 'paid' ? 'active' : 'pending';
+            $roomStatus = $request->payment_status === 'paid' ? 'occupied' : 'booked';
+
+            $booking = Booking::create([
+                'booking_code' => 'KP-M-' . strtoupper(uniqid()),
+                'room_id' => $room->id,
+                'tenant_id' => $tenant->id,
+                'rental_type' => $request->rental_type,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                'total_amount' => $totalAmount,
+                'price_monthly' => $room->price_monthly,
+                'price_daily' => $room->price_daily,
+                'price_weekly' => $room->price_weekly,
+                'price_yearly' => $room->price_yearly,
+                'price_weekend' => $room->price_weekend,
+                'paid_amount' => $request->payment_status === 'paid' ? $totalAmount : 0,
+                'status' => $bookingStatus,
+                'payment_status' => $request->payment_status,
+                'otp_code' => '000000', // Bypass OTP
+                'otp_verified' => true,
+                'otp_sent_at' => now(),
+            ]);
+
+            $room->update(['status' => $roomStatus]);
+
+            // If paid, create finance entry
+            if ($request->payment_status === 'paid') {
+                Finance::create([
+                    'transaction_type' => 'income',
+                    'amount' => $totalAmount,
+                    'category' => 'rental',
+                    'description' => "Penyewaan Kamar {$room->room_number} oleh {$tenant->name} (Manual)",
+                    'transaction_date' => now()->format('Y-m-d'),
+                    'booking_id' => $booking->id,
+                    'branch_id' => $room->branch_id,
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Booking manual berhasil ditambahkan.',
+                'booking_code' => $booking->booking_code,
                 'booking_id' => $booking->id
             ]);
         });
@@ -278,9 +447,10 @@ class BookingController extends Controller
             'amount'           => $amountToVerify,
             'category'         => 'rental',
             'transaction_date' => now()->format('Y-m-d'),
-            'description'      => 'Pembayaran ' . ($booking->rental_type === 'daily' ? 'Harian' : 'Bulanan') . ' Kamar ' . $booking->room->room_number . ' - ' . $booking->tenant->name,
+            'description'      => 'Pembayaran ' . ($booking->rental_type === 'daily' ? 'Harian' : ($booking->rental_type === 'weekly' ? 'Mingguan' : ($booking->rental_type === 'monthly' ? 'Bulanan' : 'Tahunan'))) . ' Kamar ' . $booking->room->room_number . ' - ' . $booking->tenant->name,
             'booking_id'       => $booking->id,
             'branch_id'        => $booking->room->branch_id,
+            'payment_method'   => 'transfer',
         ]);
 
         return response()->json([
@@ -309,8 +479,71 @@ class BookingController extends Controller
             'unverified_proof' => null,
         ]);
 
+        // Jika booking masih pending dan kamar masih booked, kembalikan status kamar
+        if ($booking->status === 'pending' && $booking->room && $booking->room->status === 'booked') {
+            $booking->room->update(['status' => 'available']);
+            $booking->update(['status' => 'pending']); // tetap pending, tapi kamar sudah available
+        }
+
         return response()->json([
             'message' => 'Pembayaran ditolak. Menunggu tenant mengunggah ulang bukti bayar.',
+            'booking' => $booking->fresh(['room.branch', 'tenant'])
+        ]);
+    }
+
+    public function payManual(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!in_array($user->role, ['super_admin', 'operator'])) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'paid_amount' => 'required|numeric|min:1',
+            'payment_method' => 'required|string|in:cash,transfer'
+        ]);
+
+        $booking = Booking::with(['room', 'tenant'])->findOrFail($id);
+
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            if (!in_array($booking->room->branch_id, $user->assigned_branches)) {
+                return response()->json(['message' => 'Unauthorized branch booking access.'], 403);
+            }
+        }
+
+        if (floatval($booking->unverified_amount) > 0) {
+            return response()->json(['message' => 'Terdapat pembayaran yang menunggu verifikasi. Silakan Verifikasi atau Tolak bukti bayar tersebut terlebih dahulu.'], 422);
+        }
+
+        $amountToVerify = $request->paid_amount;
+        $newPaidAmount = $booking->paid_amount + $amountToVerify;
+        $isFullyPaid = floatval($newPaidAmount) >= floatval($booking->total_amount);
+
+        $booking->update([
+            'paid_amount'    => $newPaidAmount,
+            'payment_status' => $isFullyPaid ? 'paid' : 'dp',
+            'status'         => 'active',
+        ]);
+
+        if ($booking->room->status !== 'occupied') {
+            $booking->room->update(['status' => 'occupied']);
+        }
+
+        $methodText = $request->payment_method === 'cash' ? 'Tunai' : 'Transfer Bank';
+        
+        Finance::create([
+            'transaction_type' => 'income',
+            'amount'           => $amountToVerify,
+            'category'         => 'rental',
+            'transaction_date' => now()->format('Y-m-d'),
+            'description'      => 'Pembayaran ' . ($booking->rental_type === 'daily' ? 'Harian' : ($booking->rental_type === 'weekly' ? 'Mingguan' : ($booking->rental_type === 'monthly' ? 'Bulanan' : 'Tahunan'))) . ' Kamar ' . $booking->room->room_number . ' (' . $methodText . ') - ' . $booking->tenant->name,
+            'booking_id'       => $booking->id,
+            'branch_id'        => $booking->room->branch_id,
+            'payment_method'   => $request->payment_method,
+        ]);
+
+        return response()->json([
+            'message' => 'Pembayaran manual berhasil dicatat.',
             'booking' => $booking->fresh(['room.branch', 'tenant'])
         ]);
     }
@@ -330,34 +563,48 @@ class BookingController extends Controller
             }
         }
 
-        if ($booking->payment_status === 'paid') {
-            return response()->json(['message' => 'Tagihan sudah lunas, tidak perlu reminder.'], 400);
-        }
-
         $tenantPhone = $booking->tenant->phone;
         if (!$tenantPhone) {
             return response()->json(['message' => 'Nomor WhatsApp tenant tidak ditemukan.'], 400);
         }
 
-        $token = env('FONNTE_API_KEY');
+        $token = env('FONNTE_API_KEY') ?: env('FONNTE_TOKEN');
         if (!$token) {
             return response()->json(['message' => 'Konfigurasi Fonnte API Key belum diset di .env.'], 500);
         }
 
-        $amountDue = $booking->total_amount - $booking->paid_amount;
-        $amountFormatted = 'Rp ' . number_format($amountDue, 0, ',', '.');
         $dueDate = \Carbon\Carbon::parse($booking->end_date)->format('d M Y');
 
-        $message = "*REMINDER TAGIHAN KOSPART PH 18*\n\n"
-            . "Halo {$booking->tenant->name},\n\n"
-            . "Ini adalah pesan pengingat otomatis dari Admin Kospart PH 18 bahwa tagihan sewa kamar Anda belum lunas.\n\n"
-            . "Detail Tagihan:\n"
-            . "- Kamar: {$booking->room->room_number}\n"
-            . "- Cabang: {$booking->room->branch->name}\n"
-            . "- Sisa Tagihan: *{$amountFormatted}*\n"
-            . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
-            . "Mohon segera melakukan pembayaran melalui aplikasi Kospart PH 18 atau hubungi operator kami jika ada kendala.\n\n"
-            . "Abaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih!";
+        if ($booking->payment_status === 'paid') {
+            // Jika sudah lunas, kirim reminder batas waktu sewa
+            $message = "*REMINDER SEWA KOSPART PH 18*\n\n"
+                . "Halo {$booking->tenant->name},\n\n"
+                . "Ini adalah pesan pengingat otomatis dari Admin Kospart PH 18 bahwa masa sewa kamar Anda akan segera berakhir.\n\n"
+                . "Detail Sewa:\n"
+                . "- Kamar: {$booking->room->room_number}\n"
+                . "- Cabang: {$booking->room->branch->name}\n"
+                . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
+                . "Mohon segera melakukan perpanjangan sewa melalui aplikasi Kospart PH 18 jika Anda ingin melanjutkan, atau hubungi operator kami untuk konfirmasi checkout.\n\n"
+                . "Terima kasih!";
+        } else {
+            // Jika belum lunas, kirim reminder tagihan
+            $amountDue = $booking->total_amount - $booking->paid_amount;
+            $amountFormatted = 'Rp ' . number_format($amountDue, 0, ',', '.');
+            
+            $message = "*REMINDER TAGIHAN KOSPART PH 18*\n\n"
+                . "Halo {$booking->tenant->name},\n\n"
+                . "Ini adalah pesan pengingat otomatis dari Admin Kospart PH 18 bahwa tagihan sewa kamar Anda belum lunas.\n\n"
+                . "Detail Tagihan:\n"
+                . "- Kamar: {$booking->room->room_number}\n"
+                . "- Cabang: {$booking->room->branch->name}\n"
+                . "- Sisa Tagihan: *{$amountFormatted}*\n"
+                . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
+                . "Silakan selesaikan pembayaran ke salah satu rekening berikut:\n"
+                . "- BCA: 8447060951\n"
+                . "A/N PRAYOGA HERIYANTO\n\n"
+                . "Mohon segera melakukan pembayaran dan sertakan juga bukti bayarnya melalui aplikasi Kospart PH 18, atau hubungi operator kami jika ada kendala.\n\n"
+                . "Abaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih!";
+        }
 
         $response = Http::withHeaders([
             'Authorization' => $token,
@@ -405,6 +652,7 @@ class BookingController extends Controller
             'transaction_date' => now()->format('Y-m-d'),
             'description' => 'Pembayaran lunas sewa Kamar ' . $booking->room->room_number . ' - ' . $booking->tenant->name,
             'booking_id' => $booking->id,
+            'branch_id' => $booking->room->branch_id,
         ]);
 
         return response()->json(['message' => 'Penyewaan berhasil diaktifkan.', 'booking' => $booking]);
@@ -473,7 +721,13 @@ class BookingController extends Controller
             }
         }
 
-        // Recalculate price
+        // Recalculate price using locked booking prices (if missing, fallback to room price)
+        $lockedPriceDaily = $booking->price_daily ?? $room->price_daily;
+        $lockedPriceWeekly = $booking->price_weekly ?? $room->price_weekly;
+        $lockedPriceMonthly = $booking->price_monthly ?? $room->price_monthly;
+        $lockedPriceYearly = $booking->price_yearly ?? $room->price_yearly;
+        $lockedPriceWeekend = $booking->price_weekend ?? $room->price_weekend;
+
         $startDate = new \DateTime($request->start_date);
         $endDate = new \DateTime($request->end_date);
         $diff = $startDate->diff($endDate);
@@ -481,11 +735,29 @@ class BookingController extends Controller
         if ($booking->rental_type === 'daily') {
             $days = $diff->days;
             if ($days < 1) $days = 1;
-            $totalAmount = $days * $room->price_daily;
-        } else {
+            $totalAmount = 0;
+            $currentDate = clone $startDate;
+            for ($i = 0; $i < $days; $i++) {
+                $dayOfWeek = $currentDate->format('w');
+                if (($dayOfWeek == 0 || $dayOfWeek == 5 || $dayOfWeek == 6) && $lockedPriceWeekend > 0) {
+                    $totalAmount += $lockedPriceWeekend;
+                } else {
+                    $totalAmount += $lockedPriceDaily;
+                }
+                $currentDate->modify('+1 day');
+            }
+        } elseif ($booking->rental_type === 'weekly') {
+            $weeks = floor($diff->days / 7);
+            if ($weeks < 1) $weeks = 1;
+            $totalAmount = $weeks * $lockedPriceWeekly;
+        } elseif ($booking->rental_type === 'monthly') {
             $months = ($diff->y * 12) + $diff->m + ($diff->d > 0 ? 1 : 0);
             if ($months < 1) $months = 1;
-            $totalAmount = $months * $room->price_monthly;
+            $totalAmount = $months * $lockedPriceMonthly;
+        } else {
+            $years = $diff->y + ($diff->m > 0 || $diff->d > 0 ? 1 : 0);
+            if ($years < 1) $years = 1;
+            $totalAmount = $years * $lockedPriceYearly;
         }
 
         $paymentStatus = $booking->payment_status;
@@ -524,17 +796,43 @@ class BookingController extends Controller
 
         $room = $booking->room;
 
+        // Use locked prices from booking, fallback to room price if somehow missing
+        $lockedPriceDaily = $booking->price_daily ?? $room->price_daily;
+        $lockedPriceWeekly = $booking->price_weekly ?? $room->price_weekly;
+        $lockedPriceMonthly = $booking->price_monthly ?? $room->price_monthly;
+        $lockedPriceYearly = $booking->price_yearly ?? $room->price_yearly;
+        $lockedPriceWeekend = $booking->price_weekend ?? $room->price_weekend;
+
         // Determine extension duration
         $currentEndDate = \Carbon\Carbon::parse($booking->end_date);
+        $extendType = $request->input('extend_type', $booking->rental_type);
         
-        if ($booking->rental_type === 'daily') {
+        if ($extendType === 'daily') {
             $daysToAdd = (int) $request->input('duration', 1);
-            $newEndDate = $currentEndDate->addDays($daysToAdd);
-            $additionalAmount = $daysToAdd * $room->price_daily;
-        } else {
+            $additionalAmount = 0;
+            $iterDate = $currentEndDate->copy();
+            for ($i = 0; $i < $daysToAdd; $i++) {
+                $dayOfWeek = $iterDate->format('w');
+                if (($dayOfWeek == 0 || $dayOfWeek == 5 || $dayOfWeek == 6) && $lockedPriceWeekend > 0) {
+                    $additionalAmount += $lockedPriceWeekend;
+                } else {
+                    $additionalAmount += $lockedPriceDaily;
+                }
+                $iterDate->addDay();
+            }
+            $newEndDate = $iterDate;
+        } elseif ($extendType === 'weekly') {
+            $weeksToAdd = (int) $request->input('duration', 1);
+            $newEndDate = $currentEndDate->addWeeks($weeksToAdd);
+            $additionalAmount = $weeksToAdd * $lockedPriceWeekly;
+        } elseif ($extendType === 'monthly') {
             $monthsToAdd = (int) $request->input('duration', 1);
             $newEndDate = $currentEndDate->addMonths($monthsToAdd);
-            $additionalAmount = $monthsToAdd * $room->price_monthly;
+            $additionalAmount = $monthsToAdd * $lockedPriceMonthly;
+        } else {
+            $yearsToAdd = (int) $request->input('duration', 1);
+            $newEndDate = $currentEndDate->addYears($yearsToAdd);
+            $additionalAmount = $yearsToAdd * $lockedPriceYearly;
         }
 
         $newTotalAmount = floatval($booking->total_amount) + $additionalAmount;
@@ -615,5 +913,38 @@ class BookingController extends Controller
         ];
 
         return response()->make($view, 200, $headers);
+    }
+
+    public function destroy($id)
+    {
+        $user = Auth::user();
+        if (!in_array($user->role, ['super_admin', 'operator'])) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $booking = Booking::findOrFail($id);
+        
+        if ($booking->status === 'active' || $booking->status === 'pending') {
+            return response()->json(['error' => 'Hanya booking dengan status checkout yang dapat dihapus.'], 400);
+        }
+
+        // Hapus file bukti pembayaran jika ada untuk menghemat disk space
+        if ($booking->payment_proof && \Storage::disk('public')->exists($booking->payment_proof)) {
+            \Storage::disk('public')->delete($booking->payment_proof);
+        }
+
+        $tenantId = $booking->tenant_id;
+
+        $booking->delete();
+
+        // Hapus akun penyewa hanya jika tidak punya booking lain
+        if ($tenantId) {
+            $otherBookings = Booking::where('tenant_id', $tenantId)->count();
+            if ($otherBookings === 0) {
+                \App\Models\User::where('id', $tenantId)->delete();
+            }
+        }
+
+        return response()->json(['message' => 'Log transaksi penyewaan beserta akun penghuni berhasil dihapus.']);
     }
 }

@@ -15,6 +15,8 @@ class Finance extends Model
         'description',
         'booking_id',
         'branch_id',
+        'payment_method',
+        'canteen_order_id',
     ];
 
     protected $casts = [
@@ -30,5 +32,10 @@ class Finance extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function canteenOrder(): BelongsTo
+    {
+        return $this->belongsTo(CanteenOrder::class);
     }
 }

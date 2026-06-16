@@ -22,8 +22,15 @@ class FinanceController extends Controller
                 ->get();
         } elseif ($user->role === 'resident') {
             $finances = Finance::with('booking.room.branch')
-                ->whereHas('booking', function($q) use ($user) {
-                    $q->where('tenant_id', $user->id);
+                ->where(function($query) use ($user) {
+                    // Finance records linked to resident's bookings (sewa kamar, etc.)
+                    $query->whereHas('booking', function($q) use ($user) {
+                        $q->where('tenant_id', $user->id);
+                    })
+                    // OR finance records linked to resident's canteen orders
+                    ->orWhereHas('canteenOrder', function($q) use ($user) {
+                        $q->where('tenant_id', $user->id);
+                    });
                 })
                 ->orderBy('transaction_date', 'desc')
                 ->orderBy('created_at', 'desc')
@@ -54,6 +61,7 @@ class FinanceController extends Controller
             'transaction_date' => 'required|date',
             'description' => 'nullable|string',
             'branch_id' => 'required|exists:branches,id',
+            'payment_method' => 'nullable|string',
         ]);
 
         $finance = Finance::create($request->all());

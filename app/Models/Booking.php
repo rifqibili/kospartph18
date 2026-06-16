@@ -16,6 +16,11 @@ class Booking extends Model
         'start_date',
         'end_date',
         'total_amount',
+        'price_monthly',
+        'price_daily',
+        'price_weekly',
+        'price_yearly',
+        'price_weekend',
         'status',
         'payment_status',
         'paid_amount',
@@ -33,6 +38,11 @@ class Booking extends Model
         'total_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'unverified_amount' => 'decimal:2',
+        'price_monthly' => 'decimal:2',
+        'price_daily' => 'decimal:2',
+        'price_weekly' => 'decimal:2',
+        'price_yearly' => 'decimal:2',
+        'price_weekend' => 'decimal:2',
         'otp_verified' => 'boolean',
         'otp_sent_at' => 'datetime'
     ];

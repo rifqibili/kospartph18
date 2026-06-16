@@ -38,13 +38,17 @@ class RoomController extends Controller
             'room_number' => 'required|string|max:50',
             'price_monthly' => 'required|numeric|min:0',
             'price_daily' => 'required|numeric|min:0',
+            'price_weekly' => 'required|numeric|min:0',
+            'price_yearly' => 'required|numeric|min:0',
+            'price_weekend' => 'nullable|numeric|min:0',
             'status' => 'required|in:available,occupied,booked,maintenance,cleaning',
             'facilities' => 'nullable|array',
             'description' => 'nullable|string',
             'image' => 'nullable|string',
             'photos' => 'nullable|array',
             'photos.*' => 'image|max:5120',
-            'video' => 'nullable|mimes:mp4,mov,ogg,qt|max:20480',
+            'videos' => 'nullable|array',
+            'videos.*' => 'mimes:mp4,mov,ogg,qt|max:20480',
         ]);
 
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
@@ -53,7 +57,7 @@ class RoomController extends Controller
             }
         }
 
-        $data = $request->except(['photos', 'video']);
+        $data = $request->except(['photos', 'videos']);
         
         if ($request->hasFile('photos')) {
             $photosPaths = [];
@@ -63,8 +67,12 @@ class RoomController extends Controller
             $data['photos'] = $photosPaths;
         }
 
-        if ($request->hasFile('video')) {
-            $data['video'] = '/storage/' . $request->file('video')->store('room_videos', 'public');
+        if ($request->hasFile('videos')) {
+            $videosPaths = [];
+            foreach ($request->file('videos') as $video) {
+                $videosPaths[] = '/storage/' . $video->store('room_videos', 'public');
+            }
+            $data['videos'] = $videosPaths;
         }
 
         $room = Room::create($data);
@@ -75,7 +83,7 @@ class RoomController extends Controller
     public function update(Request $request, $id)
     {
         $user = Auth::user();
-        if (!in_array($user->role, ['super_admin', 'operator'])) {
+        if ($user->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -84,13 +92,21 @@ class RoomController extends Controller
             'room_number' => 'required|string|max:50',
             'price_monthly' => 'required|numeric|min:0',
             'price_daily' => 'required|numeric|min:0',
+            'price_weekly' => 'required|numeric|min:0',
+            'price_yearly' => 'required|numeric|min:0',
+            'price_weekend' => 'nullable|numeric|min:0',
             'status' => 'required|in:available,occupied,booked,maintenance,cleaning',
             'facilities' => 'nullable|array',
             'description' => 'nullable|string',
             'image' => 'nullable|string',
-            'photos' => 'nullable|array',
-            'photos.*' => 'image|max:5120',
-            'video' => 'nullable|mimes:mp4,mov,ogg,qt|max:20480',
+            'existing_photos' => 'nullable|array',
+            'existing_photos.*' => 'string',
+            'existing_videos' => 'nullable|array',
+            'existing_videos.*' => 'string',
+            'new_photos' => 'nullable|array',
+            'new_photos.*' => 'image|max:5120',
+            'new_videos' => 'nullable|array',
+            'new_videos.*' => 'mimes:mp4,mov,ogg,qt|max:20480',
         ]);
 
         $room = Room::findOrFail($id);
@@ -101,19 +117,23 @@ class RoomController extends Controller
             }
         }
 
-        $data = $request->except(['photos', 'video']);
+        $data = $request->except(['existing_photos', 'existing_videos', 'new_photos', 'new_videos']);
         
-        if ($request->hasFile('photos')) {
-            $photosPaths = [];
-            foreach ($request->file('photos') as $photo) {
+        $photosPaths = $request->input('existing_photos', []);
+        if ($request->hasFile('new_photos')) {
+            foreach ($request->file('new_photos') as $photo) {
                 $photosPaths[] = '/storage/' . $photo->store('room_photos', 'public');
             }
-            $data['photos'] = $photosPaths;
         }
+        $data['photos'] = empty($photosPaths) ? null : $photosPaths;
 
-        if ($request->hasFile('video')) {
-            $data['video'] = '/storage/' . $request->file('video')->store('room_videos', 'public');
+        $videosPaths = $request->input('existing_videos', []);
+        if ($request->hasFile('new_videos')) {
+            foreach ($request->file('new_videos') as $video) {
+                $videosPaths[] = '/storage/' . $video->store('room_videos', 'public');
+            }
         }
+        $data['videos'] = empty($videosPaths) ? null : $videosPaths;
 
         $room->update($data);
 
@@ -123,7 +143,7 @@ class RoomController extends Controller
     public function destroy($id)
     {
         $user = Auth::user();
-        if (!in_array($user->role, ['super_admin', 'operator'])) {
+        if ($user->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 

@@ -69,7 +69,10 @@ class SendBookingReminders extends Command
                 . "- Cabang: {$booking->room->branch->name}\n"
                 . "- Sisa Tagihan: *{$amountFormatted}*\n"
                 . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
-                . "Mohon segera melakukan pembayaran melalui aplikasi Kospart PH 18 atau hubungi operator kami jika ada kendala.\n\n"
+                . "Silakan selesaikan pembayaran ke salah satu rekening berikut:\n"
+                . "- BCA: 8447060951\n"
+                . "A/N PRAYOGA HERIYANTO\n\n"
+                . "Mohon segera melakukan pembayaran dan sertakan juga bukti bayarnya melalui aplikasi Kospart PH 18, atau hubungi operator kami jika ada kendala.\n\n"
                 . "Abaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih!";
 
             $response = Http::withHeaders([

@@ -19,11 +19,15 @@ class LandingController extends Controller
             ->get();
 
         $faqs = \App\Models\Faq::where('is_active', true)->orderBy('order')->get();
+        $virtualTours = \App\Models\VirtualTour::where('is_active', true)->orderBy('order')->get();
+        $testimonials = \App\Models\Testimonial::where('is_active', true)->orderBy('order')->get();
 
         return Inertia::render('Welcome', [
             'branches' => $branches,
             'rooms' => $rooms,
             'faqs' => $faqs,
+            'virtualTours' => $virtualTours,
+            'testimonials' => $testimonials,
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
         ]);

@@ -19,7 +19,7 @@ class CanteenOrderController extends Controller
 
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
             $query->whereIn('branch_id', $user->assigned_branches);
-        } elseif ($user->role === 'resident') {
+        } elseif (in_array($user->role, ['resident', 'karyawan'])) {
             $query->where('tenant_id', $user->id);
         }
 
@@ -30,8 +30,8 @@ class CanteenOrderController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        if ($user->role !== 'resident') {
-            return response()->json(['message' => 'Hanya penyewa yang dapat melakukan pesanan kantin.'], 403);
+        if (!in_array($user->role, ['resident', 'karyawan'])) {
+            return response()->json(['message' => 'Hanya penyewa dan karyawan yang dapat melakukan pesanan kantin.'], 403);
         }
 
         $request->validate([
@@ -107,10 +107,15 @@ class CanteenOrderController extends Controller
             $orderStatus = 'pending_approval'; // Needs admin approval for payment
             $paymentStatus = 'pending';
             
-            if ($request->payment_method === 'debt') {
-                $paymentStatus = 'debt_unpaid';
-            } elseif ($request->payment_method === 'cash') {
-                $paymentStatus = 'pending'; // Cash implies pay on pickup/delivery
+            if ($user->role === 'karyawan') {
+                $orderStatus = 'completed';
+                $paymentStatus = 'free_meal';
+            } else {
+                if ($request->payment_method === 'debt') {
+                    $paymentStatus = 'debt_unpaid';
+                } elseif ($request->payment_method === 'cash') {
+                    $paymentStatus = 'pending'; // Cash implies pay on pickup/delivery
+                }
             }
 
             $order = CanteenOrder::create([
@@ -179,6 +184,16 @@ class CanteenOrderController extends Controller
             }
             // Batalkan juga status pembayarannya agar tidak dihitung sebagai hutang
             $order->payment_status = 'cancelled';
+
+            // Hapus record finance jika sudah tercatat sebagai pendapatan (baik manual maupun via aplikasi)
+            $searchName = $order->tenant ? $order->tenant->name : $order->customer_name;
+            if ($searchName) {
+                \App\Models\Finance::where('branch_id', $order->branch_id)
+                    ->where('amount', $order->total_amount)
+                    ->where('category', 'pendapatan_kantin')
+                    ->where('description', 'LIKE', "%{$searchName}%")
+                    ->delete();
+            }
         }
 
         $order->status = $request->status;
@@ -206,26 +221,43 @@ class CanteenOrderController extends Controller
             'payment_status' => 'required|string|in:pending,paid,debt_unpaid'
         ]);
 
-        // If changing to paid from something else, log to finances
+        // If changing to paid from something else, log to finances (prevent duplicates using canteen_order_id)
         if ($request->payment_status === 'paid' && $order->payment_status !== 'paid') {
-            $roomNumber = '-';
-            if ($order->tenant && $order->tenant->bookings && $order->tenant->bookings->first() && $order->tenant->bookings->first()->room) {
-                $roomNumber = 'Kamar ' . $order->tenant->bookings->first()->room->room_number;
-            }
+            // Check if finance record already exists for this specific order
+            $existingFinance = Finance::where('canteen_order_id', $order->id)->first();
 
-            Finance::create([
-                'branch_id' => $order->branch_id,
-                'amount' => $order->total_amount,
-                'transaction_type' => 'income',
-                'category' => 'pendapatan_kantin',
-                'description' => "Pendapatan kantin dari {$order->tenant->name} ({$roomNumber})",
-                'transaction_date' => now()->toDateString(),
-            ]);
+            if (!$existingFinance) {
+                $bookingId = null;
+                $roomNumber = '-';
+                $tenantName = $order->tenant ? $order->tenant->name : ($order->customer_name ?? 'Unknown');
+                
+                if ($order->tenant && $order->tenant->bookings && $order->tenant->bookings->first()) {
+                    $bookingId = $order->tenant->bookings->first()->id;
+                    if ($order->tenant->bookings->first()->room) {
+                        $roomNumber = 'Kamar ' . $order->tenant->bookings->first()->room->room_number;
+                    }
+                }
+
+                Finance::create([
+                    'branch_id' => $order->branch_id,
+                    'amount' => $order->total_amount,
+                    'transaction_type' => 'income',
+                    'category' => 'pendapatan_kantin',
+                    'description' => "Pendapatan kantin dari {$tenantName} ({$roomNumber}) - {$order->order_code}",
+                    'transaction_date' => now()->toDateString(),
+                    'payment_method' => $order->payment_method,
+                    'booking_id' => $bookingId,
+                    'canteen_order_id' => $order->id,
+                ]);
+            }
             
             // If it was debt, maybe the user wants to keep the status logic intact, but let's make sure it's known
             if ($order->status === 'pending_approval') {
                 $order->status = 'processing';
             }
+        } elseif ($request->payment_status !== 'paid' && $order->payment_status === 'paid') {
+            // Jika status pembayaran dibatalkan dari 'paid', hapus record finance untuk order ini saja
+            Finance::where('canteen_order_id', $order->id)->delete();
         }
 
         $order->update(['payment_status' => $request->payment_status, 'status' => $order->status]);
@@ -263,7 +295,8 @@ class CanteenOrderController extends Controller
         $order->update([
             'payment_proof' => $path,
             'payment_method' => $request->payment_method, // 'qris' or 'cash'
-            'payment_status' => 'pending' // Waiting for admin verification
+            'payment_status' => 'pending', // Waiting for admin verification
+            'status' => 'completed' // Pindahkan dari Pesanan Aktif ke daftar verifikasi kasbon
         ]);
 
         return response()->json(['message' => 'Pengajuan pelunasan berhasil dikirim. Menunggu verifikasi admin.']);
@@ -295,7 +328,8 @@ class CanteenOrderController extends Controller
             ->update([
                 'payment_proof' => $path,
                 'payment_method' => $request->payment_method, // 'qris' or 'cash'
-                'payment_status' => 'pending' // Waiting for admin verification
+                'payment_status' => 'pending', // Waiting for admin verification
+                'status' => 'completed' // Pindahkan dari Pesanan Aktif ke daftar verifikasi kasbon
             ]);
 
         if ($updated === 0) {
@@ -303,5 +337,210 @@ class CanteenOrderController extends Controller
         }
 
         return response()->json(['message' => 'Pengajuan pelunasan untuk '.$updated.' pesanan berhasil dikirim. Menunggu verifikasi admin.']);
+    }
+    public function storeManual(Request $request)
+    {
+        $user = Auth::user();
+        if (!in_array($user->role, ['super_admin', 'operator'])) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'branch_id' => 'required|exists:branches,id',
+            'payment_method' => 'required|string|in:qris,cash,debt',
+            'payment_status' => 'required|string|in:paid,debt_unpaid,pending',
+            'tenant_id' => 'nullable|exists:users,id',
+            'customer_name' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|exists:canteen_items,id',
+            'items.*.quantity' => 'required|integer|min:1'
+        ]);
+
+        if ($request->payment_method === 'debt' && !$request->tenant_id) {
+            return response()->json(['message' => 'Metode Kasbon hanya bisa digunakan jika terhubung ke penghuni.'], 400);
+        }
+
+        $totalAmount = 0;
+        $orderItems = [];
+        
+        \DB::beginTransaction();
+        try {
+            foreach ($request->items as $cartItem) {
+                $item = CanteenItem::with('recipes.ingredient')->where('id', $cartItem['id'])->where('branch_id', $request->branch_id)->lockForUpdate()->first();
+                if (!$item) {
+                    throw new \Exception("Item tidak ditemukan di cabang ini.");
+                }
+
+                if ($item->recipes && $item->recipes->count() > 0) {
+                    foreach ($item->recipes as $recipe) {
+                        $ingredient = $recipe->ingredient;
+                        $needed = $recipe->quantity * $cartItem['quantity'];
+                        if ($ingredient->stock < $needed) {
+                            throw new \Exception("Stok bahan baku '{$ingredient->name}' tidak mencukupi untuk pesanan '{$item->name}'. Tersisa {$ingredient->stock} " . ($ingredient->unit ?? 'pcs') . ".");
+                        }
+                        $ingredient->stock -= $needed;
+                        $ingredient->save();
+                    }
+                } else {
+                    if ($item->stock < $cartItem['quantity']) {
+                        throw new \Exception("Stok {$item->name} tidak mencukupi. Tersisa {$item->stock}.");
+                    }
+                    $item->stock -= $cartItem['quantity'];
+                    $item->save();
+                }
+
+                $totalAmount += $item->price * $cartItem['quantity'];
+                
+                $orderItems[] = [
+                    'canteen_item_id' => $item->id,
+                    'quantity' => $cartItem['quantity'],
+                    'price_at_time' => $item->price,
+                ];
+            }
+
+            $status = 'processing'; // Biarkan masuk pesanan aktif agar bisa diselesaikan operator
+            $paymentStatus = $request->payment_status;
+
+            if ($request->tenant_id) {
+                $tenant = \App\Models\User::find($request->tenant_id);
+                if ($tenant && $tenant->role === 'karyawan') {
+                    $status = 'completed';
+                    $paymentStatus = 'free_meal';
+                }
+            }
+
+            $orderCode = 'KTN-MNL-' . strtoupper(Str::random(6));
+
+            $order = CanteenOrder::create([
+                'branch_id' => $request->branch_id,
+                'tenant_id' => $request->tenant_id,
+                'customer_name' => $request->customer_name,
+                'order_code' => $orderCode,
+                'total_amount' => $totalAmount,
+                'payment_method' => $request->payment_method,
+                'payment_status' => $paymentStatus,
+                'status' => $status,
+                'delivery_method' => 'pickup',
+            ]);
+
+            foreach ($orderItems as $oi) {
+                CanteenOrderItem::create(array_merge($oi, ['canteen_order_id' => $order->id]));
+            }
+
+            if ($request->payment_status === 'paid') {
+                $displayName = "Tamu " . $request->customer_name;
+                $bookingId = null;
+                
+                if ($request->tenant_id) {
+                    $tenant = \App\Models\User::with('bookings')->find($request->tenant_id);
+                    if ($tenant) {
+                        $displayName = "Penghuni " . $tenant->name;
+                        if ($tenant->bookings && $tenant->bookings->first()) {
+                            $bookingId = $tenant->bookings->first()->id;
+                        }
+                    }
+                }
+
+                Finance::create([
+                    'branch_id' => $order->branch_id,
+                    'amount' => $order->total_amount,
+                    'transaction_type' => 'income',
+                    'category' => 'pendapatan_kantin',
+                    'description' => "Pendapatan kantin dari {$displayName} (Manual) - {$order->order_code}",
+                    'transaction_date' => now()->toDateString(),
+                    'payment_method' => $request->payment_method,
+                    'booking_id' => $bookingId,
+                    'canteen_order_id' => $order->id,
+                ]);
+            }
+
+            \DB::commit();
+
+            return response()->json(['message' => 'Pesanan manual berhasil dibuat!', 'order' => $order]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function sendBulkReminders(Request $request)
+    {
+        $user = Auth::user();
+        if (!in_array($user->role, ['super_admin', 'operator'])) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $token = env('FONNTE_API_KEY');
+        if (!$token) {
+            return response()->json(['message' => 'Fonnte API Key belum diset. Hubungi Admin.'], 400);
+        }
+
+        $branchId = $request->branch_id;
+        
+        $query = CanteenOrder::with('tenant')->where('payment_status', 'debt_unpaid');
+        
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            $query->whereIn('branch_id', $user->assigned_branches);
+        }
+        
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        $orders = $query->get();
+
+        if ($orders->isEmpty()) {
+            return response()->json(['message' => 'Tidak ada kasbon yang belum dibayar.'], 400);
+        }
+
+        $debtsByTenant = [];
+        foreach ($orders as $order) {
+            if (!$order->tenant || !$order->tenant->phone) continue;
+            
+            if (!isset($debtsByTenant[$order->tenant_id])) {
+                $debtsByTenant[$order->tenant_id] = [
+                    'tenant' => $order->tenant,
+                    'total_amount' => 0,
+                    'count' => 0
+                ];
+            }
+            
+            $debtsByTenant[$order->tenant_id]['total_amount'] += $order->total_amount;
+            $debtsByTenant[$order->tenant_id]['count']++;
+        }
+
+        if (empty($debtsByTenant)) {
+            return response()->json(['message' => 'Tidak ada kasbon dari penghuni dengan nomor telepon yang valid.'], 400);
+        }
+
+        $sentCount = 0;
+        foreach ($debtsByTenant as $debt) {
+            $amountFormatted = 'Rp ' . number_format($debt['total_amount'], 0, ',', '.');
+            
+            $message = "*REMINDER KASBON KANTIN KOSPART*\n\n"
+                . "Halo {$debt['tenant']->name},\n\n"
+                . "Mengingatkan kembali bahwa Anda memiliki kasbon kantin yang belum dibayar sebanyak *{$debt['count']} pesanan*.\n\n"
+                . "Total Tagihan: *{$amountFormatted}*\n\n"
+                . "Silakan selesaikan pembayaran ke rekening berikut:\n"
+                . "- BCA: 8447060951\n"
+                . "A/N PRAYOGA HERIYANTO\n\n"
+                . "Atau Anda juga bisa membayar menggunakan **QRIS** yang tersedia di dalam menu Kantin pada aplikasi Kospart PH 18.\n\n"
+                . "Mohon segera melakukan pembayaran dan sertakan bukti bayarnya melalui aplikasi Kospart PH 18, atau hubungi operator kami jika ada kendala.\n\n"
+                . "Abaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih!";
+
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => $token,
+            ])->post('https://api.fonnte.com/send', [
+                'target' => $debt['tenant']->phone,
+                'message' => $message,
+                'countryCode' => '62',
+            ]);
+
+            if ($response->successful()) {
+                $sentCount++;
+            }
+        }
+
+        return response()->json(['message' => "Berhasil mengirim reminder ke $sentCount penghuni."]);
     }
 }

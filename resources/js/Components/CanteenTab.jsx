@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 export default function CanteenTab({ 
+    stopCanteenRingtone,
     currentRole, 
     auth, 
     branches, 
@@ -9,18 +10,22 @@ export default function CanteenTab({
     setCanteenItems, 
     canteenOrders, 
     setCanteenOrders, 
-    canteenCart, 
-    setCanteenCart, 
-    showToast, 
-    loadAllData,
-    authFetch
-}) {
+                            canteenCart, 
+                            setCanteenCart, 
+                            bookings,
+                            showToast, 
+                            loadAllData,
+                            authFetch
+                        }) {
     // Admin/Operator States
     const [showAddItemModal, setShowAddItemModal] = useState(false);
+    const [showManualOrderModal, setShowManualOrderModal] = useState(false);
+    const [manualOrderData, setManualOrderData] = useState({ branch_id: '', tenant_id: '', customer_name: '', payment_method: 'cash', payment_status: 'paid' });
+    const [manualCart, setManualCart] = useState([]);
     const [newItem, setNewItem] = useState({ branch_id: '', name: '', category: 'food', price: '', stock: '', is_sellable: true, description: '', add_to_finance: false, total_cost: '' });
     const [editItem, setEditItem] = useState(null);
     const [imageFile, setImageFile] = useState(null);
-    const [selectedBranchFilter, setSelectedBranchFilter] = useState('');
+    const [selectedBranchFilter, setSelectedBranchFilter] = useState(currentRole === 'operator' && operatorBranches && operatorBranches.length > 0 ? String(operatorBranches[0]) : '');
 
     // Tenant States
     const [checkoutModal, setCheckoutModal] = useState(false);
@@ -50,7 +55,7 @@ export default function CanteenTab({
         e.preventDefault();
         const formData = new FormData();
         Object.keys(newItem).forEach(key => {
-            if (key === 'form_type' || key === 'recipes') return;
+            if (key === 'form_type' || key === 'recipes' || key === 'image') return;
             let val = newItem[key];
             if (typeof val === 'boolean') val = val ? 1 : 0;
             if (val !== null && val !== undefined) formData.append(key, val);
@@ -92,6 +97,7 @@ export default function CanteenTab({
     };
 
     const handleUpdateOrderStatus = async (id, status) => {
+        if (stopCanteenRingtone) stopCanteenRingtone();
         const res = await authFetch(`/api/canteen-orders/${id}/status`, {
             method: 'PUT',
             body: JSON.stringify({ status })
@@ -103,6 +109,7 @@ export default function CanteenTab({
     };
 
     const handleVerifyPayment = async (id, status) => {
+        if (stopCanteenRingtone) stopCanteenRingtone();
         const res = await authFetch(`/api/canteen-orders/${id}/payment`, {
             method: 'PUT',
             body: JSON.stringify({ payment_status: status })
@@ -110,6 +117,77 @@ export default function CanteenTab({
         if (res.ok) {
             showToast('Status pembayaran diperbarui.');
             loadAllData();
+        }
+    };
+
+    const handleSendBulkReminders = async () => {
+        if (!confirm('Kirim reminder WhatsApp ke semua penghuni yang memiliki kasbon belum dibayar?')) return;
+        
+        const res = await authFetch('/api/canteen-orders/remind-bulk-debt', {
+            method: 'POST',
+            body: JSON.stringify({ branch_id: selectedBranchFilter }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+            showToast(data.message);
+        } else {
+            showToast(data.message || 'Gagal mengirim reminder.', 'error');
+        }
+    };
+
+    const addToManualCart = (item) => {
+        const existing = manualCart.find(c => c.id === item.id);
+        if (existing) {
+            if (existing.quantity >= item.stock && (!item.recipes || item.recipes.length === 0)) {
+                showToast('Stok tidak mencukupi!', 'error');
+                return;
+            }
+            setManualCart(manualCart.map(c => c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c));
+        } else {
+            setManualCart([...manualCart, { ...item, quantity: 1 }]);
+        }
+    };
+
+    const removeFromManualCart = (id) => {
+        setManualCart(manualCart.filter(c => c.id !== id));
+    };
+
+    const manualCartTotal = manualCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    const handleManualOrderSubmit = async (e) => {
+        e.preventDefault();
+        if (manualCart.length === 0) return showToast('Keranjang kosong!', 'error');
+        if (!manualOrderData.branch_id) return showToast('Pilih cabang!', 'error');
+        if (manualOrderData.payment_method === 'debt' && !manualOrderData.tenant_id) {
+            return showToast('Metode Kasbon hanya bisa digunakan jika terhubung ke penghuni.', 'error');
+        }
+
+        const payload = {
+            branch_id: manualOrderData.branch_id,
+            payment_method: manualOrderData.payment_method,
+            payment_status: manualOrderData.payment_status,
+            tenant_id: manualOrderData.tenant_id || null,
+            customer_name: manualOrderData.customer_name || null,
+            items: manualCart.map(item => ({ id: item.id, quantity: item.quantity }))
+        };
+
+        const res = await authFetch('/api/canteen-orders/manual', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            showToast(data.message);
+            setShowManualOrderModal(false);
+            setManualCart([]);
+            setManualOrderData({ branch_id: '', tenant_id: '', customer_name: '', payment_method: 'cash', payment_status: 'paid' });
+            loadAllData();
+        } else {
+            showToast(data.message || 'Gagal membuat pesanan.', 'error');
         }
     };
 
@@ -175,7 +253,7 @@ export default function CanteenTab({
 
     const handlePayDebt = async (e) => {
         e.preventDefault();
-        if (debtPaymentMethod === 'qris' && !paymentProof) return showToast('Pilih bukti transfer dulu.', 'error');
+        if (debtPaymentMethod === 'qris' && !paymentProof) return showToast('Pilih bukti QRIS dulu.', 'error');
         
         const formData = new FormData();
         formData.append('payment_method', debtPaymentMethod);
@@ -194,7 +272,7 @@ export default function CanteenTab({
         });
         
         if (res.ok) {
-            showToast(debtPaymentMethod === 'qris' ? 'Bukti transfer terkirim. Menunggu verifikasi.' : 'Pengajuan pelunasan tunai terkirim.');
+            showToast(debtPaymentMethod === 'qris' ? 'Bukti QRIS terkirim. Menunggu verifikasi.' : 'Pengajuan pelunasan tunai terkirim.');
             setShowPayDebtModal(null);
             setPaymentProof(null);
             setDebtPaymentMethod('qris');
@@ -220,7 +298,7 @@ export default function CanteenTab({
                             onChange={e => setSelectedBranchFilter(e.target.value)}
                             className="glass-input rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 border border-slate-200 bg-white"
                         >
-                            <option value="">Semua Cabang</option>
+                            {currentRole !== 'operator' && <option value="">Semua Cabang</option>}
                             {branches.filter(b => currentRole === 'operator' ? operatorBranches.some(br => Number(br) === Number(b.id)) : true).map(b => (
                                 <option key={b.id} value={b.id}>{b.name}</option>
                             ))}
@@ -248,6 +326,16 @@ export default function CanteenTab({
                             >
                                 + Tambah Barang
                             </button>
+                            <button 
+                                onClick={() => {
+                                    setManualOrderData({ branch_id: selectedBranchFilter || (operatorBranches || [])[0] || '', tenant_id: '', customer_name: '', payment_method: 'cash', payment_status: 'paid' });
+                                    setManualCart([]);
+                                    setShowManualOrderModal(true);
+                                }}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold shadow-sm hover:bg-blue-700"
+                            >
+                                Buat Pesanan Manual
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -263,7 +351,10 @@ export default function CanteenTab({
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
                                             <span className="font-bold text-slate-800">{order.order_code}</span>
-                                            <span className="ml-2 text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">{order.tenant?.name}</span>
+                                            <span className="ml-2 text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">{order.tenant?.name || order.customer_name || 'Pelanggan'}</span>
+                                            {order.tenant?.bookings?.[0]?.room?.room_number && (
+                                                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">Kamar {order.tenant.bookings[0].room.room_number}</span>
+                                            )}
                                         </div>
                                         <div className="text-right">
                                             <div className="font-bold text-emerald-600">{formatCurrency(order.total_amount)}</div>
@@ -286,13 +377,13 @@ export default function CanteenTab({
                                             <button onClick={() => handleUpdateOrderStatus(order.id, 'completed')} className="px-3 py-1 bg-slate-800 text-white text-xs font-bold rounded-lg">Selesai</button>
                                         )}
                                         {order.payment_status === 'pending' && order.payment_method !== 'cash' && (
-                                            <button onClick={() => handleVerifyPayment(order.id, 'paid')} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg border border-emerald-700">Verifikasi TF</button>
+                                            <button onClick={() => handleVerifyPayment(order.id, 'paid')} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg border border-emerald-700">Verifikasi QRIS</button>
                                         )}
                                         {order.payment_status === 'pending' && order.payment_method === 'cash' && (
                                             <button onClick={() => handleVerifyPayment(order.id, 'paid')} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg border border-emerald-700">Terima Uang Cash</button>
                                         )}
                                         {order.payment_proof && (
-                                            <a href={`/storage/${order.payment_proof}`} target="_blank" rel="noreferrer" className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg">Lihat Bukti TF</a>
+                                            <a href={`/storage/${order.payment_proof}`} target="_blank" rel="noreferrer" className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg">Lihat Bukti QRIS</a>
                                         )}
                                         <button onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')} className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-lg">Batal</button>
                                     </div>
@@ -308,7 +399,7 @@ export default function CanteenTab({
                     <div className="glass-panel p-6 rounded-2xl border border-slate-200 lg:col-span-2">
                         <h4 className="font-bold text-lg text-slate-800 mb-4">Daftar Menu Kantin</h4>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
+                            <div className="overflow-x-auto w-full"><table className="w-full whitespace-nowrap min-w-max text-left text-sm">
                                 <thead>
                                     <tr className="border-b border-slate-200 text-slate-500">
                                         <th className="pb-2">Foto & Nama</th>
@@ -349,7 +440,7 @@ export default function CanteenTab({
                                         </tr>
                                     ))}
                                 </tbody>
-                            </table>
+                            </table></div>
                         </div>
                     </div>
 
@@ -357,7 +448,7 @@ export default function CanteenTab({
                     <div className="glass-panel p-6 rounded-2xl border border-slate-200 lg:col-span-2">
                         <h4 className="font-bold text-lg text-slate-800 mb-4">Stok Barang Internal & Bahan Baku</h4>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
+                            <div className="overflow-x-auto w-full"><table className="w-full whitespace-nowrap min-w-max text-left text-sm">
                                 <thead>
                                     <tr className="border-b border-slate-200 text-slate-500">
                                         <th className="pb-2">Nama Barang</th>
@@ -387,25 +478,31 @@ export default function CanteenTab({
                                         </tr>
                                     ))}
                                 </tbody>
-                            </table>
+                            </table></div>
                         </div>
                     </div>
                 </div>
 
                 {/* Admin Kasbon View */}
-                {filteredOrders.filter(o => o.payment_status === 'debt_unpaid').length > 0 && (
+                {filteredOrders.filter(o => o.payment_status === 'debt_unpaid' || (o.payment_status === 'pending' && o.status === 'completed')).length > 0 && (
                     <div className="glass-panel p-6 rounded-2xl border border-slate-200 mt-8">
                         <div className="flex justify-between items-center mb-4">
                             <h4 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                                 <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 Daftar Kasbon & Verifikasi
                             </h4>
-                            <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-100 text-red-600">
-                                Total: {formatCurrency(filteredOrders.filter(o => o.payment_status === 'debt_unpaid').reduce((a, b) => a + Number(b.total_amount), 0))}
-                            </span>
+                            <div className="flex gap-4 items-center">
+                                <button onClick={handleSendBulkReminders} className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold rounded-lg flex items-center gap-2 shadow-sm">
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                    Kirim Semua Reminder
+                                </button>
+                                <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-100 text-red-600">
+                                    Total: {formatCurrency(filteredOrders.filter(o => o.payment_status === 'debt_unpaid').reduce((a, b) => a + Number(b.total_amount), 0))}
+                                </span>
+                            </div>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse text-sm">
+                            <div className="overflow-x-auto w-full"><table className="w-full whitespace-nowrap min-w-max text-left border-collapse text-sm">
                                 <thead>
                                     <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase border-b border-slate-200">
                                         <th className="p-3">Penghuni / Kode</th>
@@ -443,7 +540,7 @@ export default function CanteenTab({
                                                                 Batal / Tolak
                                                             </button>
                                                             <button onClick={() => handleVerifyPayment(order.id, 'paid')} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg whitespace-nowrap hover:bg-emerald-700">
-                                                                {order.payment_proof ? 'Verifikasi TF' : 'Terima Tunai'}
+                                                                {order.payment_proof ? 'Verifikasi QRIS' : 'Terima Tunai'}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -452,7 +549,7 @@ export default function CanteenTab({
                                         </tr>
                                     ))}
                                 </tbody>
-                            </table>
+                            </table></div>
                         </div>
                     </div>
                 )}
@@ -592,6 +689,130 @@ export default function CanteenTab({
                                     <button type="submit" className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-xl font-bold">Simpan</button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal Manual Order */}
+                {showManualOrderModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                        <div className="bg-white rounded-3xl p-8 max-w-4xl w-full shadow-2xl max-h-[90vh] flex flex-col md:flex-row gap-6">
+                            <div className="flex-1 overflow-y-auto pr-2">
+                                <h3 className="font-extrabold text-2xl text-slate-800 mb-6">Pilih Menu untuk Manual</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {canteenItems.filter(item => item.is_sellable && (manualOrderData.branch_id === '' || Number(item.branch_id) === Number(manualOrderData.branch_id))).map(item => (
+                                        <div key={item.id} className="border border-slate-200 rounded-xl p-3 flex flex-col justify-between hover:border-blue-300 transition-colors cursor-pointer" onClick={() => addToManualCart(item)}>
+                                            <div>
+                                                <h5 className="font-bold text-sm">{item.name}</h5>
+                                                <span className="text-xs text-slate-500">{formatCurrency(item.price)}</span>
+                                            </div>
+                                            <div className="text-[10px] mt-2 font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded w-fit">+ Tambah</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex-1 bg-slate-50 p-6 rounded-2xl flex flex-col">
+                                <h3 className="font-extrabold text-xl text-slate-800 mb-4">Detail Pesanan</h3>
+                                <form onSubmit={handleManualOrderSubmit} className="space-y-4 flex-grow overflow-y-auto pr-2">
+                                    <div>
+                                        <label className="text-xs font-semibold text-slate-500">Cabang</label>
+                                        <select required value={manualOrderData.branch_id} onChange={e => setManualOrderData({...manualOrderData, branch_id: e.target.value})} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
+                                            <option value="">Pilih Cabang</option>
+                                            {branches.filter(b => currentRole === 'operator' ? operatorBranches.some(br => Number(br) === Number(b.id)) : true).map(b => (
+                                                <option key={b.id} value={b.id}>{b.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-500">Metode Pembayaran</label>
+                                            <select required value={manualOrderData.payment_method} onChange={e => setManualOrderData({...manualOrderData, payment_method: e.target.value})} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
+                                                <option value="cash">Tunai (Cash)</option>
+                                                <option value="qris">QRIS</option>
+                                                <option value="debt">Kasbon (Hutang)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-500">Status Pembayaran</label>
+                                            <select required value={manualOrderData.payment_status} onChange={e => setManualOrderData({...manualOrderData, payment_status: e.target.value})} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
+                                                <option value="paid">Lunas</option>
+                                                <option value="pending">Menunggu Bayar</option>
+                                                {manualOrderData.payment_method === 'debt' && <option value="debt_unpaid">Belum Lunas (Kasbon)</option>}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    {manualOrderData.payment_method === 'debt' ? (
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-500">Pilih Penghuni (Wajib untuk Kasbon)</label>
+                                            <select required value={manualOrderData.tenant_id} onChange={e => setManualOrderData({...manualOrderData, tenant_id: e.target.value})} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
+                                                <option value="">Pilih Penghuni Aktif...</option>
+                                                {(() => {
+                                                    const activeTenants = bookings
+                                                        .filter(b => b.status === 'active' && (manualOrderData.branch_id === '' || Number(b.room?.branch_id) === Number(manualOrderData.branch_id)))
+                                                        .map(b => b.tenant)
+                                                        .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                                                    return activeTenants.map(t => (
+                                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                                    ));
+                                                })()}
+                                            </select>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="text-xs font-semibold text-slate-500">Pilih Penghuni (Opsional)</label>
+                                                <select value={manualOrderData.tenant_id} onChange={e => setManualOrderData({...manualOrderData, tenant_id: e.target.value, customer_name: ''})} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
+                                                    <option value="">Bukan Penghuni</option>
+                                                    {(() => {
+                                                        const activeTenants = bookings
+                                                            .filter(b => b.status === 'active' && (manualOrderData.branch_id === '' || Number(b.room?.branch_id) === Number(manualOrderData.branch_id)))
+                                                            .map(b => b.tenant)
+                                                            .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                                                        return activeTenants.map(t => (
+                                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                                        ));
+                                                    })()}
+                                                </select>
+                                            </div>
+                                            {!manualOrderData.tenant_id && (
+                                                <div>
+                                                    <label className="text-xs font-semibold text-slate-500">Nama Tamu</label>
+                                                    <input type="text" required value={manualOrderData.customer_name} onChange={e => setManualOrderData({...manualOrderData, customer_name: e.target.value})} className="glass-input rounded-xl px-3 py-2 text-sm w-full" placeholder="Nama Tamu" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="mt-4 border-t border-slate-200 pt-4">
+                                        <h4 className="text-xs font-bold text-slate-700 mb-2">Keranjang ({manualCart.length} item)</h4>
+                                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                                            {manualCart.map(c => (
+                                                <div key={c.id} className="flex justify-between items-center text-sm border-b border-slate-100 pb-1">
+                                                    <div>
+                                                        <span className="font-semibold text-slate-800">{c.name}</span>
+                                                        <span className="text-xs text-slate-500 block">{c.quantity} x {formatCurrency(c.price)}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="font-bold text-emerald-600">{formatCurrency(c.price * c.quantity)}</span>
+                                                        <button type="button" onClick={() => removeFromManualCart(c.id)} className="text-red-500 hover:text-red-700">&times;</button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {manualCart.length === 0 && <p className="text-xs text-slate-400">Belum ada item dipilih.</p>}
+                                        </div>
+                                        <div className="mt-3 flex justify-between font-extrabold text-lg text-slate-800">
+                                            <span>Total</span>
+                                            <span>{formatCurrency(manualCartTotal)}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex gap-3 pt-4 mt-auto">
+                                        <button type="button" onClick={() => setShowManualOrderModal(false)} className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-xl font-bold">Batal</button>
+                                        <button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold">Buat Pesanan</button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -747,7 +968,7 @@ export default function CanteenTab({
                                             onClick={() => setShowPayDebtModal({ isBulk: true, total_amount: totalDebt })} 
                                             className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold transition-colors shadow-md"
                                         >
-                                            Lunasi Semua Kasbon (Rp {formatCurrency(totalDebt)})
+                                            Lunasi Semua Kasbon ({formatCurrency(totalDebt)})
                                         </button>
                                         {totalDebt >= 100000 && (
                                             <p className="text-xs text-red-500 font-bold mt-2 text-center">Peringatan: Kasbon sudah mencapai limit. Harap segera melunasi.</p>
@@ -761,7 +982,7 @@ export default function CanteenTab({
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
                                                     <span className="font-bold text-slate-800 block">{order.order_code}</span>
-                                                    <span className="text-xs text-slate-500">Status: <span className="font-bold uppercase text-slate-700">{order.status.replace('_', ' ')}</span></span>
+                                                    <span className="text-xs text-slate-500">Status Pesanan (Makanan): <span className="font-bold uppercase text-slate-700">{order.status === 'completed' ? 'Selesai' : order.status === 'ready' ? 'Siap' : order.status === 'processing' ? 'Diproses' : order.status === 'pending_approval' ? 'Menunggu Approval' : order.status === 'cancelled' ? 'Dibatalkan' : order.status}</span></span>
                                                 </div>
                                                 <span className="font-bold text-slate-800">{formatCurrency(order.total_amount)}</span>
                                             </div>
@@ -819,7 +1040,7 @@ export default function CanteenTab({
                             <div>
                                 <label className="text-xs font-semibold text-slate-500 mb-2 block">Metode Pembayaran</label>
                                 <select required value={checkoutData.payment_method} onChange={e => setCheckoutData({...checkoutData, payment_method: e.target.value})} className="glass-input rounded-xl px-4 py-3 text-sm w-full font-bold">
-                                    <option value="qris">Transfer / QRIS</option>
+                                    <option value="qris">QRIS</option>
                                     <option value="cash">Bayar Tunai</option>
                                     <option value="debt">Catat Dulu (Kasbon)</option>
                                 </select>
@@ -827,7 +1048,11 @@ export default function CanteenTab({
 
                             {checkoutData.payment_method === 'qris' && (
                                 <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl space-y-3">
-                                    <div className="text-xs font-semibold text-emerald-800">Scan QRIS Kantin atau Transfer ke Rekening yang tersedia di Kos, lalu upload buktinya di sini.</div>
+                                    <div className="text-xs font-semibold text-emerald-800 text-center mb-2">Scan QRIS di bawah ini untuk membayar.</div>
+                                    <div className="flex justify-center">
+                                        <img src="/images/Qris.jpeg" alt="QRIS Kantin" className="w-48 h-48 object-contain rounded-xl shadow-sm border border-emerald-200" />
+                                    </div>
+                                    <div className="text-xs font-semibold text-emerald-800 mt-2">Lalu upload bukti QRIS di sini:</div>
                                     <input required type="file" accept="image/*" onChange={e => setPaymentProof(e.target.files[0])} className="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200" />
                                 </div>
                             )}
@@ -860,7 +1085,7 @@ export default function CanteenTab({
                                     <div className="flex gap-4">
                                         <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
                                             <input type="radio" value="qris" checked={debtPaymentMethod === 'qris'} onChange={(e) => setDebtPaymentMethod(e.target.value)} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-slate-300" />
-                                            Transfer / QRIS
+                                            QRIS
                                         </label>
                                         <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
                                             <input type="radio" value="cash" checked={debtPaymentMethod === 'cash'} onChange={(e) => setDebtPaymentMethod(e.target.value)} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-slate-300" />
@@ -871,7 +1096,11 @@ export default function CanteenTab({
                                 
                                 {debtPaymentMethod === 'qris' && (
                                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                                        <label className="text-xs font-semibold text-slate-700 block">Upload Bukti Transfer / QRIS</label>
+                                        <div className="text-xs font-semibold text-slate-700 text-center mb-2">Scan QRIS di bawah ini untuk melunasi kasbon.</div>
+                                        <div className="flex justify-center">
+                                            <img src="/images/Qris.jpeg" alt="QRIS Kantin" className="w-40 h-40 object-contain rounded-xl shadow-sm border border-slate-300" />
+                                        </div>
+                                        <label className="text-xs font-semibold text-slate-700 block mt-2">Lalu Upload Bukti QRIS</label>
                                         <input required type="file" accept="image/*" onChange={e => setPaymentProof(e.target.files[0])} className="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-200 file:text-slate-700" />
                                     </div>
                                 )}

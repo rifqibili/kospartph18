@@ -38,6 +38,15 @@ class AuthenticatedSessionController extends Controller
             return redirect()->intended(route('dashboard', absolute: false));
         }
 
+        // Check if the resident has an active or pending booking
+        $hasBooking = \App\Models\Booking::where('tenant_id', $user->id)
+            ->whereIn('status', ['active', 'pending'])
+            ->exists();
+
+        if ($hasBooking) {
+            return redirect()->intended(route('dashboard', absolute: false));
+        }
+
         return redirect()->intended(route('rooms.index', absolute: false));
     }
 
