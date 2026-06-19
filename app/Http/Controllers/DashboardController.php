@@ -39,8 +39,8 @@ class DashboardController extends Controller
         // 1. Base counts & filters based on role
         $roomsQuery = Room::query();
         $branchesQuery = Branch::query();
-        $bookingsQuery = Booking::query()->where('otp_verified', true);
-        $complaintsQuery = Complaint::query();
+        $bookingsQuery = Booking::with(['tenant', 'room.branch'])->where('otp_verified', true);
+        $complaintsQuery = Complaint::with(['tenant', 'room.branch']);
         
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
             $roomsQuery->whereIn('branch_id', $user->assigned_branches);

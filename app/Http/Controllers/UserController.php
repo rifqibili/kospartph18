@@ -111,6 +111,12 @@ class UserController extends Controller
         }
 
         $user = User::findOrFail($id);
+        
+        // Hapus file KTP jika ada untuk mencegah storage leak
+        if ($user->ktp_photo && \Storage::disk('public')->exists($user->ktp_photo)) {
+            \Storage::disk('public')->delete($user->ktp_photo);
+        }
+
         $user->delete();
 
         return response()->json(['message' => 'Pengguna berhasil dihapus']);

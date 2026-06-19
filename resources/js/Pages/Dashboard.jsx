@@ -375,6 +375,28 @@ export default function Dashboard() {
 
     // Auto-refresh Dashboard data (Initial load based on role)
     useEffect(() => { loadAllData(); }, [currentRole]);
+    
+    // Temoporary disable dark mode during print
+    useEffect(() => {
+        const handleBeforePrint = () => {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.dataset.wasDark = 'true';
+            }
+        };
+        const handleAfterPrint = () => {
+            if (document.documentElement.dataset.wasDark === 'true') {
+                document.documentElement.classList.add('dark');
+                delete document.documentElement.dataset.wasDark;
+            }
+        };
+        window.addEventListener('beforeprint', handleBeforePrint);
+        window.addEventListener('afterprint', handleAfterPrint);
+        return () => {
+            window.removeEventListener('beforeprint', handleBeforePrint);
+            window.removeEventListener('afterprint', handleAfterPrint);
+        };
+    }, []);
 
     useEffect(() => {
         const interval = setInterval(loadNotificationsOnly, 30000);
@@ -1177,14 +1199,14 @@ export default function Dashboard() {
                 </div>
 
                 {/* Sidebar Navigation */}
-                <nav className="p-4 flex-1 overflow-y-auto space-y-1">
+                <nav className="p-4 flex-1 overflow-y-auto space-y-2">
                     {currentRole !== 'karyawan' && (
                         <>
                             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-2 mb-2 block">Utama</span>
                             <button 
                                 onClick={() => setActiveTab('overview')} 
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'overview' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    activeTab === 'overview' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                 }`}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z"></path></svg>
@@ -1200,7 +1222,7 @@ export default function Dashboard() {
                                 <button 
                                     onClick={() => setActiveTab('branches')} 
                                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                        activeTab === 'branches' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                        activeTab === 'branches' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                     }`}
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
@@ -1211,7 +1233,7 @@ export default function Dashboard() {
                             <button 
                                 onClick={() => setActiveTab('rooms')} 
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'rooms' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    activeTab === 'rooms' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                 }`}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg>
@@ -1227,7 +1249,7 @@ export default function Dashboard() {
                                 <button 
                                     onClick={() => setActiveTab('bookings')} 
                                     className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                        activeTab === 'bookings' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                        activeTab === 'bookings' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">
@@ -1244,7 +1266,7 @@ export default function Dashboard() {
                                 <button 
                                     onClick={() => setActiveTab('complaints')} 
                                     className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                        activeTab === 'complaints' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                        activeTab === 'complaints' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">
@@ -1263,7 +1285,7 @@ export default function Dashboard() {
                         <button 
                             onClick={() => setActiveTab('canteen')} 
                             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                activeTab === 'canteen' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                activeTab === 'canteen' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                             }`}
                         >
                             <div className="flex items-center gap-3">
@@ -1284,7 +1306,7 @@ export default function Dashboard() {
                             <button 
                                 onClick={() => setActiveTab('finances')} 
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'finances' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    activeTab === 'finances' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                 }`}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -1299,7 +1321,7 @@ export default function Dashboard() {
                             <button 
                                 onClick={() => setActiveTab('web_settings')} 
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'web_settings' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    activeTab === 'web_settings' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                 }`}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
@@ -1309,7 +1331,7 @@ export default function Dashboard() {
                             <button 
                                 onClick={() => setActiveTab('users')} 
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'users' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    activeTab === 'users' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                 }`}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
@@ -3466,39 +3488,121 @@ export default function Dashboard() {
                             {/* Details Row */}
                             <div className="grid grid-cols-2 gap-4 text-xs">
                                 <div>
-                                    <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Ditagihkan Kepada:</span>
-                                    <strong className="text-slate-800 text-sm block mt-1">{showInvoiceModal.tenant.name}</strong>
-                                    <span className="text-slate-500 dark:text-slate-400 block">{showInvoiceModal.tenant.email}</span>
-                                    <span className="text-slate-500 dark:text-slate-400 block">{showInvoiceModal.tenant.phone}</span>
+                                    <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px] print:text-slate-500">Ditagihkan Kepada:</span>
+                                    <strong className="text-slate-800 text-sm block mt-1 print:text-black">{showInvoiceModal.tenant.name}</strong>
+                                    <span className="text-slate-500 block print:text-slate-600">{showInvoiceModal.tenant.email}</span>
+                                    <span className="text-slate-500 block print:text-slate-600">{showInvoiceModal.tenant.phone}</span>
                                 </div>
                                 <div>
-                                    <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Rincian Hunian:</span>
-                                    <strong className="text-slate-800 text-sm block mt-1">Kamar {showInvoiceModal.room.room_number} ({showInvoiceModal.rental_type === 'daily' ? 'Harian' : (showInvoiceModal.rental_type === 'weekly' ? 'Mingguan' : (showInvoiceModal.rental_type === 'monthly' ? 'Bulanan' : 'Tahunan'))})</strong>
-                                    <span className="text-slate-500 dark:text-slate-400 block">Check-in: {new Date(showInvoiceModal.start_date).toLocaleDateString('id-ID')}</span>
-                                    <span className="text-slate-500 dark:text-slate-400 block">Check-out: {new Date(showInvoiceModal.end_date).toLocaleDateString('id-ID')}</span>
+                                    <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px] print:text-slate-500">Rincian Hunian:</span>
+                                    <strong className="text-slate-800 text-sm block mt-1 print:text-black">Kamar {showInvoiceModal.room.room_number} ({showInvoiceModal.rental_type === 'daily' ? 'Harian' : (showInvoiceModal.rental_type === 'weekly' ? 'Mingguan' : (showInvoiceModal.rental_type === 'monthly' ? 'Bulanan' : 'Tahunan'))})</strong>
+                                    <span className="text-slate-500 block print:text-slate-600">Check-in: {new Date(showInvoiceModal.start_date).toLocaleDateString('id-ID')}</span>
+                                    <span className="text-slate-500 block print:text-slate-600">Check-out: {new Date(showInvoiceModal.end_date).toLocaleDateString('id-ID')}</span>
                                 </div>
                             </div>
 
                             {/* Billing Summary Table */}
-                            <div className="overflow-x-auto w-full"><table className="w-full whitespace-nowrap min-w-max text-left text-xs border-collapse border border-slate-200 mt-4">
+                            <div className="overflow-x-auto w-full"><table className="w-full whitespace-nowrap min-w-max text-left text-xs border-collapse border border-slate-200 mt-4 print:border-slate-300">
                                 <thead>
-                                    <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 font-bold uppercase text-[9px] tracking-wider">
+                                    <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 font-bold uppercase text-[9px] tracking-wider print:bg-slate-100 print:text-black">
                                         <th className="p-3">Item Deskripsi</th>
-                                        <th className="p-3 text-right">Harga Satuan</th>
-                                        <th className="p-3 text-right">Subtotal</th>
+                                        <th className="p-3 text-right">Total Tagihan</th>
+                                        <th className="p-3 text-right">Total Pembayaran</th>
+                                        <th className="p-3 text-center">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr className="border-b border-slate-200">
-                                        <td className="p-3 font-semibold text-slate-800">
-                                            Sewa Kamar {showInvoiceModal.room.room_number} - {showInvoiceModal.rental_type === 'daily' ? 'Harian' : (showInvoiceModal.rental_type === 'weekly' ? 'Mingguan' : (showInvoiceModal.rental_type === 'monthly' ? 'Bulanan' : 'Tahunan'))} <br />
-                                            <span className="text-[10px] text-slate-400 font-normal">Periode: {new Date(showInvoiceModal.start_date).toLocaleDateString('id-ID', {day:'2-digit',month:'long',year:'numeric'})} s.d {new Date(showInvoiceModal.end_date).toLocaleDateString('id-ID', {day:'2-digit',month:'long',year:'numeric'})}</span>
-                                        </td>
-                                        <td className="p-3 text-right font-mono">
-                                            Rp {showInvoiceModal.rental_type === 'daily' ? parseFloat(showInvoiceModal.room.price_daily).toLocaleString('id-ID') : showInvoiceModal.rental_type === 'weekly' ? parseFloat(showInvoiceModal.room.price_weekly).toLocaleString('id-ID') : showInvoiceModal.rental_type === 'yearly' ? parseFloat(showInvoiceModal.room.price_yearly).toLocaleString('id-ID') : parseFloat(showInvoiceModal.room.price_monthly).toLocaleString('id-ID')}
-                                        </td>
-                                        <td className="p-3 text-right font-mono font-bold text-slate-800">Rp {parseFloat(showInvoiceModal.total_amount).toLocaleString('id-ID')}</td>
-                                    </tr>
+                                    {(() => {
+                                        const start = new Date(showInvoiceModal.start_date);
+                                        const end = new Date(showInvoiceModal.end_date);
+                                        const diffDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+                                        
+                                        let duration = 1;
+                                        let unitLabel = '';
+                                        let periodLabel = '';
+                                        let addTime = (d, i) => d;
+                                        
+                                        if (showInvoiceModal.rental_type === 'daily') {
+                                            duration = diffDays;
+                                            unitLabel = 'Hari';
+                                            periodLabel = 'Perhari';
+                                            addTime = (d, i) => { let nd = new Date(d); nd.setDate(nd.getDate() + i); return nd; };
+                                        } else if (showInvoiceModal.rental_type === 'weekly') {
+                                            duration = Math.max(1, Math.round(diffDays / 7));
+                                            unitLabel = 'Minggu';
+                                            periodLabel = 'Perminggu';
+                                            addTime = (d, i) => { let nd = new Date(d); nd.setDate(nd.getDate() + (i * 7)); return nd; };
+                                        } else if (showInvoiceModal.rental_type === 'monthly') {
+                                            duration = Math.max(1, Math.round(diffDays / 30));
+                                            unitLabel = 'Bulan';
+                                            periodLabel = 'Perbulan';
+                                            addTime = (d, i) => { let nd = new Date(d); nd.setMonth(nd.getMonth() + i); return nd; };
+                                        } else {
+                                            duration = Math.max(1, Math.round(diffDays / 365));
+                                            unitLabel = 'Tahun';
+                                            periodLabel = 'Pertahun';
+                                            addTime = (d, i) => { let nd = new Date(d); nd.setFullYear(nd.getFullYear() + i); return nd; };
+                                        }
+                                        
+                                        const unitPrice = parseFloat(showInvoiceModal.total_amount) / duration;
+                                        const paidAmount = parseFloat(showInvoiceModal.paid_amount || 0);
+
+                                        return Array.from({ length: duration }).map((_, i) => {
+                                            const rowStart = addTime(start, i);
+                                            let rowEnd = addTime(start, i + 1);
+                                            // Make sure the last segment caps at the exact end_date to avoid minor JS overflow
+                                            if (i === duration - 1) rowEnd = end;
+
+                                            let status = 'Belum Lunas';
+                                            let statusClass = 'bg-red-100 text-red-800';
+                                            let kurangAmount = unitPrice;
+                                            let rowPaidAmount = 0;
+                                            
+                                            const amountCoveredBeforeThis = i * unitPrice;
+                                            const amountCoveredAfterThis = (i + 1) * unitPrice;
+                                            
+                                            if (paidAmount >= amountCoveredAfterThis - 0.01) {
+                                                status = 'Lunas';
+                                                statusClass = 'bg-emerald-100 text-emerald-800';
+                                                kurangAmount = 0;
+                                                rowPaidAmount = unitPrice;
+                                            } else if (paidAmount > amountCoveredBeforeThis + 0.01) {
+                                                status = 'DP/Sebagian';
+                                                statusClass = 'bg-amber-100 text-amber-800';
+                                                kurangAmount = amountCoveredAfterThis - paidAmount;
+                                                rowPaidAmount = paidAmount - amountCoveredBeforeThis;
+                                            }
+                                            
+                                            return (
+                                                <tr key={i} className="border-b border-slate-200 print:border-slate-300">
+                                                    <td className="p-3 font-semibold text-slate-800 print:text-black">
+                                                        Sewa Kamar {showInvoiceModal.room.room_number} - {unitLabel} ke-{i+1} <br />
+                                                        <span className="text-[10px] text-slate-500 font-normal print:text-slate-600">
+                                                            {rowStart.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})} s.d {rowEnd.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-3 text-right font-mono text-slate-600 print:text-black">
+                                                        Rp {Math.round(unitPrice).toLocaleString('id-ID')}
+                                                    </td>
+                                                    <td className="p-3 text-right font-mono font-bold text-slate-800 print:text-black">
+                                                        Rp {Math.round(rowPaidAmount).toLocaleString('id-ID')}
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <div className="flex flex-col items-center gap-1">
+                                                            <span className={`px-2 py-1 font-bold uppercase text-[9px] rounded-md ${statusClass} print:bg-transparent print:border print:border-slate-300 print:text-black`}>
+                                                                {status}
+                                                            </span>
+                                                            {kurangAmount > 0 && (
+                                                                <span className="text-[9px] text-red-500 font-bold tracking-tight print:text-slate-600">
+                                                                    Kurang Rp {Math.round(kurangAmount).toLocaleString('id-ID')}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        });
+                                    })()}
                                 </tbody>
                             </table></div>
 

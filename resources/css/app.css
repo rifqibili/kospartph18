@@ -1020,3 +1020,14 @@ html.dark #invoice-print-area .bg-red-50 { background-color: #fef2f2 !important;
 
 
 
+
+
+/* Ensure dark mode does not affect print background */
+@media print {
+  html.dark body, body, html {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+}
+
+

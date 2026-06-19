@@ -837,6 +837,23 @@ class BookingController extends Controller
 
         $newTotalAmount = floatval($booking->total_amount) + $additionalAmount;
         
+        // Collision check
+        $overlap = Booking::where('room_id', $room->id)
+            ->where('id', '!=', $booking->id)
+            ->whereIn('status', ['active', 'pending'])
+            ->where(function ($q) use ($currentEndDate, $newEndDate) {
+                $q->whereBetween('start_date', [$currentEndDate, $newEndDate])
+                  ->orWhereBetween('end_date', [$currentEndDate, $newEndDate])
+                  ->orWhere(function ($q2) use ($currentEndDate, $newEndDate) {
+                      $q2->where('start_date', '<=', $currentEndDate)
+                         ->where('end_date', '>=', $newEndDate);
+                  });
+            })->first();
+
+        if ($overlap) {
+            return response()->json(['message' => 'Gagal: Kamar ini sudah dipesan oleh orang lain pada rentang waktu perpanjangan tersebut.'], 400);
+        }
+
         $paymentStatus = $booking->payment_status;
         if (floatval($booking->paid_amount) < $newTotalAmount) {
             $paymentStatus = floatval($booking->paid_amount) > 0 ? 'dp' : 'unpaid';
@@ -921,6 +938,23 @@ class BookingController extends Controller
         $newTotalAmount = floatval($booking->total_amount) + $additionalAmount;
         $paymentStatus = $booking->payment_status;
         $paidAmount = floatval($booking->paid_amount);
+
+        // Collision check
+        $overlap = Booking::where('room_id', $booking->room_id)
+            ->where('id', '!=', $booking->id)
+            ->whereIn('status', ['active', 'pending'])
+            ->where(function ($q) use ($currentEndDate, $newEndDate) {
+                $q->whereBetween('start_date', [$currentEndDate, $newEndDate])
+                  ->orWhereBetween('end_date', [$currentEndDate, $newEndDate])
+                  ->orWhere(function ($q2) use ($currentEndDate, $newEndDate) {
+                      $q2->where('start_date', '<=', $currentEndDate)
+                         ->where('end_date', '>=', $newEndDate);
+                  });
+            })->first();
+
+        if ($overlap) {
+            return response()->json(['message' => 'Gagal: Kamar ini sudah dipesan oleh orang lain pada rentang waktu perpanjangan tersebut.'], 400);
+        }
 
         DB::transaction(function () use ($booking, $request, $additionalAmount, $newTotalAmount, $newEndDate, $extendType, &$paymentStatus, &$paidAmount) {
             if ($request->payment_status === 'paid') {
