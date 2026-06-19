@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 
-const DragDropZone = ({ onFileDrop, accept, label, selectedFile, multiple = false }) => {
+const DragDropZone = ({ onFileDrop, accept, label, selectedFile, multiple = false, error = false }) => {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef(null);
 
@@ -29,7 +29,7 @@ const DragDropZone = ({ onFileDrop, accept, label, selectedFile, multiple = fals
 
     return (
         <div 
-            className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-200 ${isDragging ? 'border-emerald-500 bg-emerald-50 scale-[1.02]' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-emerald-400'}`}
+            className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-200 ${isDragging ? 'border-emerald-500 bg-emerald-50 scale-[1.02]' : error ? 'border-red-500 bg-red-50 hover:bg-red-100' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-emerald-400'}`}
             onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
         >

@@ -76,9 +76,13 @@ export default function Dashboard() {
     const [extendDuration, setExtendDuration] = useState(1);
     const [extendType, setExtendType] = useState('');
     const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
+    const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: '', onConfirm: null });
+    const showConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
+
     // Payment modal for tenant
     const [showPaymentModal, setShowPaymentModal] = useState(null);
     const [paymentData, setPaymentData] = useState({ paid_amount: '', payment_proof_file: null });
+    const [paymentErrors, setPaymentErrors] = useState({});
     const [showVerifyPaymentModal, setShowVerifyPaymentModal] = useState(null);
     const [showManualPayModal, setShowManualPayModal] = useState(false);
     const [manualPayData, setManualPayData] = useState({ booking_id: '', paid_amount: '', payment_method: 'cash' });
@@ -146,6 +150,7 @@ export default function Dashboard() {
     const [complaintResponse, setComplaintResponse] = useState({ id: null, status: 'processing', admin_response: '' });
     const [rescheduleData, setRescheduleData] = useState({ start_date: '', end_date: '' });
     const [newRoomIdInput, setNewRoomIdInput] = useState('');
+    const [roomStatusFilter, setRoomStatusFilter] = useState('all');
 
     // Toast/Alert triggers
     const [toasts, setToasts] = useState([]);
@@ -535,13 +540,14 @@ export default function Dashboard() {
         } else { const d = await res.json(); showToast(d.message || 'Gagal memperbarui cabang.', 'error'); }
     };
 
-    const handleDeleteBranch = async (id) => {
-        if (!confirm('Apakah Anda yakin ingin menghapus cabang ini?')) return;
-        const res = await authFetch(`/api/branches/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            loadAllData();
-            showToast('Cabang berhasil dihapus!');
-        } else { showToast('Gagal menghapus cabang.', 'error'); }
+    const handleDeleteBranch = (id) => {
+        showConfirm('Apakah Anda yakin ingin menghapus cabang ini?', async () => {
+            const res = await authFetch(`/api/branches/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadAllData();
+                showToast('Cabang berhasil dihapus!');
+            } else { showToast('Gagal menghapus cabang.', 'error'); }
+        });
     };
 
     const handleAddRoom = async (e) => {
@@ -634,46 +640,49 @@ export default function Dashboard() {
         } else { const d = await res.json(); showToast(d.message || 'Gagal memperbarui kamar.', 'error'); }
     };
 
-    const handleDeleteRoom = async (id) => {
-        if (!confirm('Apakah Anda yakin ingin menghapus kamar ini?')) return;
-        const res = await authFetch(`/api/rooms/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            loadAllData();
-            showToast('Kamar berhasil dihapus!');
-        } else { showToast('Gagal menghapus kamar.', 'error'); }
+    const handleDeleteRoom = (id) => {
+        showConfirm('Apakah Anda yakin ingin menghapus kamar ini?', async () => {
+            const res = await authFetch(`/api/rooms/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadAllData();
+                showToast('Kamar berhasil dihapus!');
+            } else { showToast('Gagal menghapus kamar.', 'error'); }
+        });
     };
 
-    const handleDeleteBooking = async (id) => {
-        if (!confirm('Hapus log penyewaan ini beserta akun penghuninya secara permanen?')) return;
-        const res = await authFetch(`/api/bookings/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            loadAllData();
-            showToast('Log penyewaan dan akun berhasil dihapus!');
-        } else {
-            const err = await res.json();
-            showToast(err.error || 'Gagal menghapus log penyewaan.', 'error');
-        }
+    const handleDeleteBooking = (id) => {
+        showConfirm('Hapus log penyewaan ini beserta akun penghuninya secara permanen?', async () => {
+            const res = await authFetch(`/api/bookings/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadAllData();
+                showToast('Log penyewaan dan akun berhasil dihapus!');
+            } else {
+                const err = await res.json();
+                showToast(err.error || 'Gagal menghapus log penyewaan.', 'error');
+            }
+        });
     };
 
-    const handleFinishCleaning = async (roomId) => {
-        if (!confirm('Tandai kamar ini selesai dibersihkan dan siap disewa?')) return;
-        const res = await authFetch(`/api/rooms/${roomId}/finish-cleaning`, { method: 'POST' });
-        if (res.ok) {
-            loadAllData();
-            showToast('Pembersihan selesai. Kamar kini tersedia!');
-        } else {
-            const d = await res.json();
-            showToast(d.message || 'Gagal mengubah status kamar.', 'error');
-        }
+    const handleFinishCleaning = (roomId) => {
+        showConfirm('Tandai kamar ini selesai dibersihkan dan siap disewa?', async () => {
+            const res = await authFetch(`/api/rooms/${roomId}/finish-cleaning`, { method: 'POST' });
+            if (res.ok) {
+                loadAllData();
+                showToast('Pembersihan selesai. Kamar kini tersedia!');
+            } else {
+                const d = await res.json();
+                showToast(d.message || 'Gagal mengubah status kamar.', 'error');
+            }
+        });
     };
 
     const handleExportCSV = () => {
-        const headers = ['Kode Booking', 'Penyewa', 'Cabang', 'Kamar', 'Jenis Sewa', 'Tgl Mulai', 'Tgl Selesai', 'Tagihan', 'Status Sewa', 'Status Bayar'];
+        const headers = ['Kode Booking', 'Penyewa', 'Cabang', 'Kamar', 'Jenis Sewa', 'Tgl Mulai', 'Tgl Selesai', 'Sisa Tagihan', 'Status Sewa', 'Status Bayar'];
         
         const csvData = visibleBookings.map(b => {
             const statusSewa = b.status === 'active' ? 'Aktif' : b.status === 'completed' ? 'Selesai' : b.status === 'pending' ? 'Menunggu' : b.status === 'rejected' ? 'Ditolak' : 'Dibatalkan';
             const statusBayar = b.payment_status === 'paid' ? 'Lunas' : b.payment_status === 'unpaid' ? 'Belum Lunas' : b.payment_status === 'rejected' ? 'Ditolak' : 'Menunggu Verifikasi';
-            const tagihan = `Rp ${Number(b.total_amount).toLocaleString('id-ID')}`;
+            const tagihan = `Rp ${Number(Math.max(0, b.total_amount - (b.paid_amount || 0))).toLocaleString('id-ID')}`;
 
             return [
                 b.booking_code,
@@ -767,6 +776,8 @@ export default function Dashboard() {
         e.preventDefault();
         if (!showPaymentModal) return;
         
+        setPaymentErrors({});
+
         const formData = new FormData();
         formData.append('paid_amount', paymentData.paid_amount);
         if (paymentData.payment_proof_file) {
@@ -778,9 +789,16 @@ export default function Dashboard() {
         if (res.ok) {
             setShowPaymentModal(null);
             setPaymentData({ paid_amount: '', payment_proof_file: null });
+            setPaymentErrors({});
             loadAllData();
             showToast(data.message);
-        } else { showToast(data.message || 'Gagal memproses pembayaran.', 'error'); }
+        } else { 
+            if (data.errors) {
+                setPaymentErrors(data.errors);
+            } else {
+                showToast(data.message || 'Gagal memproses pembayaran.', 'error'); 
+            }
+        }
     };
 
     const closeManualBookingModal = () => {
@@ -877,40 +895,44 @@ export default function Dashboard() {
         }
     };
 
-    const handleRejectPayment = async (id) => {
-        if (!confirm('Tolak pembayaran ini? Tenant akan diminta untuk mengupload ulang bukti pembayaran.')) return;
-        const res = await authFetch(`/api/bookings/${id}/reject-payment`, { method: 'POST' });
-        const data = await res.json();
-        if (res.ok) {
-            setShowVerifyPaymentModal(null);
-            loadAllData();
-            showToast(data.message);
-        } else { showToast(data.message || 'Gagal menolak pembayaran.', 'error'); }
+    const handleRejectPayment = (id) => {
+        showConfirm('Tolak pembayaran ini? Tenant akan diminta untuk mengupload ulang bukti pembayaran.', async () => {
+            const res = await authFetch(`/api/bookings/${id}/reject-payment`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                setShowVerifyPaymentModal(null);
+                loadAllData();
+                showToast(data.message);
+            } else { showToast(data.message || 'Gagal menolak pembayaran.', 'error'); }
+        });
     };
 
-    const handleApproveBooking = async (id) => {
-        if (!confirm('Aktifkan penyewaan ini?')) return;
-        const res = await authFetch(`/api/bookings/${id}/approve`, { method: 'POST' });
-        if (res.ok) { loadAllData(); showToast('Penyewaan disetujui & Kamar aktif ditempati.'); }
-        else { const d = await res.json(); showToast(d.message || 'Gagal approve.', 'error'); }
+    const handleApproveBooking = (id) => {
+        showConfirm('Aktifkan penyewaan ini?', async () => {
+            const res = await authFetch(`/api/bookings/${id}/approve`, { method: 'POST' });
+            if (res.ok) { loadAllData(); showToast('Penyewaan disetujui & Kamar aktif ditempati.'); }
+            else { const d = await res.json(); showToast(d.message || 'Gagal approve.', 'error'); }
+        });
     };
 
-    const handleCheckoutBooking = async (id) => {
-        if (!confirm('Apakah penghuni akan checkout dan mengosongkan kamar?')) return;
-        const res = await authFetch(`/api/bookings/${id}/checkout`, { method: 'POST' });
-        if (res.ok) { loadAllData(); showToast('Proses checkout selesai. Kamar kembali tersedia.'); }
-        else { const d = await res.json(); showToast(d.message || 'Gagal checkout.', 'error'); }
+    const handleCheckoutBooking = (id) => {
+        showConfirm('Apakah penghuni akan checkout dan mengosongkan kamar?', async () => {
+            const res = await authFetch(`/api/bookings/${id}/checkout`, { method: 'POST' });
+            if (res.ok) { loadAllData(); showToast('Proses checkout selesai. Kamar kembali tersedia.'); }
+            else { const d = await res.json(); showToast(d.message || 'Gagal checkout.', 'error'); }
+        });
     };
 
-    const handleSendReminder = async (id) => {
-        if (!confirm('Kirim pesan otomatis reminder WhatsApp via Fonnte?')) return;
-        const res = await authFetch(`/api/bookings/${id}/remind`, { method: 'POST' });
-        const data = await res.json();
-        if (res.ok) {
-            showToast(data.message);
-        } else {
-            showToast(data.message || 'Gagal mengirim pesan via Fonnte.', 'error');
-        }
+    const handleSendReminder = (id) => {
+        showConfirm('Kirim pesan otomatis reminder WhatsApp via Fonnte?', async () => {
+            const res = await authFetch(`/api/bookings/${id}/remind`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.message);
+            } else {
+                showToast(data.message || 'Gagal mengirim pesan via Fonnte.', 'error');
+            }
+        });
     };
 
     const handleExtendBooking = async (e) => {
@@ -991,11 +1013,12 @@ export default function Dashboard() {
 
     // Use optional chaining to prevent crashes when related data not yet loaded
     const visibleRooms = rooms.filter(r => {
-        if (currentRole === 'operator') return operatorBranches.some(b => Number(b) === Number(r.branch_id));
+        if (currentRole === 'operator' && !operatorBranches.some(b => Number(b) === Number(r.branch_id))) return false;
         if (currentRole === 'resident') {
             const resId = auth.user.id;
-            return bookings.some(b => Number(b.room_id) === Number(r.id) && Number(b.tenant_id) === resId && b.status === 'active');
+            if (!bookings.some(b => Number(b.room_id) === Number(r.id) && Number(b.tenant_id) === resId && b.status === 'active')) return false;
         }
+        if (roomStatusFilter !== 'all' && r.status !== roomStatusFilter) return false;
         return true;
     });
 
@@ -1720,7 +1743,7 @@ export default function Dashboard() {
                                                                 </button>
                                                             ) : (
                                                                 <button
-                                                                    onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof_file: null }); }}
+                                                                    onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof_file: null }); setPaymentErrors({}); }}
                                                                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2"
                                                                 >
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
@@ -2340,6 +2363,22 @@ export default function Dashboard() {
                             )}
 
                             {/* List Kamar */}
+                            <div className="flex justify-between items-center mb-4 mt-8">
+                                <h3 className="font-extrabold text-xl text-slate-800 dark:text-white tracking-tight">Daftar Kamar</h3>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm font-semibold text-slate-500 hidden sm:block">Filter Status:</span>
+                                    <select 
+                                        value={roomStatusFilter} 
+                                        onChange={(e) => setRoomStatusFilter(e.target.value)}
+                                        className="glass-input rounded-xl px-4 py-2 text-sm bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white border border-slate-200 shadow-sm focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer"
+                                    >
+                                        <option value="all">Semua Kamar</option>
+                                        <option value="available">Tersedia</option>
+                                        <option value="occupied">Penuh / Dihuni</option>
+                                        <option value="cleaning">Sedang Dibersihkan</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div className="glass-panel rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
                                 <div className="overflow-x-auto w-full"><table className="w-full whitespace-nowrap min-w-max text-left border-collapse">
                                     <thead>
@@ -2785,7 +2824,7 @@ export default function Dashboard() {
                                                 <th className="p-4">Tenant / Kamar</th>
                                                 <th className="p-4">Jenis Sewa</th>
                                                 <th className="p-4">Periode</th>
-                                                <th className="p-4">Tagihan</th>
+                                                <th className="p-4">Sisa Tagihan</th>
                                                 <th className="p-4">Status / Bayar</th>
                                                 <th className="p-4 pr-6 text-right">Aksi</th>
                                             </tr>
@@ -2839,7 +2878,7 @@ export default function Dashboard() {
                                                             );
                                                         })()}
                                                     </td>
-                                                    <td className="p-4 font-mono font-semibold text-slate-800">Rp {parseFloat(b.total_amount).toLocaleString('id-ID')}</td>
+                                                    <td className="p-4 font-mono font-semibold text-slate-800">Rp {Math.max(0, parseFloat(b.total_amount) - parseFloat(b.paid_amount || 0)).toLocaleString('id-ID')}</td>
                                                     <td className="p-4">
                                                         <div className="flex flex-col gap-1 items-start">
                                                             <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
@@ -3410,8 +3449,12 @@ export default function Dashboard() {
                                             <div 
                                                 key={b.id} 
                                                 onClick={() => {
-                                                    const remaining = Math.max(0, parseFloat(b.total_amount) - parseFloat(b.paid_amount || 0));
-                                                    setManualPayData({...manualPayData, booking_id: b.id, paid_amount: remaining});
+                                                    if (manualPayData.booking_id === b.id) {
+                                                        setManualPayData({...manualPayData, booking_id: '', paid_amount: ''});
+                                                    } else {
+                                                        const remaining = Math.max(0, parseFloat(b.total_amount) - parseFloat(b.paid_amount || 0));
+                                                        setManualPayData({...manualPayData, booking_id: b.id, paid_amount: remaining});
+                                                    }
                                                 }}
                                                 className={`cursor-pointer p-3 rounded-xl border transition-all ${manualPayData.booking_id == b.id ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/20 shadow-sm' : 'border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/50 hover:border-emerald-300 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:shadow-sm'}`}
                                             >
@@ -3675,7 +3718,8 @@ export default function Dashboard() {
                         <form onSubmit={handleTenantPayment} className="space-y-4 mt-4">
                             <div className="space-y-1">
                                 <label className="text-xs font-semibold text-slate-500 block mb-2">Jumlah yang Dibayarkan (Rp)</label>
-                                <input type="number" required min="1" value={paymentData.paid_amount} onChange={(e) => setPaymentData({...paymentData, paid_amount: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder={`Maks Rp ${parseFloat(showPaymentModal.total_amount).toLocaleString('id-ID')}`} />
+                                <input type="number" required min="1" value={paymentData.paid_amount} onChange={(e) => setPaymentData({...paymentData, paid_amount: e.target.value})} className={`glass-input rounded-xl px-4 py-2.5 text-sm w-full ${paymentErrors?.paid_amount ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : ''}`} placeholder={`Maks Rp ${parseFloat(showPaymentModal.total_amount).toLocaleString('id-ID')}`} />
+                                {paymentErrors?.paid_amount && <p className="text-red-500 text-xs mt-1 font-medium">{paymentErrors.paid_amount[0]}</p>}
                             </div>
                             <div className="space-y-1">
                                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Bukti Pembayaran / Transfer</label>
@@ -3684,10 +3728,12 @@ export default function Dashboard() {
                                     label="Tarik & Lepas Bukti (Maks 10MB)"
                                     selectedFile={paymentData.payment_proof_file}
                                     onFileDrop={(file) => setPaymentData({ ...paymentData, payment_proof_file: file })}
+                                    error={!!paymentErrors?.payment_proof}
                                 />
+                                {paymentErrors?.payment_proof && <p className="text-red-500 text-xs mt-1 font-medium">{paymentErrors.payment_proof[0]}</p>}
                             </div>
                             <div className="flex gap-3 pt-1">
-                                <button type="button" onClick={() => setShowPaymentModal(null)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm border border-slate-200 transition-all">Batal</button>
+                                <button type="button" onClick={() => { setShowPaymentModal(null); setPaymentErrors({}); }} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm border border-slate-200 transition-all">Batal</button>
                                 <button type="submit" className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm shadow-md shadow-emerald-700/20 transition-all">Konfirmasi Bayar</button>
                             </div>
                         </form>
@@ -3919,7 +3965,13 @@ export default function Dashboard() {
                                         ) : rooms.filter(r => r.status === 'available').map(r => (
                                             <div 
                                                 key={r.id} 
-                                                onClick={() => setManualBookingData({...manualBookingData, room_id: r.id})}
+                                                onClick={() => {
+                                                    if (manualBookingData.room_id === r.id) {
+                                                        setManualBookingData({...manualBookingData, room_id: ''});
+                                                    } else {
+                                                        setManualBookingData({...manualBookingData, room_id: r.id});
+                                                    }
+                                                }}
                                                 className={`cursor-pointer p-3 rounded-xl border transition-all ${manualBookingData.room_id == r.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/20 shadow-sm' : 'border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/50 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:shadow-sm'}`}
                                             >
                                                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
@@ -4297,6 +4349,23 @@ export default function Dashboard() {
                     </div>
                 );
             })()}
+
+            {/* Custom Confirm Dialog Modal */}
+            {confirmDialog.isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-fade-in flex flex-col items-center text-center">
+                        <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-amber-500 mb-4">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        </div>
+                        <h3 className="text-lg font-extrabold text-slate-800 mb-2">Konfirmasi Aksi</h3>
+                        <p className="text-sm text-slate-500 mb-6 leading-relaxed">{confirmDialog.message}</p>
+                        <div className="flex w-full gap-3">
+                            <button onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all">Batal</button>
+                            <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ ...confirmDialog, isOpen: false }); }} className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-amber-500/30">Ya, Lanjutkan</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
