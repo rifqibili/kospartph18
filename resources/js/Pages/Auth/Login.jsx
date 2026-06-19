@@ -63,7 +63,7 @@ export default function Login({ status, canResetPassword }) {
                     </label>
                     <div className="relative rounded-xl shadow-sm">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5 text-slate-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5 text-slate-500">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                             </svg>
                         </div>
@@ -100,7 +100,7 @@ export default function Login({ status, canResetPassword }) {
                     </div>
                     <div className="relative rounded-xl shadow-sm">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5 text-slate-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5 text-slate-500">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                             </svg>
                         </div>
@@ -115,10 +115,10 @@ export default function Login({ status, canResetPassword }) {
                             placeholder="••••••••"
                             required
                         />
-                        <button
+                        <button aria-label="Action Button" 
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-600 focus:outline-none"
                         >
                             {showPassword ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
@@ -152,7 +152,7 @@ export default function Login({ status, canResetPassword }) {
 
                 {/* Submit Button */}
                 <div className="pt-3">
-                    <button
+                    <button aria-label="Action Button" 
                         type="submit"
                         className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-2xl text-sm transition-all duration-300 shadow-lg shadow-emerald-600/25 active:scale-[0.98] hover:shadow-xl hover:shadow-emerald-600/40 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:opacity-50"
                         disabled={processing}

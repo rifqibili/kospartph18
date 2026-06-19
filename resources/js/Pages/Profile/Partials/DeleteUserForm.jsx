@@ -58,7 +58,7 @@ export default function DeleteUserForm({ className = '' }) {
                 </p>
             </header>
 
-            <button onClick={confirmUserDeletion} className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-red-700/20">
+            <button aria-label="Action Button"  onClick={confirmUserDeletion} className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-red-700/20">
                 Hapus Akun
             </button>
 
@@ -101,11 +101,11 @@ export default function DeleteUserForm({ className = '' }) {
                     </div>
 
                     <div className="mt-6 flex justify-end gap-3">
-                        <button type="button" onClick={closeModal} className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all border border-slate-200">
+                        <button aria-label="Action Button"  type="button" onClick={closeModal} className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all border border-slate-200">
                             Batal
                         </button>
 
-                        <button type="submit" disabled={processing} className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-red-700/20 disabled:opacity-50">
+                        <button aria-label="Action Button"  type="submit" disabled={processing} className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-red-700/20 disabled:opacity-50">
                             Hapus Akun Permanen
                         </button>
                     </div>

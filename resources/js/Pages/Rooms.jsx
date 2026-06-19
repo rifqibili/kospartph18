@@ -58,6 +58,7 @@ export default function Rooms({ branches, rooms, auth }) {
     const [paidAmountInput, setPaidAmountInput] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     useEffect(() => {
         document.documentElement.classList.remove('dark');
     }, []);
@@ -126,8 +127,7 @@ export default function Rooms({ branches, rooms, auth }) {
 
     const handleOpenBooking = (room) => {
         if (!auth.user) {
-            alert('Anda harus login terlebih dahulu untuk melakukan booking.');
-            window.location.href = '/login';
+            setShowLoginPrompt(true);
             return;
         }
         setSelectedRoom(room);
@@ -253,7 +253,7 @@ export default function Rooms({ branches, rooms, auth }) {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-xl overflow-hidden border border-[rgba(201,168,76,0.3)] shadow-sm">
-                            <img src="/images/logo 2.jpeg" alt="Logo Kospart" className="w-full h-full object-cover" />
+                            <img loading="lazy" src="/images/logo 2.jpeg" alt="Logo Kospart" className="w-full h-full object-cover" />
                         </div>
                         <div>
                             <span className="font-extrabold text-xl tracking-tight text-forest block" style={{ fontFamily: "'Outfit', sans-serif" }}>KOSPART</span>
@@ -278,7 +278,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                 <Link href="/register" className="lux-btn-primary px-5 py-2.5 text-sm">Daftar</Link>
                             </div>
                         )}
-                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-slate-600">
+                        <button aria-label="Action Button"  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-slate-600">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 {isMobileMenuOpen
                                     ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -323,12 +323,12 @@ export default function Rooms({ branches, rooms, auth }) {
                         <div className="flex items-center gap-6 bg-white rounded-2xl border border-[rgba(201,168,76,0.2)] shadow-sm px-7 py-4 self-start md:self-auto">
                             <div className="text-center">
                                 <div className="text-2xl font-extrabold text-forest" style={{ fontFamily: "'Outfit', sans-serif" }}>{rooms.length}</div>
-                                <div className="text-xs text-slate-400 font-semibold">Total Unit</div>
+                                <div className="text-xs text-slate-500 font-semibold">Total Unit</div>
                             </div>
                             <div className="w-px h-10 bg-[rgba(201,168,76,0.2)]"></div>
                             <div className="text-center">
                                 <div className="text-2xl font-extrabold text-[#2d6a4f]" style={{ fontFamily: "'Outfit', sans-serif" }}>{rooms.filter(r => r.status === 'available').length}</div>
-                                <div className="text-xs text-slate-400 font-semibold">Tersedia</div>
+                                <div className="text-xs text-slate-500 font-semibold">Tersedia</div>
                             </div>
                         </div>
                     </div>
@@ -352,7 +352,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                     )}
                                 </h2>
                                 {activeFilterCount > 0 && (
-                                    <button onClick={clearFilters} className="text-xs text-gold hover:text-[#8a6914] font-bold transition-colors flex items-center gap-1">
+                                    <button aria-label="Action Button"  onClick={clearFilters} className="text-xs text-gold hover:text-[#8a6914] font-bold transition-colors flex items-center gap-1">
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                                         Reset
                                     </button>
@@ -364,12 +364,12 @@ export default function Rooms({ branches, rooms, auth }) {
                                 <label className="lux-section-label" style={{ fontSize: '10px' }}>Cari Kata Kunci</label>
                                 <div className="relative">
                                     <input type="text" placeholder="No. kamar atau fasilitas..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="lux-input pl-9 pr-4 py-2.5 w-full text-xs" />
-                                    <svg className="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                    <svg className="w-4 h-4 text-slate-500 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                 </div>
                             </div>
 
                             {/* Mobile toggle */}
-                            <button
+                            <button aria-label="Action Button" 
                                 onClick={() => setShowMobileFilters(!showMobileFilters)}
                                 className="lg:hidden w-full flex items-center justify-between lux-input px-4 py-3 text-sm font-bold text-forest"
                             >
@@ -444,7 +444,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                         >
                                             {/* Image */}
                                             <div className="relative w-[38%] sm:w-full sm:h-48 shrink-0 overflow-hidden rounded-tl-[20px] rounded-bl-[20px] sm:rounded-bl-none sm:rounded-t-[20px] bg-slate-100">
-                                                <img
+                                                <img loading="lazy"
                                                     src={(room.photos && room.photos.length > 0) ? room.photos[0] : '/images/foto kamar 1.jpeg'}
                                                     alt={`Kamar ${room.room_number}`}
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -479,7 +479,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                                         </span>
                                                     </div>
 
-                                                    <p className="text-slate-400 text-[9px] sm:text-[11px] leading-relaxed line-clamp-2">{room.description}</p>
+                                                    <p className="text-slate-500 text-[9px] sm:text-[11px] leading-relaxed line-clamp-2">{room.description}</p>
 
                                                     <div className="flex flex-wrap gap-1">
                                                         {room.facilities && (() => {
@@ -503,29 +503,29 @@ export default function Rooms({ branches, rooms, auth }) {
                                                     <div className="flex justify-between items-end mb-2.5">
                                                         {room.price_monthly > 0 && (
                                                             <div>
-                                                                <span className="text-[8px] text-slate-400 font-semibold uppercase tracking-wider block">Bulanan</span>
+                                                                <span className="text-[8px] text-slate-500 font-semibold uppercase tracking-wider block">Bulanan</span>
                                                                 <span className="lux-price text-xs sm:text-sm">Rp {parseFloat(room.price_monthly).toLocaleString('id-ID')}</span>
                                                             </div>
                                                         )}
                                                         {room.price_daily > 0 && (
                                                             <div className="text-right">
-                                                                <span className="text-[8px] text-slate-400 font-semibold uppercase tracking-wider block">Harian</span>
+                                                                <span className="text-[8px] text-slate-500 font-semibold uppercase tracking-wider block">Harian</span>
                                                                 <span className="font-extrabold text-xs sm:text-sm" style={{ color: '#c9a84c', fontFamily: "'Outfit', sans-serif" }}>Rp {parseFloat(room.price_daily).toLocaleString('id-ID')}</span>
                                                             </div>
                                                         )}
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-2">
-                                                        <button
+                                                        <button aria-label="Action Button" 
                                                             onClick={(e) => { e.stopPropagation(); setShowRoomDetail(room); setActiveGalleryIndex(0); }}
                                                             className="py-2 lux-btn-outline text-[10px] sm:text-xs font-bold text-center"
                                                         >Detail</button>
                                                         {room.status === 'available' ? (
-                                                            <button
+                                                            <button aria-label="Action Button" 
                                                                 onClick={(e) => { e.stopPropagation(); handleOpenBooking(room); }}
                                                                 className="py-2 lux-btn-primary text-[10px] sm:text-xs font-bold text-center"
                                                             >Booking</button>
                                                         ) : (
-                                                            <button disabled className="py-2 text-[10px] sm:text-xs font-bold rounded-xl bg-slate-100 text-slate-400 cursor-not-allowed text-center">Penuh</button>
+                                                            <button aria-label="Action Button"  disabled className="py-2 text-[10px] sm:text-xs font-bold rounded-xl bg-slate-100 text-slate-500 cursor-not-allowed text-center">Penuh</button>
                                                         )}
                                                     </div>
                                                 </div>
@@ -536,7 +536,7 @@ export default function Rooms({ branches, rooms, auth }) {
 
                                 {filteredRooms.length > visibleCount && (
                                     <div className="flex justify-center pt-2 pb-6">
-                                        <button onClick={() => setVisibleCount(prev => prev + 9)} className="lux-btn-outline px-8 py-4 text-sm font-bold flex items-center gap-2">
+                                        <button aria-label="Action Button"  onClick={() => setVisibleCount(prev => prev + 9)} className="lux-btn-outline px-8 py-4 text-sm font-bold flex items-center gap-2">
                                             <svg className="w-4 h-4 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
                                             Muat Lebih Banyak ({filteredRooms.length - visibleCount} Unit Tersisa)
                                         </button>
@@ -549,10 +549,10 @@ export default function Rooms({ branches, rooms, auth }) {
                                     <svg className="w-7 h-7 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                 </div>
                                 <h3 className="text-xl font-bold text-forest" style={{ fontFamily: "'Playfair Display', serif" }}>Kamar Tidak Ditemukan</h3>
-                                <p className="text-slate-400 text-sm max-w-md mx-auto leading-relaxed">
+                                <p className="text-slate-500 text-sm max-w-md mx-auto leading-relaxed">
                                     Tidak ada unit kamar yang sesuai dengan filter Anda. Coba kurangi filter atau atur ulang pencarian.
                                 </p>
-                                <button onClick={clearFilters} className="lux-btn-primary px-6 py-2.5 text-sm mx-auto inline-flex items-center gap-2">
+                                <button aria-label="Action Button"  onClick={clearFilters} className="lux-btn-primary px-6 py-2.5 text-sm mx-auto inline-flex items-center gap-2">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                                     Atur Ulang Semua Filter
                                 </button>
@@ -573,7 +573,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                     {showRoomDetail.branch?.name?.replace('Kospart PH 18 - ', '')}
                                 </span>
                             </div>
-                            <button onClick={() => setShowRoomDetail(null)} className="text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full p-2.5 transition-all hover:rotate-90">
+                            <button aria-label="Action Button"  onClick={() => setShowRoomDetail(null)} className="text-slate-500 hover:bg-red-50 hover:text-red-500 rounded-full p-2.5 transition-all hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
@@ -582,7 +582,7 @@ export default function Rooms({ branches, rooms, auth }) {
                             <div className="space-y-3">
                                 <div className="relative h-64 rounded-2xl overflow-hidden bg-slate-100 group">
                                     {getRoomMedia(showRoomDetail)[activeGalleryIndex]?.type === 'image' ? (
-                                        <img src={getRoomMedia(showRoomDetail)[activeGalleryIndex]?.src} alt={`Kamar ${showRoomDetail.room_number}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        <img loading="lazy" src={getRoomMedia(showRoomDetail)[activeGalleryIndex]?.src} alt={`Kamar ${showRoomDetail.room_number}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     ) : (
                                         <video src={getRoomMedia(showRoomDetail)[activeGalleryIndex]?.src} controls className="w-full h-full object-contain"></video>
                                     )}
@@ -592,9 +592,9 @@ export default function Rooms({ branches, rooms, auth }) {
                                 </div>
                                 <div className="flex gap-2 overflow-x-auto py-1">
                                     {getRoomMedia(showRoomDetail).map((media, idx) => (
-                                        <button key={idx} onClick={() => setActiveGalleryIndex(idx)} className={`w-16 h-11 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${activeGalleryIndex === idx ? 'border-[#c9a84c] scale-105' : 'border-slate-200 opacity-60 hover:opacity-100'}`}>
+                                        <button aria-label="Action Button"  key={idx} onClick={() => setActiveGalleryIndex(idx)} className={`w-16 h-11 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${activeGalleryIndex === idx ? 'border-[#c9a84c] scale-105' : 'border-slate-200 opacity-60 hover:opacity-100'}`}>
                                             {media.type === 'image' ? (
-                                                <img src={media.src} alt="thumb" className="w-full h-full object-cover" />
+                                                <img loading="lazy" src={media.src} alt="thumb" className="w-full h-full object-cover" />
                                             ) : (
                                                 <div className="w-full h-full bg-slate-100 flex items-center justify-center">
                                                     <svg className="w-4 h-4 text-[#2d6a4f]" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.324-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path></svg>
@@ -606,12 +606,12 @@ export default function Rooms({ branches, rooms, auth }) {
                             </div>
 
                             <div>
-                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Deskripsi Kamar</h4>
+                                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Deskripsi Kamar</h4>
                                 <p className="text-slate-600 text-sm leading-relaxed">{showRoomDetail.description}</p>
                             </div>
 
                             <div>
-                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Fasilitas Kamar</h4>
+                                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Fasilitas Kamar</h4>
                                 <div className="grid grid-cols-2 gap-2">
                                     {showRoomDetail.facilities && (() => {
                                         const facArray = Array.isArray(showRoomDetail.facilities) ? showRoomDetail.facilities : JSON.parse(JSON.stringify(showRoomDetail.facilities));
@@ -627,23 +627,23 @@ export default function Rooms({ branches, rooms, auth }) {
 
                             <div className="bg-[rgba(201,168,76,0.06)] p-4 rounded-xl border border-[rgba(201,168,76,0.15)] flex flex-wrap justify-between items-center gap-3">
                                 {showRoomDetail.price_yearly > 0 && (
-                                    <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Tahunan</span><strong className="text-forest text-lg font-extrabold" style={{ fontFamily: "'Outfit', sans-serif" }}>Rp {parseFloat(showRoomDetail.price_yearly).toLocaleString('id-ID')}</strong></div>
+                                    <div><span className="text-slate-500 text-[10px] uppercase font-bold block">Tahunan</span><strong className="text-forest text-lg font-extrabold" style={{ fontFamily: "'Outfit', sans-serif" }}>Rp {parseFloat(showRoomDetail.price_yearly).toLocaleString('id-ID')}</strong></div>
                                 )}
                                 {showRoomDetail.price_monthly > 0 && (
-                                    <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Bulanan</span><strong className="text-forest text-lg font-extrabold" style={{ fontFamily: "'Outfit', sans-serif" }}>Rp {parseFloat(showRoomDetail.price_monthly).toLocaleString('id-ID')}</strong></div>
+                                    <div><span className="text-slate-500 text-[10px] uppercase font-bold block">Bulanan</span><strong className="text-forest text-lg font-extrabold" style={{ fontFamily: "'Outfit', sans-serif" }}>Rp {parseFloat(showRoomDetail.price_monthly).toLocaleString('id-ID')}</strong></div>
                                 )}
                                 {showRoomDetail.price_daily > 0 && (
-                                    <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Harian</span><strong className="text-gold text-lg font-extrabold" style={{ fontFamily: "'Outfit', sans-serif" }}>Rp {parseFloat(showRoomDetail.price_daily).toLocaleString('id-ID')}<span className="text-xs text-slate-400 font-normal">/hr</span></strong></div>
+                                    <div><span className="text-slate-500 text-[10px] uppercase font-bold block">Harian</span><strong className="text-gold text-lg font-extrabold" style={{ fontFamily: "'Outfit', sans-serif" }}>Rp {parseFloat(showRoomDetail.price_daily).toLocaleString('id-ID')}<span className="text-xs text-slate-500 font-normal">/hr</span></strong></div>
                                 )}
                             </div>
                         </div>
 
                         <div className="p-6 bg-slate-50 border-t border-[rgba(201,168,76,0.1)] flex justify-between gap-4">
-                            <button onClick={() => setShowRoomDetail(null)} className="lux-btn-outline px-6 py-2.5">Kembali</button>
+                            <button aria-label="Action Button"  onClick={() => setShowRoomDetail(null)} className="lux-btn-outline px-6 py-2.5">Kembali</button>
                             {showRoomDetail.status === 'available' ? (
-                                <button onClick={() => { setShowRoomDetail(null); handleOpenBooking(showRoomDetail); }} className="lux-btn-primary px-8 py-2.5">Sewa Kamar Ini</button>
+                                <button aria-label="Action Button"  onClick={() => { setShowRoomDetail(null); handleOpenBooking(showRoomDetail); }} className="lux-btn-primary px-8 py-2.5">Sewa Kamar Ini</button>
                             ) : (
-                                <button disabled className="px-8 py-2.5 bg-slate-200 text-slate-400 font-bold rounded-xl cursor-not-allowed">Tidak Tersedia</button>
+                                <button aria-label="Action Button"  disabled className="px-8 py-2.5 bg-slate-200 text-slate-500 font-bold rounded-xl cursor-not-allowed">Tidak Tersedia</button>
                             )}
                         </div>
                     </div>
@@ -659,7 +659,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                 <h3 className="font-extrabold text-xl text-forest" style={{ fontFamily: "'Outfit', sans-serif" }}>Formulir Pemesanan</h3>
                                 <span className="text-gold text-[10px] font-bold tracking-wider uppercase bg-[rgba(201,168,76,0.1)] px-2.5 py-1 rounded-full mt-1.5 inline-block border border-[rgba(201,168,76,0.2)]">Kamar {selectedRoom.room_number}</span>
                             </div>
-                            <button onClick={resetBookingModal} className="text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full p-2.5 transition-all hover:rotate-90">
+                            <button aria-label="Action Button"  onClick={resetBookingModal} className="text-slate-500 hover:bg-red-50 hover:text-red-500 rounded-full p-2.5 transition-all hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
@@ -667,24 +667,24 @@ export default function Rooms({ branches, rooms, auth }) {
                         {bookingStep === 'booking' && (
                             <form onSubmit={handleBookingSubmit} className="p-6 space-y-4">
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nama Lengkap</label>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nama Lengkap</label>
                                     <input type="text" required value={bookingForm.name} onChange={(e) => setBookingForm({...bookingForm, name: e.target.value})} className="lux-input px-4 py-2.5 w-full" placeholder="Nama Anda" />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email</label>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Email</label>
                                     <input type="email" required value={bookingForm.email} onChange={(e) => setBookingForm({...bookingForm, email: e.target.value})} className="lux-input px-4 py-2.5 w-full" placeholder="email@gmail.com" />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">NIK (16 Digit)</label>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">NIK (16 Digit)</label>
                                     <input type="text" required maxLength="16" minLength="16" pattern="\d{16}" value={bookingForm.nik} onChange={(e) => setBookingForm({...bookingForm, nik: e.target.value.replace(/\D/g, '')})} className="lux-input px-4 py-2.5 w-full tracking-widest" placeholder="16 Digit NIK Anda" />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Foto KTP</label>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Foto KTP</label>
                                     <div className="flex gap-2">
                                         <div className="relative flex-1">
                                             <input type="file" required accept="image/*" onChange={(e) => setBookingForm({...bookingForm, ktp_photo: e.target.files[0]})} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                                             <div className="lux-input px-4 py-2.5 text-xs w-full flex items-center justify-center gap-2 font-semibold cursor-pointer text-slate-500">
-                                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                                                 <span className="truncate">{bookingForm.ktp_photo ? bookingForm.ktp_photo.name : 'Pilih Galeri'}</span>
                                             </div>
                                         </div>
@@ -696,11 +696,11 @@ export default function Rooms({ branches, rooms, auth }) {
                                             </div>
                                         </div>
                                     </div>
-                                    <p className="text-[9px] text-slate-400 mt-0.5">Data KTP dijamin kerahasiaannya untuk keperluan administrasi kos.</p>
+                                    <p className="text-[9px] text-slate-500 mt-0.5">Data KTP dijamin kerahasiaannya untuk keperluan administrasi kos.</p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tipe Sewa</label>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tipe Sewa</label>
                                         <select value={bookingForm.rental_type} onChange={(e) => {
                                             const newType = e.target.value;
                                             const start = new Date(bookingForm.start_date || new Date().toISOString().split('T')[0]);
@@ -718,7 +718,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                         </select>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mulai Sewa</label>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mulai Sewa</label>
                                         <input type="date" required value={bookingForm.start_date} onChange={(e) => {
                                             const newStartStr = e.target.value;
                                             if (!newStartStr) { setBookingForm({ ...bookingForm, start_date: '' }); return; }
@@ -734,7 +734,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                     </div>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Selesai Sewa</label>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Selesai Sewa</label>
                                     <input type="date" required value={bookingForm.end_date} onChange={(e) => setBookingForm({ ...bookingForm, end_date: e.target.value })} className="lux-input px-4 py-2.5 w-full text-xs text-center" />
                                 </div>
                                 <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-[rgba(201,168,76,0.2)] transition-all">
@@ -783,7 +783,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                         })()}
                                     </span>
                                 </div>
-                                <button disabled={isSubmitting} type="submit" className={`w-full py-3 font-bold rounded-xl text-sm transition-all ${isSubmitting ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'lux-btn-primary'}`}>
+                                <button aria-label="Action Button"  disabled={isSubmitting} type="submit" className={`w-full py-3 font-bold rounded-xl text-sm transition-all ${isSubmitting ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'lux-btn-primary'}`}>
                                     {isSubmitting ? 'Memproses...' : 'Kirim & Verifikasi OTP'}
                                 </button>
                             </form>
@@ -798,8 +798,8 @@ export default function Rooms({ branches, rooms, auth }) {
                                         {otpError && <p className="text-red-500 text-xs mt-1 font-semibold">{otpError}</p>}
                                     </div>
                                     <div className="flex gap-3">
-                                        <button type="button" onClick={() => setBookingStep('booking')} className="flex-1 py-3 lux-btn-outline text-sm font-bold">Kembali</button>
-                                        <button type="submit" className="flex-1 py-3 lux-btn-primary text-sm font-bold">Verifikasi OTP</button>
+                                        <button aria-label="Action Button"  type="button" onClick={() => setBookingStep('booking')} className="flex-1 py-3 lux-btn-outline text-sm font-bold">Kembali</button>
+                                        <button aria-label="Action Button"  type="submit" className="flex-1 py-3 lux-btn-primary text-sm font-bold">Verifikasi OTP</button>
                                     </div>
                                 </form>
                             </div>
@@ -815,11 +815,11 @@ export default function Rooms({ branches, rooms, auth }) {
                                     <p>Masukkan nominal dan unggah bukti transfer.</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jumlah yang Ditransfer (Rp)</label>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Jumlah yang Ditransfer (Rp)</label>
                                     <input type="number" required value={paidAmountInput} onChange={(e) => setPaidAmountInput(e.target.value)} className="lux-input px-4 py-2.5 w-full" />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bukti Pembayaran</label>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bukti Pembayaran</label>
                                     <div className="border-2 border-dashed border-[rgba(201,168,76,0.3)] rounded-xl p-5 text-center bg-[rgba(201,168,76,0.02)] hover:bg-[rgba(201,168,76,0.05)] transition-colors relative">
                                         <input type="file" accept="image/*,application/pdf" onChange={(e) => setPaymentProofInput(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required />
                                         <div className="pointer-events-none">
@@ -829,15 +829,15 @@ export default function Rooms({ branches, rooms, auth }) {
                                                 <>
                                                     <svg className="w-7 h-7 text-slate-300 mx-auto mb-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                                     <span className="text-xs font-semibold text-slate-500 block">Klik atau seret file ke sini</span>
-                                                    <span className="text-[10px] text-slate-400">JPG, PNG, PDF (Maks. 2MB)</span>
+                                                    <span className="text-[10px] text-slate-500">JPG, PNG, PDF (Maks. 2MB)</span>
                                                 </>
                                             )}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="flex gap-3">
-                                    <button type="button" onClick={() => setBookingStep('otp')} className="flex-1 py-3 lux-btn-outline text-sm font-bold">Kembali</button>
-                                    <button type="submit" className="flex-1 py-3 lux-btn-primary text-sm font-bold">Kirim Pembayaran</button>
+                                    <button aria-label="Action Button"  type="button" onClick={() => setBookingStep('otp')} className="flex-1 py-3 lux-btn-outline text-sm font-bold">Kembali</button>
+                                    <button aria-label="Action Button"  type="submit" className="flex-1 py-3 lux-btn-primary text-sm font-bold">Kirim Pembayaran</button>
                                 </div>
                             </form>
                         )}
@@ -852,12 +852,12 @@ export default function Rooms({ branches, rooms, auth }) {
                                     <p className="text-slate-500 text-sm mt-1">{successMessage || 'Admin kami akan segera memverifikasi pembayaran Anda.'}</p>
                                 </div>
                                 <div className="bg-slate-50 p-4 rounded-xl border border-[rgba(201,168,76,0.15)] text-left text-xs space-y-1.5 text-slate-600">
-                                    <div><span className="text-slate-400">Kamar:</span> <strong className="text-forest">No. {selectedRoom.room_number}</strong></div>
-                                    <div><span className="text-slate-400">Tipe Sewa:</span> <strong>{bookingForm.rental_type === 'monthly' ? 'Bulanan' : bookingForm.rental_type === 'daily' ? 'Harian' : 'Tahunan'}</strong></div>
-                                    <div><span className="text-slate-400">Nama:</span> <strong>{bookingForm.name}</strong></div>
-                                    <div><span className="text-slate-400">Mulai:</span> <strong>{bookingForm.start_date}</strong></div>
+                                    <div><span className="text-slate-500">Kamar:</span> <strong className="text-forest">No. {selectedRoom.room_number}</strong></div>
+                                    <div><span className="text-slate-500">Tipe Sewa:</span> <strong>{bookingForm.rental_type === 'monthly' ? 'Bulanan' : bookingForm.rental_type === 'daily' ? 'Harian' : 'Tahunan'}</strong></div>
+                                    <div><span className="text-slate-500">Nama:</span> <strong>{bookingForm.name}</strong></div>
+                                    <div><span className="text-slate-500">Mulai:</span> <strong>{bookingForm.start_date}</strong></div>
                                 </div>
-                                <button onClick={() => window.location.href = '/dashboard'} className="w-full py-3 lux-btn-primary text-sm font-bold">Menuju Dashboard</button>
+                                <button aria-label="Action Button"  onClick={() => window.location.href = '/dashboard'} className="w-full py-3 lux-btn-primary text-sm font-bold">Menuju Dashboard</button>
                             </div>
                         )}
                     </div>
@@ -919,21 +919,40 @@ export default function Rooms({ branches, rooms, auth }) {
                         
 
                         <div className="w-8 h-8 rounded-lg overflow-hidden border border-[rgba(201,168,76,0.3)]">
-                            <img src="/images/logo 2.jpeg" alt="Logo" className="w-full h-full object-cover" />
+                            <img loading="lazy" src="/images/logo 2.jpeg" alt="Logo" className="w-full h-full object-cover" />
                         </div>
                         <span className="font-extrabold text-white/90 tracking-wide" style={{ fontFamily: "'Outfit', sans-serif" }}>KOSPART PH 18</span>
                     </div>
-                    <p className="text-xs text-center text-white/40">
+                    <p className="text-xs text-center text-white/70">
                         &copy; {new Date().getFullYear()} Kospart PH 18. All rights reserved.{' '}
                         <a href="https://api.whatsapp.com/send/?phone=6289528306239" target="_blank" rel="noopener noreferrer" className="text-gold/80 hover:text-gold font-semibold transition-colors">Powered by Rifqi Bili.</a>
                     </p>
-                    <div className="flex gap-6 text-xs text-white/50">
+                    <div className="flex gap-6 text-xs text-white/70">
                         <Link href="/" className="hover:text-white transition-colors">Beranda</Link>
                         <Link href="/kamar" className="hover:text-white transition-colors">Cari Kamar</Link>
                         <Link href="/cabang" className="hover:text-white transition-colors">Cabang</Link>
                     </div>
                 </div>
             </footer>
+            {/* ── LOGIN PROMPT MODAL ── */}
+            {showLoginPrompt && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(26,61,43,0.4)] backdrop-blur-sm overflow-y-auto">
+                    <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl relative" style={{ animation: 'modalIn 0.3s ease' }}>
+                        <div className="p-6 text-center space-y-5">
+                            <div className="w-16 h-16 bg-[rgba(201,168,76,0.1)] rounded-full flex items-center justify-center mx-auto mb-2">
+                                <svg className="w-8 h-8 text-[#c9a84c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            </div>
+                            <h3 className="font-extrabold text-xl text-[#1a3d2b]" style={{ fontFamily: "'Outfit', sans-serif" }}>Akses Terbatas</h3>
+                            <p className="text-slate-500 text-sm leading-relaxed">Anda harus masuk atau mendaftar akun terlebih dahulu untuk melakukan booking kamar.</p>
+                            
+                            <div className="flex flex-col gap-3 pt-2">
+                                <Link href="/login" className="lux-btn-primary py-3 text-sm font-bold w-full text-center block">Masuk Sekarang</Link>
+                                <button aria-label="Action Button"  onClick={() => setShowLoginPrompt(false)} className="lux-btn-outline py-3 text-sm font-bold w-full text-center">Batal</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -1214,7 +1214,7 @@ export default function Dashboard() {
             <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 z-50 transform transition-transform duration-300 lg:translate-x-0 print:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 {/* Logo */}
                 <div className="h-20 px-6 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
-                    <img src="/images/Gemini_Generated_Image_6gwojj6gwojj6gwo-removebg-preview.png" alt="Kospart Logo" className="w-10 h-10 object-contain drop-shadow-md" />
+                    <img loading="lazy" src="/images/Gemini_Generated_Image_6gwojj6gwojj6gwo-removebg-preview.png" alt="Kospart Logo" className="w-10 h-10 object-contain drop-shadow-md" />
                     <div>
                         <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white block">KOSPART</span>
                         <span className="text-emerald-605 text-[10px] font-bold uppercase tracking-widest block -mt-1 dark:text-emerald-500">ADMIN PANEL</span>
@@ -1225,11 +1225,11 @@ export default function Dashboard() {
                 <nav className="p-4 flex-1 overflow-y-auto space-y-2">
                     {currentRole !== 'karyawan' && (
                         <>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-2 mb-2 block">Utama</span>
-                            <button 
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest px-4 mt-2 mb-2 block">Utama</span>
+                            <button aria-label="Action Button"  
                                 onClick={() => setActiveTab('overview')} 
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'overview' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
+                                    activeTab === 'overview' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                 }`}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z"></path></svg>
@@ -1240,12 +1240,12 @@ export default function Dashboard() {
 
                     {['super_admin', 'operator'].includes(currentRole) && (
                         <>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Data Master</span>
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Data Master</span>
                             {currentRole === 'super_admin' && (
-                                <button 
+                                <button aria-label="Action Button"  
                                     onClick={() => setActiveTab('branches')} 
                                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                        activeTab === 'branches' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
+                                        activeTab === 'branches' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                     }`}
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
@@ -1253,10 +1253,10 @@ export default function Dashboard() {
                                 </button>
                             )}
 
-                            <button 
+                            <button aria-label="Action Button"  
                                 onClick={() => setActiveTab('rooms')} 
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'rooms' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
+                                    activeTab === 'rooms' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                 }`}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg>
@@ -1266,13 +1266,13 @@ export default function Dashboard() {
                     )}
 
                     <>
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Layanan & Transaksi</span>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Layanan & Transaksi</span>
                         {currentRole !== 'karyawan' && (
                             <>
-                                <button 
+                                <button aria-label="Action Button"  
                                     onClick={() => setActiveTab('bookings')} 
                                     className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                        activeTab === 'bookings' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
+                                        activeTab === 'bookings' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">
@@ -1286,10 +1286,10 @@ export default function Dashboard() {
                                     )}
                                 </button>
 
-                                <button 
+                                <button aria-label="Action Button"  
                                     onClick={() => setActiveTab('complaints')} 
                                     className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                        activeTab === 'complaints' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
+                                        activeTab === 'complaints' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">
@@ -1305,10 +1305,10 @@ export default function Dashboard() {
                             </>
                         )}
 
-                        <button 
+                        <button aria-label="Action Button"  
                             onClick={() => setActiveTab('canteen')} 
                             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                activeTab === 'canteen' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
+                                activeTab === 'canteen' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                             }`}
                         >
                             <div className="flex items-center gap-3">
@@ -1325,11 +1325,11 @@ export default function Dashboard() {
 
                     {['super_admin', 'operator'].includes(currentRole) && (
                         <>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Laporan</span>
-                            <button 
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Laporan</span>
+                            <button aria-label="Action Button"  
                                 onClick={() => setActiveTab('finances')} 
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'finances' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
+                                    activeTab === 'finances' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                 }`}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -1340,21 +1340,21 @@ export default function Dashboard() {
 
                     {currentRole === 'super_admin' && (
                         <>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Pengaturan Sistem</span>
-                            <button 
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Pengaturan Sistem</span>
+                            <button aria-label="Action Button"  
                                 onClick={() => setActiveTab('web_settings')} 
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'web_settings' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
+                                    activeTab === 'web_settings' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                 }`}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
                                 Konten Website
                             </button>
 
-                            <button 
+                            <button aria-label="Action Button"  
                                 onClick={() => setActiveTab('users')} 
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'users' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
+                                    activeTab === 'users' ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30 dark:shadow-emerald-900/40 ring-1 ring-emerald-500/50 scale-[1.02]' : 'text-slate-500 dark:text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20'
                                 }`}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
@@ -1372,7 +1372,7 @@ export default function Dashboard() {
                         </div>
                         <div>
                             <span className="font-semibold text-sm block truncate text-slate-800 dark:text-white">{auth.user.name}</span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">{auth.user.email}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-500 block truncate">{auth.user.email}</span>
                             <span className="inline-block px-1.5 py-0.5 mt-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[9px] rounded font-bold uppercase tracking-wider">
                                 {currentRole === 'super_admin' ? 'Admin' : currentRole === 'operator' ? 'Operator' : 'Tenant'}
                             </span>
@@ -1383,7 +1383,7 @@ export default function Dashboard() {
                         href="/logout" 
                         method="post" 
                         as="button" 
-                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl text-xs font-semibold transition-colors"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl text-xs font-semibold transition-colors"
                     >
                         Sign Out
                     </Link>
@@ -1396,7 +1396,7 @@ export default function Dashboard() {
                 <header className="h-20 bg-white border-b border-slate-200 px-4 md:px-8 flex items-center justify-between shrink-0 shadow-sm">
                     <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
                         {/* Mobile Hamburger Button */}
-                        <button 
+                        <button aria-label="Action Button"  
                             onClick={() => setIsMobileSidebarOpen(true)}
                             className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg shrink-0"
                         >
@@ -1417,7 +1417,7 @@ export default function Dashboard() {
                     {/* Notification Bell & Theme Toggle */}
                     <div className="relative flex items-center gap-4 ml-auto" ref={notifRef}>
                         <ThemeToggle />
-                        <button 
+                        <button aria-label="Action Button"  
                             onClick={() => setShowNotifications(!showNotifications)}
                             className="relative p-2 text-slate-500 hover:text-emerald-600 transition-colors bg-slate-50 hover:bg-emerald-50 rounded-full border border-slate-200 hover:border-emerald-200"
                         >
@@ -1436,7 +1436,7 @@ export default function Dashboard() {
                                 </div>
                                 <div className="max-h-80 overflow-y-auto">
                                     {visibleNotifications.length === 0 ? (
-                                        <div className="p-6 text-center text-slate-400">
+                                        <div className="p-6 text-center text-slate-500">
                                             <p className="text-xs">Tidak ada notifikasi baru</p>
                                         </div>
                                     ) : (
@@ -1473,7 +1473,7 @@ export default function Dashboard() {
                             <div>
                                 <h4 className="font-extrabold text-xs uppercase tracking-wider">{toast.title}</h4>
                                 <p className="text-slate-650 text-[11px] mt-1 leading-relaxed font-medium">{toast.message}</p>
-                                <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-2 font-bold underline uppercase">Klik untuk menutup</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-500 block mt-2 font-bold underline uppercase">Klik untuk menutup</span>
                             </div>
                         </div>
                     ))}
@@ -1501,7 +1501,7 @@ export default function Dashboard() {
                                                         return booking ? `Kamar ${booking.room?.room_number || '-'}` : 'Belum Ada';
                                                     })()}
                                                 </span>
-                                                <span className="text-xs text-slate-400 block mt-1">
+                                                <span className="text-xs text-slate-500 block mt-1">
                                                     {(() => {
                                                         const resId = auth.user.id;
                                                         const activeBooking = bookings.find(b => b.tenant_id === resId && b.status === 'active');
@@ -1527,7 +1527,7 @@ export default function Dashboard() {
                                                         return booking ? (booking.status === 'active' ? 'Aktif' : booking.status === 'pending' ? 'Pending' : 'Selesai') : 'Tidak Aktif';
                                                     })()}
                                                 </span>
-                                                <span className="text-xs text-slate-400 block mt-1">
+                                                <span className="text-xs text-slate-500 block mt-1">
                                                     {(() => {
                                                         const resId = auth.user.id;
                                                         const activeBooking = bookings.find(b => b.tenant_id === resId && b.status === 'active');
@@ -1579,7 +1579,7 @@ export default function Dashboard() {
                                                 <span className="text-slate-900 font-extrabold text-3xl block mt-1">
                                                     {visibleComplaints.filter(c => c.status !== 'completed').length}
                                                 </span>
-                                                <span className="text-xs text-slate-400 block mt-1">Aduan dalam proses</span>
+                                                <span className="text-xs text-slate-500 block mt-1">Aduan dalam proses</span>
                                             </div>
                                             <div className="w-12 h-12 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center text-red-800">
                                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
@@ -1591,7 +1591,7 @@ export default function Dashboard() {
                                         <div className="glass-panel p-6 rounded-2xl flex items-center justify-between">
                                             <div>
                                                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider block">Kamar Tersedia</span>
-                                                <span className="text-slate-900 font-extrabold text-3xl block mt-1">{stats.availableRooms || 0} <span className="text-xs text-slate-400 font-normal">/ {stats.totalRooms || 0}</span></span>
+                                                <span className="text-slate-900 font-extrabold text-3xl block mt-1">{stats.availableRooms || 0} <span className="text-xs text-slate-500 font-normal">/ {stats.totalRooms || 0}</span></span>
                                             </div>
                                             <div className="w-12 h-12 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-800">
                                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -1680,7 +1680,7 @@ export default function Dashboard() {
                                     <div className="grid lg:grid-cols-12 gap-6 mt-2">
 
                                         {/* Progress Pembayaran + Detail Kamar */}
-                                        <div className="lg:col-span-5 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                                        <div className="lg:col-span-5 min-w-0 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
                                             <div className="flex items-center justify-between">
                                                 <h3 className="font-extrabold text-base text-slate-800">📊 Progress Pembayaran</h3>
                                                 {activeBooking && (
@@ -1707,7 +1707,7 @@ export default function Dashboard() {
                                                                 style={{ width: `${progressPct}%` }}
                                                             />
                                                         </div>
-                                                        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                                                        <div className="flex justify-between text-[10px] text-slate-500 mt-1">
                                                             <span>Rp 0</span>
                                                             <span>Total: Rp {total.toLocaleString('id-ID')}</span>
                                                         </div>
@@ -1719,11 +1719,11 @@ export default function Dashboard() {
                                                     </div>
 
                                                     <div className="space-y-2 bg-slate-50 rounded-xl p-4 border border-slate-100 text-sm">
-                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Kamar</span><span className="font-bold text-slate-800">No. {activeBooking.room?.room_number}</span></div>
-                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Cabang</span><span className="font-semibold text-slate-700 text-xs">{(activeBooking.room?.branch?.name || '').replace('Kospart PH 18 - ', '')}</span></div>
-                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Tipe Sewa</span><span className="font-semibold text-slate-700 text-xs">{activeBooking.rental_type === 'daily' ? 'Harian' : (activeBooking.rental_type === 'weekly' ? 'Mingguan' : (activeBooking.rental_type === 'monthly' ? 'Bulanan' : 'Tahunan'))}</span></div>
-                                                        <div className="flex justify-between border-t border-slate-200 pt-2"><span className="text-slate-500 text-xs">Check-in</span><span className="font-semibold text-slate-700 text-xs">{new Date(activeBooking.start_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</span></div>
-                                                        <div className="flex justify-between"><span className="text-slate-500 text-xs">Check-out</span><span className="font-semibold text-slate-700 text-xs">{endDate.toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}{activeBooking.rental_type === 'daily' ? ' 14:00' : ''}</span></div>
+                                                        <div className="flex justify-between gap-2"><span className="text-slate-500 text-xs shrink-0">Kamar</span><span className="font-bold text-slate-800 text-right truncate">No. {activeBooking.room?.room_number}</span></div>
+                                                        <div className="flex justify-between gap-2"><span className="text-slate-500 text-xs shrink-0">Cabang</span><span className="font-semibold text-slate-700 text-xs text-right truncate">{(activeBooking.room?.branch?.name || '').replace('Kospart PH 18 - ', '')}</span></div>
+                                                        <div className="flex justify-between gap-2"><span className="text-slate-500 text-xs shrink-0">Tipe Sewa</span><span className="font-semibold text-slate-700 text-xs text-right truncate">{activeBooking.rental_type === 'daily' ? 'Harian' : (activeBooking.rental_type === 'weekly' ? 'Mingguan' : (activeBooking.rental_type === 'monthly' ? 'Bulanan' : 'Tahunan'))}</span></div>
+                                                        <div className="flex justify-between gap-2 border-t border-slate-200 pt-2"><span className="text-slate-500 text-xs shrink-0">Check-in</span><span className="font-semibold text-slate-700 text-xs text-right truncate">{new Date(activeBooking.start_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</span></div>
+                                                        <div className="flex justify-between gap-2"><span className="text-slate-500 text-xs shrink-0">Check-out</span><span className="font-semibold text-slate-700 text-xs text-right truncate">{endDate.toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}{activeBooking.rental_type === 'daily' ? ' 14:00' : ''}</span></div>
                                                         {sisaText !== '' && (
                                                             <div className={`flex justify-between border-t border-slate-200 pt-2 text-xs font-bold ${diffMs <= (3 * 24 * 60 * 60 * 1000) ? 'text-red-600' : 'text-emerald-600'}`}>
                                                                 <span>Sisa Masa Sewa</span>
@@ -1732,36 +1732,36 @@ export default function Dashboard() {
                                                         )}
                                                     </div>
 
-                                                    <div className="flex gap-2">
+                                                    <div className="flex flex-col sm:flex-row gap-2 mt-4">
                                                         {activeBooking.payment_status !== 'paid' && (
                                                             parseFloat(activeBooking.unverified_amount) > 0 ? (
-                                                                <button
+                                                                <button aria-label="Action Button" 
                                                                     disabled
                                                                     className="w-full py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-sm border border-slate-200 flex items-center justify-center gap-2 cursor-not-allowed"
                                                                 >
-                                                                    ⏳ Menunggu Verifikasi
+                                                                    ⏳ Verifikasi
                                                                 </button>
                                                             ) : (
-                                                                <button
+                                                                <button aria-label="Action Button" 
                                                                     onClick={() => { setShowPaymentModal(activeBooking); setPaymentData({ paid_amount: String(Math.max(0, total - paid)), payment_proof_file: null }); setPaymentErrors({}); }}
                                                                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2"
                                                                 >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                                                                     Bayar
                                                                 </button>
                                                             )
                                                         )}
-                                                        <button onClick={() => setShowExtendTenantModal(true)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-blue-700/20 flex items-center justify-center gap-2">
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                                        <button aria-label="Action Button"  onClick={() => setShowExtendTenantModal(true)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-blue-700/20 flex items-center justify-center gap-2">
+                                                            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                                                             Perpanjang
                                                         </button>
-                                                        <button onClick={() => setShowInvoiceModal(activeBooking)} className="w-full py-2.5 bg-white text-slate-700 font-bold rounded-xl text-sm border border-slate-200 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center">
+                                                        <button aria-label="Action Button"  onClick={() => setShowInvoiceModal(activeBooking)} className="w-full py-2.5 bg-white text-slate-700 font-bold rounded-xl text-sm border border-slate-200 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center">
                                                             Invoice
                                                         </button>
                                                     </div>
                                                 </>
                                             ) : (
-                                                <div className="text-center py-8 text-slate-400">
+                                                <div className="text-center py-8 text-slate-500">
                                                     <div className="text-4xl mb-2">🏠</div>
                                                     <p className="text-sm font-semibold">Belum ada hunian aktif</p>
                                                     <p className="text-xs mt-1">Hubungi pengelola untuk proses booking</p>
@@ -1770,12 +1770,12 @@ export default function Dashboard() {
                                         </div>
 
                                         {/* Riwayat Pembayaran */}
-                                        <div className="lg:col-span-4 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                        <div className="lg:col-span-4 min-w-0 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm">
                                             <h3 className="font-extrabold text-base text-slate-800 dark:text-slate-200 mb-4">💳 Riwayat Pembayaran</h3>
                                             {(() => {
                                                 const myFinances = finances.filter(f => f.booking_id === activeBooking?.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                                                 return myFinances.length === 0 ? (
-                                                    <div className="text-center py-8 text-slate-400">
+                                                    <div className="text-center py-8 text-slate-500">
                                                         <div className="text-3xl mb-2">📭</div>
                                                         <p className="text-xs font-semibold">Belum ada riwayat pembayaran</p>
                                                     </div>
@@ -1792,10 +1792,10 @@ export default function Dashboard() {
                                                                     </div>
                                                                     <div className="pb-4 flex-grow min-w-0">
                                                                         <div className="flex items-start justify-between gap-2">
-                                                                            <div className="min-w-0">
+                                                                            <div className="min-w-0 flex-1">
                                                                                 <p className="text-xs font-bold text-slate-800">Rp {parseFloat(f.amount).toLocaleString('id-ID')}</p>
                                                                                 <p className="text-[10px] text-slate-500 mt-0.5 truncate">{f.description}</p>
-                                                                                <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{new Date(f.transaction_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</p>
+                                                                                <p className="text-[10px] text-slate-500 mt-0.5 font-mono">{new Date(f.transaction_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</p>
                                                                             </div>
                                                                             <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${isIncome ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                                                                                 {isIncome ? 'Sewa' : 'Pengeluaran'}
@@ -1808,13 +1808,13 @@ export default function Dashboard() {
                                                     </div>
                                                 );
                                             })()}
-                                            <button onClick={() => setActiveTab('bookings')} className="w-full mt-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition-all">
+                                            <button aria-label="Action Button"  onClick={() => setActiveTab('bookings')} className="w-full mt-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition-all">
                                                 Ke Pembayaran →
                                             </button>
                                         </div>
 
                                         {/* Status Komplain */}
-                                        <div className="lg:col-span-3 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                        <div className="lg:col-span-3 min-w-0 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm">
                                             <div className="flex items-center justify-between mb-4">
                                                 <h3 className="font-extrabold text-base text-slate-800">🔧 Komplain</h3>
                                                 {myComplaints.filter(c => c.status !== 'completed').length > 0 && (
@@ -1824,7 +1824,7 @@ export default function Dashboard() {
                                                 )}
                                             </div>
                                             {myComplaints.length === 0 ? (
-                                                <div className="text-center py-6 text-slate-400">
+                                                <div className="text-center py-6 text-slate-500">
                                                     <div className="text-3xl mb-2">✅</div>
                                                     <p className="text-xs font-semibold">Tidak ada aduan aktif</p>
                                                 </div>
@@ -1852,7 +1852,7 @@ export default function Dashboard() {
                                                     ))}
                                                 </div>
                                             )}
-                                            <button onClick={() => setActiveTab('complaints')} className="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-sm">
+                                            <button aria-label="Action Button"  onClick={() => setActiveTab('complaints')} className="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-sm">
                                                 + Ajukan Komplain
                                             </button>
                                         </div>
@@ -1920,13 +1920,13 @@ export default function Dashboard() {
                                         </h4>
                                         <div className="grid md:grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Foto Cabang</label>
+                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 block mb-2">Foto Cabang</label>
                                                 
                                                 {/* Image Preview */}
                                                 {newBranch.image && (
                                                     <div className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-slate-100 flex items-center justify-center mb-2">
-                                                        <img src={URL.createObjectURL(newBranch.image)} alt="preview" className="w-full h-full object-cover" />
-                                                        <button type="button" onClick={() => setNewBranch({...newBranch, image: null})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
+                                                        <img loading="lazy" src={URL.createObjectURL(newBranch.image)} alt="preview" className="w-full h-full object-cover" />
+                                                        <button aria-label="Action Button"  type="button" onClick={() => setNewBranch({...newBranch, image: null})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                     </div>
                                                 )}
 
@@ -1938,13 +1938,13 @@ export default function Dashboard() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Video Cabang (Opsional)</label>
+                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 block mb-2">Video Cabang (Opsional)</label>
                                                 
                                                 {/* Video Preview */}
                                                 {newBranch.video && (
                                                     <div className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 flex items-center justify-center mb-2">
                                                         <svg className="w-8 h-8 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                        <button type="button" onClick={() => setNewBranch({...newBranch, video: null})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
+                                                        <button aria-label="Action Button"  type="button" onClick={() => setNewBranch({...newBranch, video: null})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                     </div>
                                                 )}
 
@@ -1959,7 +1959,7 @@ export default function Dashboard() {
                                     </div>
 
                                     <div className="flex justify-end pt-4 border-t border-slate-100">
-                                        <button type="submit" className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">
+                                        <button aria-label="Action Button"  type="submit" className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">
                                             Simpan Cabang Baru
                                         </button>
                                     </div>
@@ -1983,22 +1983,22 @@ export default function Dashboard() {
                                     <tbody className="divide-y divide-slate-100 text-sm">
                                         {branches.length === 0 ? (
                                             <tr>
-                                                <td colSpan="7" className="p-8 text-center text-slate-400">
+                                                <td colSpan="7" className="p-8 text-center text-slate-500">
                                                     Belum ada data cabang.
                                                 </td>
                                             </tr>
                                         ) : branches.map(b => (
                                             <tr key={b.id} className="hover:bg-slate-50">
-                                                <td className="p-4 pl-6 font-mono text-slate-400">{b.id}</td>
+                                                <td className="p-4 pl-6 font-mono text-slate-500">{b.id}</td>
                                                 <td className="p-4 font-bold text-slate-800">{b.name}</td>
                                                 <td className="p-4 text-slate-600">{b.address || '-'}</td>
                                                 <td className="p-4">
                                                     <div className="flex items-center gap-2">
                                                         {b.image_path ? (
                                                             <a href={b.image_path} target="_blank" rel="noopener noreferrer">
-                                                                <img src={b.image_path} alt="Foto Cabang" className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:scale-110 transition-transform" />
+                                                                <img loading="lazy" src={b.image_path} alt="Foto Cabang" className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:scale-110 transition-transform" />
                                                             </a>
-                                                        ) : <span className="text-xs text-slate-400">No Image</span>}
+                                                        ) : <span className="text-xs text-slate-500">No Image</span>}
                                                         
                                                         {b.video_path && (
                                                             <a href={b.video_path} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors" title="Lihat Video">
@@ -2014,8 +2014,8 @@ export default function Dashboard() {
                                                 </td>
                                                 <td className="p-4"><span className={`px-2.5 py-0.5 border text-xs rounded-full font-semibold ${b.status === 'active' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-800 border-slate-200'}`}>{b.status === 'active' ? 'Aktif' : 'Tidak Aktif'}</span></td>
                                                 <td className="p-4 pr-6 flex gap-2">
-                                                    <button onClick={() => setEditBranch({ ...b, image: null, video: null, remove_image: false, remove_video: false })} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-bold text-xs">Edit</button>
-                                                    <button onClick={() => handleDeleteBranch(b.id)} className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold text-xs">Hapus</button>
+                                                    <button aria-label="Action Button"  onClick={() => setEditBranch({ ...b, image: null, video: null, remove_image: false, remove_video: false })} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-bold text-xs">Edit</button>
+                                                    <button aria-label="Action Button"  onClick={() => handleDeleteBranch(b.id)} className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold text-xs">Hapus</button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -2029,7 +2029,7 @@ export default function Dashboard() {
                                     <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 max-w-2xl w-full shadow-2xl shadow-emerald-900/20 border border-white/60 max-h-[90vh] overflow-y-auto">
                                         <div className="flex justify-between items-center mb-6">
                                             <h3 className="font-extrabold text-2xl text-slate-800 dark:text-white tracking-tight">Edit Cabang Kos</h3>
-                                            <button onClick={() => setEditBranch(null)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
+                                            <button aria-label="Action Button"  onClick={() => setEditBranch(null)} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
                                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                             </button>
                                         </div>
@@ -2091,15 +2091,15 @@ export default function Dashboard() {
                                                 </h4>
                                                 <div className="grid md:grid-cols-2 gap-6">
                                                     <div className="space-y-2">
-                                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Foto Cabang</label>
+                                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 block">Foto Cabang</label>
                                                 {(editBranch.image_path || editBranch.image) && !editBranch.remove_image && (
                                                     <div className="relative group w-24 h-16 rounded-xl overflow-hidden border border-slate-200 mb-2">
                                                         {editBranch.image ? (
-                                                            <img src={URL.createObjectURL(editBranch.image)} alt="new" className="w-full h-full object-cover" />
+                                                            <img loading="lazy" src={URL.createObjectURL(editBranch.image)} alt="new" className="w-full h-full object-cover" />
                                                         ) : (
-                                                            <img src={editBranch.image_path} alt="existing" className="w-full h-full object-cover" />
+                                                            <img loading="lazy" src={editBranch.image_path} alt="existing" className="w-full h-full object-cover" />
                                                         )}
-                                                        <button type="button" onClick={() => {
+                                                        <button aria-label="Action Button"  type="button" onClick={() => {
                                                             if (editBranch.image) setEditBranch({...editBranch, image: null});
                                                             else setEditBranch({...editBranch, remove_image: true});
                                                         }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
@@ -2121,7 +2121,7 @@ export default function Dashboard() {
                                                              (editBranch.image_path && <span className="text-slate-500">Ada foto tersimpan</span>)}
                                                         </span>
                                                         {editBranch.image_path && !editBranch.remove_image && (
-                                                            <button type="button" onClick={() => setEditBranch({...editBranch, remove_image: true, image: null})} className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors">
+                                                            <button aria-label="Action Button"  type="button" onClick={() => setEditBranch({...editBranch, remove_image: true, image: null})} className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors">
                                                                 Hapus Foto
                                                             </button>
                                                         )}
@@ -2129,12 +2129,12 @@ export default function Dashboard() {
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Video Cabang (Opsional)</label>
+                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 block">Video Cabang (Opsional)</label>
 
                                                 {(editBranch.video_path || editBranch.video) && !editBranch.remove_video && (
                                                     <div className="relative group w-24 h-16 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center mb-2">
-                                                        <svg className={`w-8 h-8 ${editBranch.video ? 'text-emerald-400' : 'text-slate-400'}`} fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                        <button type="button" onClick={() => {
+                                                        <svg className={`w-8 h-8 ${editBranch.video ? 'text-emerald-400' : 'text-slate-500'}`} fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                        <button aria-label="Action Button"  type="button" onClick={() => {
                                                             if (editBranch.video) setEditBranch({...editBranch, video: null});
                                                             else setEditBranch({...editBranch, remove_video: true});
                                                         }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
@@ -2156,7 +2156,7 @@ export default function Dashboard() {
                                                              (editBranch.video_path && <span className="text-slate-500">Ada video tersimpan</span>)}
                                                         </span>
                                                         {editBranch.video_path && !editBranch.remove_video && (
-                                                            <button type="button" onClick={() => setEditBranch({...editBranch, remove_video: true, video: null})} className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors">
+                                                            <button aria-label="Action Button"  type="button" onClick={() => setEditBranch({...editBranch, remove_video: true, video: null})} className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors">
                                                                 Hapus Video
                                                             </button>
                                                         )}
@@ -2166,8 +2166,8 @@ export default function Dashboard() {
                                             </div>
                                             </div>
                                             <div className="flex justify-end gap-4 pt-4 border-t border-slate-100">
-                                                <button type="button" onClick={() => setEditBranch(null)} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all">Batal</button>
-                                                <button type="submit" className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:-translate-y-0.5 transition-all">Simpan Perubahan</button>
+                                                <button aria-label="Action Button"  type="button" onClick={() => setEditBranch(null)} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all">Batal</button>
+                                                <button aria-label="Action Button"  type="submit" className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:-translate-y-0.5 transition-all">Simpan Perubahan</button>
                                             </div>
                                         </form>
                                     </div>
@@ -2300,15 +2300,15 @@ export default function Dashboard() {
                                         </h4>
                                         <div className="grid md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Upload Foto Kamar (Bisa lebih dari 1)</label>
+                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 block mb-2">Upload Foto Kamar (Bisa lebih dari 1)</label>
                                             
                                             {/* Previews */}
                                             {newRoom.photos?.length > 0 && (
                                                 <div className="flex flex-wrap gap-2 mb-2">
                                                     {Array.from(newRoom.photos).map((file, idx) => (
                                                         <div key={`new-photo-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200">
-                                                            <img src={URL.createObjectURL(file)} alt="new" className="w-full h-full object-cover" />
-                                                            <button type="button" onClick={() => setNewRoom({...newRoom, photos: Array.from(newRoom.photos).filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
+                                                            <img loading="lazy" src={URL.createObjectURL(file)} alt="new" className="w-full h-full object-cover" />
+                                                            <button aria-label="Action Button"  type="button" onClick={() => setNewRoom({...newRoom, photos: Array.from(newRoom.photos).filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2326,7 +2326,7 @@ export default function Dashboard() {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Upload Video (Opsional, max 20MB)</label>
+                                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 block">Upload Video (Opsional, max 20MB)</label>
                                             
                                             {/* Previews */}
                                             {newRoom.videos?.length > 0 && (
@@ -2334,7 +2334,7 @@ export default function Dashboard() {
                                                     {Array.from(newRoom.videos).map((file, idx) => (
                                                         <div key={`new-video-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 flex items-center justify-center">
                                                             <svg className="w-8 h-8 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                            <button type="button" onClick={() => setNewRoom({...newRoom, videos: Array.from(newRoom.videos).filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
+                                                            <button aria-label="Action Button"  type="button" onClick={() => setNewRoom({...newRoom, videos: Array.from(newRoom.videos).filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2354,7 +2354,7 @@ export default function Dashboard() {
                                     </div>
                                     </div>
                                     <div className="flex justify-end pt-4 mt-2 border-t border-slate-100">
-                                        <button type="submit" className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">
+                                        <button aria-label="Action Button"  type="submit" className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">
                                             Simpan Kamar Baru
                                         </button>
                                     </div>
@@ -2396,7 +2396,7 @@ export default function Dashboard() {
                                     <tbody className="divide-y divide-slate-100 text-sm">
                                         {visibleRooms.length === 0 ? (
                                             <tr>
-                                                <td colSpan="8" className="p-8 text-center text-slate-400">
+                                                <td colSpan="8" className="p-8 text-center text-slate-500">
                                                     Belum ada data kamar.
                                                 </td>
                                             </tr>
@@ -2410,9 +2410,9 @@ export default function Dashboard() {
                                                     <div className="flex items-center gap-2">
                                                         {room.photos && room.photos.length > 0 ? (
                                                             <a href={room.photos[0]} target="_blank" rel="noopener noreferrer">
-                                                                <img src={room.photos[0]} alt={`Kamar ${room.room_number}`} className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:scale-110 transition-transform" />
+                                                                <img loading="lazy" src={room.photos[0]} alt={`Kamar ${room.room_number}`} className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:scale-110 transition-transform" />
                                                             </a>
-                                                        ) : <span className="text-xs text-slate-400">No Image</span>}
+                                                        ) : <span className="text-xs text-slate-500">No Image</span>}
                                                         
                                                         {room.videos && room.videos.length > 0 && room.videos.map((vid, idx) => (
                                                             <a key={`vid-${idx}`} href={vid} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors" title={`Lihat Video ${idx+1}`}>
@@ -2446,7 +2446,7 @@ export default function Dashboard() {
                                                         </span>
                                                         
                                                         {room.status === 'cleaning' && ['super_admin', 'operator'].includes(currentRole) && (
-                                                            <button
+                                                            <button aria-label="Action Button" 
                                                                 onClick={() => handleFinishCleaning(room.id)}
                                                                 className="text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded-lg transition-colors"
                                                             >
@@ -2458,11 +2458,11 @@ export default function Dashboard() {
                                                 <td className="p-4 pr-6 flex gap-2">
                                                     {currentRole === 'super_admin' ? (
                                                         <>
-                                                            <button onClick={() => setEditRoom({ ...room, facilities: room.facilities.join(', '), existing_photos: room.photos || [], existing_videos: room.videos || [], new_photos: [], new_videos: [] })} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-bold text-xs">Edit</button>
-                                                            <button onClick={() => handleDeleteRoom(room.id)} className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold text-xs">Hapus</button>
+                                                            <button aria-label="Action Button"  onClick={() => setEditRoom({ ...room, facilities: room.facilities.join(', '), existing_photos: room.photos || [], existing_videos: room.videos || [], new_photos: [], new_videos: [] })} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-bold text-xs">Edit</button>
+                                                            <button aria-label="Action Button"  onClick={() => handleDeleteRoom(room.id)} className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold text-xs">Hapus</button>
                                                         </>
                                                     ) : (
-                                                        <span className="text-xs text-slate-400 italic">Read-only</span>
+                                                        <span className="text-xs text-slate-500 italic">Read-only</span>
                                                     )}
                                                 </td>
                                             </tr>
@@ -2477,7 +2477,7 @@ export default function Dashboard() {
                                     <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 max-w-4xl w-full shadow-2xl shadow-emerald-900/20 border border-white/60 max-h-[90vh] overflow-y-auto">
                                         <div className="flex justify-between items-center mb-6">
                                             <h3 className="font-extrabold text-2xl text-slate-800 dark:text-white tracking-tight">Edit Kamar</h3>
-                                            <button onClick={() => setEditRoom(null)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
+                                            <button aria-label="Action Button"  onClick={() => setEditRoom(null)} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
                                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                             </button>
                                         </div>
@@ -2604,21 +2604,21 @@ export default function Dashboard() {
                                                 </h4>
                                                 <div className="grid md:grid-cols-2 gap-6">
                                                     <div className="space-y-2">
-                                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Upload Foto (Opsional, menambahkan ke foto lama)</label>
+                                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 block">Upload Foto (Opsional, menambahkan ke foto lama)</label>
                                                 
                                                 {/* Previews */}
                                                 {(editRoom.existing_photos?.length > 0 || editRoom.new_photos?.length > 0) && (
                                                     <div className="flex flex-wrap gap-2 mb-2">
                                                         {editRoom.existing_photos?.map((url, idx) => (
                                                             <div key={`exist-photo-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-slate-200">
-                                                                <img src={url} alt="existing" className="w-full h-full object-cover" />
-                                                                <button type="button" onClick={() => setEditRoom({...editRoom, existing_photos: editRoom.existing_photos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
+                                                                <img loading="lazy" src={url} alt="existing" className="w-full h-full object-cover" />
+                                                                <button aria-label="Action Button"  type="button" onClick={() => setEditRoom({...editRoom, existing_photos: editRoom.existing_photos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                             </div>
                                                         ))}
                                                         {editRoom.new_photos?.map((file, idx) => (
                                                             <div key={`new-photo-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200">
-                                                                <img src={URL.createObjectURL(file)} alt="new" className="w-full h-full object-cover" />
-                                                                <button type="button" onClick={() => setEditRoom({...editRoom, new_photos: editRoom.new_photos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
+                                                                <img loading="lazy" src={URL.createObjectURL(file)} alt="new" className="w-full h-full object-cover" />
+                                                                <button aria-label="Action Button"  type="button" onClick={() => setEditRoom({...editRoom, new_photos: editRoom.new_photos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -2636,21 +2636,21 @@ export default function Dashboard() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Upload Video (Opsional, menambahkan ke video lama)</label>
+                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 block">Upload Video (Opsional, menambahkan ke video lama)</label>
 
                                                 {/* Previews */}
                                                 {(editRoom.existing_videos?.length > 0 || editRoom.new_videos?.length > 0) && (
                                                     <div className="flex flex-wrap gap-2 mb-2">
                                                         {editRoom.existing_videos?.map((url, idx) => (
                                                             <div key={`exist-video-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
-                                                                <svg className="w-8 h-8 text-slate-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                                <button type="button" onClick={() => setEditRoom({...editRoom, existing_videos: editRoom.existing_videos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
+                                                                <svg className="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                                <button aria-label="Action Button"  type="button" onClick={() => setEditRoom({...editRoom, existing_videos: editRoom.existing_videos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                             </div>
                                                         ))}
                                                         {editRoom.new_videos?.map((file, idx) => (
                                                             <div key={`new-video-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 flex items-center justify-center">
                                                                 <svg className="w-8 h-8 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                                <button type="button" onClick={() => setEditRoom({...editRoom, new_videos: editRoom.new_videos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
+                                                                <button aria-label="Action Button"  type="button" onClick={() => setEditRoom({...editRoom, new_videos: editRoom.new_videos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -2670,8 +2670,8 @@ export default function Dashboard() {
                                         </div>
                                     </div>
                                             <div className="flex gap-4 pt-4 border-t border-slate-100 justify-end">
-                                                <button type="button" onClick={() => setEditRoom(null)} className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all">Batal</button>
-                                                <button type="submit" className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">Simpan Perubahan</button>
+                                                <button aria-label="Action Button"  type="button" onClick={() => setEditRoom(null)} className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all">Batal</button>
+                                                <button aria-label="Action Button"  type="submit" className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">Simpan Perubahan</button>
                                             </div>
                                         </form>
                                     </div>
@@ -2703,7 +2703,7 @@ export default function Dashboard() {
                                     return (
                                         <div className="flex flex-col">
                                             <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row gap-4 justify-between items-center">
-                                                <button 
+                                                <button aria-label="Action Button"  
                                                     onClick={() => {
                                                         const headers = ['Tanggal', 'Kamar', 'Deskripsi', 'Nominal'];
                                                         const csvData = visibleTenantPayments.map(f => {
@@ -2739,7 +2739,7 @@ export default function Dashboard() {
                                                         onChange={(e) => setTenantPaymentSearch(e.target.value)} 
                                                         className="glass-input rounded-xl pl-10 pr-4 py-2 text-sm w-full border-slate-200 shadow-sm"
                                                     />
-                                                    <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                                    <svg className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                                 </div>
                                             </div>
                                         <div className="overflow-auto w-full max-h-[700px] relative">
@@ -2769,7 +2769,7 @@ export default function Dashboard() {
                                                 ))}
                                                 {visibleTenantPayments.length === 0 && (
                                                     <tr>
-                                                        <td colSpan="4" className="p-8 text-center text-slate-400">
+                                                        <td colSpan="4" className="p-8 text-center text-slate-500">
                                                             Belum ada riwayat pembayaran yang sesuai.
                                                         </td>
                                                     </tr>
@@ -2783,21 +2783,21 @@ export default function Dashboard() {
                                     <div className="flex flex-col">
                                         <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row gap-4 justify-between items-center">
                                             <div className="flex flex-wrap justify-center sm:justify-start gap-2 w-full sm:w-auto">
-                                                <button 
+                                                <button aria-label="Action Button"  
                                                     onClick={() => setShowManualBookingModal(true)}
                                                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm flex items-center gap-2"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
                                                     Tambah Booking Manual
                                                 </button>
-                                                <button 
+                                                <button aria-label="Action Button"  
                                                     onClick={() => setShowManualPayModal(true)}
                                                     className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm flex items-center gap-2"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                                     Terima Bayar
                                                 </button>
-                                                <button 
+                                                <button aria-label="Action Button"  
                                                     onClick={handleExportCSV}
                                                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm flex items-center gap-2"
                                                 >
@@ -2813,7 +2813,7 @@ export default function Dashboard() {
                                                     onChange={(e) => setBookingSearch(e.target.value)} 
                                                     className="glass-input rounded-xl pl-10 pr-4 py-2 text-sm w-full border-slate-200 shadow-sm"
                                                 />
-                                                <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                                <svg className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                             </div>
                                         </div>
                                         <div className="overflow-auto w-full max-h-[700px] relative">
@@ -2906,7 +2906,7 @@ export default function Dashboard() {
                                                         {['super_admin', 'operator'].includes(currentRole) && (
                                                             <div className="flex flex-wrap gap-2 justify-end items-center">
                                                                 {parseFloat(b.unverified_amount) > 0 && (
-                                                                    <button onClick={() => setShowVerifyPaymentModal(b)} className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg transition-colors animate-pulse shadow-sm shadow-indigo-500/50 flex items-center gap-1.5 whitespace-nowrap">
+                                                                    <button aria-label="Action Button"  onClick={() => setShowVerifyPaymentModal(b)} className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg transition-colors animate-pulse shadow-sm shadow-indigo-500/50 flex items-center gap-1.5 whitespace-nowrap">
                                                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                                         Verifikasi
                                                                     </button>
@@ -2914,13 +2914,13 @@ export default function Dashboard() {
 
                                                                 {/* Primary Actions */}
                                                                 {(b.status === 'active' || b.status === 'pending' || b.payment_status !== 'paid') && (
-                                                                    <button onClick={() => handleSendReminder(b.id)} className={`px-2.5 py-1.5 font-bold text-[11px] rounded-lg transition-colors flex items-center gap-1.5 shadow-sm whitespace-nowrap ${b.payment_status === 'paid' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`} title={b.payment_status === 'paid' ? 'Kirim Notifikasi Batas Sewa' : 'Kirim Reminder Tagihan'}>
+                                                                    <button aria-label="Action Button"  onClick={() => handleSendReminder(b.id)} className={`px-2.5 py-1.5 font-bold text-[11px] rounded-lg transition-colors flex items-center gap-1.5 shadow-sm whitespace-nowrap ${b.payment_status === 'paid' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`} title={b.payment_status === 'paid' ? 'Kirim Notifikasi Batas Sewa' : 'Kirim Reminder Tagihan'}>
                                                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                                                         {b.payment_status === 'paid' ? 'Notif Sewa' : 'Reminder'}
                                                                     </button>
                                                                 )}
 
-                                                                <button onClick={() => setShowInvoiceModal(b)} className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-[11px] rounded-lg transition-colors border border-slate-200 shadow-sm flex items-center gap-1.5 whitespace-nowrap">
+                                                                <button aria-label="Action Button"  onClick={() => setShowInvoiceModal(b)} className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-[11px] rounded-lg transition-colors border border-slate-200 shadow-sm flex items-center gap-1.5 whitespace-nowrap">
                                                                     <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                                                                     Invoice
                                                                 </button>
@@ -2946,7 +2946,7 @@ export default function Dashboard() {
                                                                                 {b.status === 'pending' && (
                                                                                     <Menu.Item>
                                                                                         {({ active }) => (
-                                                                                            <button onClick={() => handleApproveBooking(b.id)} className={`${active ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-bold transition-colors`}>
+                                                                                            <button aria-label="Action Button"  onClick={() => handleApproveBooking(b.id)} className={`${active ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-bold transition-colors`}>
                                                                                                 <svg className="w-4 h-4 mr-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
                                                                                                 Approve Penyewaan
                                                                                             </button>
@@ -2967,7 +2967,7 @@ export default function Dashboard() {
                                                                                     <>
                                                                                         <Menu.Item>
                                                                                             {({ active }) => (
-                                                                                                <button onClick={() => { setShowExtendManualModal(b); setExtendManualData({ duration: 1, payment_status: 'paid', payment_method: 'cash', rental_type: b.rental_type }); setCalendarMonthOffset(0); }} className={`${active ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-semibold transition-colors`}>
+                                                                                                <button aria-label="Action Button"  onClick={() => { setShowExtendManualModal(b); setExtendManualData({ duration: 1, payment_status: 'paid', payment_method: 'cash', rental_type: b.rental_type }); setCalendarMonthOffset(0); }} className={`${active ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-semibold transition-colors`}>
                                                                                                     <svg className="w-4 h-4 mr-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                                                                     Perpanjang Sewa
                                                                                                 </button>
@@ -2976,7 +2976,7 @@ export default function Dashboard() {
                                                                                         <div className="border-t border-slate-100 my-1"></div>
                                                                                         <Menu.Item>
                                                                                             {({ active }) => (
-                                                                                                <button onClick={() => handleCheckoutBooking(b.id)} className={`${active ? 'bg-red-50 text-red-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-bold transition-colors`}>
+                                                                                                <button aria-label="Action Button"  onClick={() => handleCheckoutBooking(b.id)} className={`${active ? 'bg-red-50 text-red-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-bold transition-colors`}>
                                                                                                     <svg className="w-4 h-4 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                                                                                                     Checkout
                                                                                                 </button>
@@ -2990,7 +2990,7 @@ export default function Dashboard() {
                                                                                         <div className="border-t border-slate-100 my-1"></div>
                                                                                         <Menu.Item>
                                                                                             {({ active }) => (
-                                                                                                <button onClick={() => handleDeleteBooking(b.id)} className={`${active ? 'bg-red-50 text-red-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-bold transition-colors`}>
+                                                                                                <button aria-label="Action Button"  onClick={() => handleDeleteBooking(b.id)} className={`${active ? 'bg-red-50 text-red-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-bold transition-colors`}>
                                                                                                     <svg className="w-4 h-4 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                                                                     Hapus Log
                                                                                                 </button>
@@ -3009,7 +3009,7 @@ export default function Dashboard() {
                                             ))}
                                             {paginatedBookings.length === 0 && (
                                                 <tr>
-                                                    <td colSpan="7" className="p-8 text-center text-slate-400">
+                                                    <td colSpan="7" className="p-8 text-center text-slate-500">
                                                         {bookingSearch ? 'Tidak ada transaksi yang cocok dengan pencarian Anda.' : 'Belum ada data penyewaan / transaksi.'}
                                                     </td>
                                                 </tr>
@@ -3023,14 +3023,14 @@ export default function Dashboard() {
                                                 Menampilkan {((bookingPage - 1) * bookingsPerPage) + 1} - {Math.min(bookingPage * bookingsPerPage, visibleBookings.length)} dari {visibleBookings.length} data
                                             </span>
                                             <div className="flex gap-1">
-                                                <button
+                                                <button aria-label="Action Button" 
                                                     onClick={() => setBookingPage(p => Math.max(1, p - 1))}
                                                     disabled={bookingPage === 1}
                                                     className="px-3 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
                                                     Sebelumnya
                                                 </button>
-                                                <button
+                                                <button aria-label="Action Button" 
                                                     onClick={() => setBookingPage(p => Math.min(totalBookingPages, p + 1))}
                                                     disabled={bookingPage === totalBookingPages}
                                                     className="px-3 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -3157,7 +3157,7 @@ export default function Dashboard() {
                                                 placeholder="Detail kendala yang dialami secara lengkap..."
                                             />
                                         </div>
-                                        <button type="submit" className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all">
+                                        <button aria-label="Action Button"  type="submit" className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all">
                                             Ajukan Pengaduan
                                         </button>
                                     </form>
@@ -3179,7 +3179,7 @@ export default function Dashboard() {
                                     <tbody className="divide-y divide-slate-100 text-sm">
                                         {visibleComplaints.length === 0 ? (
                                             <tr>
-                                                <td colSpan="5" className="p-8 text-center text-slate-400">
+                                                <td colSpan="5" className="p-8 text-center text-slate-500">
                                                     Belum ada data komplain.
                                                 </td>
                                             </tr>
@@ -3216,7 +3216,7 @@ export default function Dashboard() {
                                                 </td>
                                                 <td className="p-4 pr-6 text-right">
                                                     {['super_admin', 'operator'].includes(currentRole) && (
-                                                        <button 
+                                                        <button aria-label="Action Button"  
                                                             onClick={() => setComplaintResponse({ id: c.id, status: c.status, admin_response: c.admin_response || '' })}
                                                             className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-md transition-colors"
                                                         >
@@ -3251,7 +3251,7 @@ export default function Dashboard() {
                     <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl border border-white/60 p-6 space-y-4 shadow-2xl shadow-emerald-900/20 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-2">
                             <h3 className="font-extrabold text-xl text-slate-800 tracking-tight">Perbarui Status Komplain</h3>
-                            <button onClick={() => setEditComplaint(null)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
+                            <button aria-label="Action Button"  onClick={() => setEditComplaint(null)} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
@@ -3271,8 +3271,8 @@ export default function Dashboard() {
                                 <textarea required value={complaintResponse.admin_response} onChange={(e) => setComplaintResponse({...complaintResponse, admin_response: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full h-24" placeholder="Tulis instruksi/info ke tenant terkait perbaikan..." />
                             </div>
                             <div className="flex gap-4 pt-4 mt-2 border-t border-slate-100">
-                                <button type="button" onClick={() => setComplaintResponse({ id: null, status: 'processing', admin_response: '' })} className="flex-1 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm border border-slate-200 transition-all">Batal</button>
-                                <button type="submit" className="flex-1 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">Simpan Status</button>
+                                <button aria-label="Action Button"  type="button" onClick={() => setComplaintResponse({ id: null, status: 'processing', admin_response: '' })} className="flex-1 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm border border-slate-200 transition-all">Batal</button>
+                                <button aria-label="Action Button"  type="submit" className="flex-1 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">Simpan Status</button>
                             </div>
                         </form>
                     </div>
@@ -3285,7 +3285,7 @@ export default function Dashboard() {
                     <div className="w-full max-w-sm bg-white/95 backdrop-blur-xl rounded-3xl border border-white/60 p-6 space-y-4 shadow-2xl shadow-emerald-900/20 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-2">
                             <h3 className="font-extrabold text-xl text-slate-800 tracking-tight">Pindah Kamar</h3>
-                            <button onClick={() => setShowMoveRoom(false)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
+                            <button aria-label="Action Button"  onClick={() => setShowMoveRoom(false)} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
@@ -3306,10 +3306,10 @@ export default function Dashboard() {
                                 </select>
                             </div>
                             <div className="flex gap-4 pt-4 mt-2 border-t border-slate-100">
-                                <button type="button" onClick={() => setShowChangeRoomModal(null)} className="flex-1 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm border border-slate-200 transition-all">
+                                <button aria-label="Action Button"  type="button" onClick={() => setShowChangeRoomModal(null)} className="flex-1 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm border border-slate-200 transition-all">
                                     Batal
                                 </button>
-                                <button type="submit" className="flex-1 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">
+                                <button aria-label="Action Button"  type="submit" className="flex-1 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">
                                     Konfirmasi Pindah
                                 </button>
                             </div>
@@ -3324,7 +3324,7 @@ export default function Dashboard() {
                     <div className="w-full max-w-sm bg-white/95 backdrop-blur-xl rounded-3xl border border-white/60 p-6 space-y-4 shadow-2xl shadow-emerald-900/20 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-2">
                             <h3 className="font-extrabold text-xl text-slate-800 tracking-tight">Reschedule Sewa</h3>
-                            <button onClick={() => setShowReschedule(false)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
+                            <button aria-label="Action Button"  onClick={() => setShowReschedule(false)} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
@@ -3351,10 +3351,10 @@ export default function Dashboard() {
                                 />
                             </div>
                             <div className="flex gap-4 pt-4 mt-2 border-t border-slate-100">
-                                <button type="button" onClick={() => setShowRescheduleModal(null)} className="flex-1 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm border border-slate-200 transition-all">
+                                <button aria-label="Action Button"  type="button" onClick={() => setShowRescheduleModal(null)} className="flex-1 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm border border-slate-200 transition-all">
                                     Batal
                                 </button>
-                                <button type="submit" className="flex-1 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">
+                                <button aria-label="Action Button"  type="submit" className="flex-1 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">
                                     Simpan Reschedule
                                 </button>
                             </div>
@@ -3372,7 +3372,7 @@ export default function Dashboard() {
                                 <h3 className="font-extrabold text-2xl text-slate-800 dark:text-white tracking-tight">Verifikasi Pembayaran</h3>
                                 <p className="text-emerald-600 text-xs font-bold tracking-wide uppercase bg-emerald-100/50 px-2.5 py-1 rounded-full mt-1.5 inline-block">Kode: {showVerifyPaymentModal.booking_code}</p>
                             </div>
-                            <button onClick={() => setShowVerifyPaymentModal(null)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
+                            <button aria-label="Action Button"  onClick={() => setShowVerifyPaymentModal(null)} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
@@ -3392,7 +3392,7 @@ export default function Dashboard() {
                                         }
                                         return proofUrl ? (
                                             <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="w-full h-full flex items-center justify-center" title="Klik untuk memperbesar">
-                                                <img 
+                                                <img loading="lazy" 
                                                     src={proofUrl} 
                                                     alt="Bukti Transfer" 
                                                     className="max-w-full max-h-full object-contain cursor-pointer hover:opacity-90 transition-opacity" 
@@ -3400,7 +3400,7 @@ export default function Dashboard() {
                                             </a>
                                         ) : (
                                             <div className="text-center text-slate-500">
-                                                <svg className="w-8 h-8 mx-auto mb-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                <svg className="w-8 h-8 mx-auto mb-2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                                 <span className="text-xs font-medium bg-slate-200 px-2.5 py-1 rounded-md text-slate-600 block">Bukti Tidak Tersedia</span>
                                             </div>
                                         );
@@ -3409,10 +3409,10 @@ export default function Dashboard() {
                             </div>
                         </div>
                         <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex gap-4 justify-end">
-                            <button onClick={() => handleRejectPayment(showVerifyPaymentModal.id)} className="px-6 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl text-sm border border-rose-200 transition-all">
+                            <button aria-label="Action Button"  onClick={() => handleRejectPayment(showVerifyPaymentModal.id)} className="px-6 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl text-sm border border-rose-200 transition-all">
                                 Tolak
                             </button>
-                            <button onClick={() => handleVerifyPayment(showVerifyPaymentModal.id)} className="px-8 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">
+                            <button aria-label="Action Button"  onClick={() => handleVerifyPayment(showVerifyPaymentModal.id)} className="px-8 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">
                                 Setujui Pembayaran
                             </button>
                         </div>
@@ -3429,7 +3429,7 @@ export default function Dashboard() {
                                 <h3 className="font-extrabold text-2xl text-slate-800 dark:text-white tracking-tight">Terima Pembayaran Manual</h3>
                                 <p className="text-emerald-600 text-xs font-bold tracking-wide uppercase bg-emerald-100/50 px-2.5 py-1 rounded-full mt-1.5 inline-block">Penghuni Belum Lunas</p>
                             </div>
-                            <button onClick={closeManualPayModal} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
+                            <button aria-label="Action Button"  onClick={closeManualPayModal} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
@@ -3441,7 +3441,7 @@ export default function Dashboard() {
                                     Pilih Penghuni
                                 </h4>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Pilih Penghuni / Kamar *</label>
+                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 block mb-2">Pilih Penghuni / Kamar *</label>
                                     <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
                                         {bookings.filter(b => ['unpaid', 'dp'].includes(b.payment_status) && parseFloat(b.unverified_amount || 0) === 0).length === 0 ? (
                                             <div className="p-3 text-center text-sm text-slate-500 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">Tidak ada penghuni yang belum lunas.</div>
@@ -3464,7 +3464,7 @@ export default function Dashboard() {
                                                         <p className="text-xs text-slate-500">Kamar {b.room?.room_number}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="text-[10px] text-slate-400 uppercase font-semibold">Sisa Tagihan</p>
+                                                        <p className="text-[10px] text-slate-500 uppercase font-semibold">Sisa Tagihan</p>
                                                         <p className="font-bold text-rose-600 text-sm">Rp {Math.max(0, parseFloat(b.total_amount) - parseFloat(b.paid_amount || 0)).toLocaleString('id-ID')}</p>
                                                     </div>
                                                 </div>
@@ -3495,7 +3495,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <div className="pt-4 mt-2 border-t border-slate-100 flex justify-end">
-                                <button type="submit" disabled={!manualPayData.booking_id} className={`px-8 py-3 text-white font-bold rounded-xl text-sm shadow-lg transition-all ${manualPayData.booking_id ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5' : 'bg-slate-300 cursor-not-allowed'}`}>
+                                <button aria-label="Action Button"  type="submit" disabled={!manualPayData.booking_id} className={`px-8 py-3 text-white font-bold rounded-xl text-sm shadow-lg transition-all ${manualPayData.booking_id ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5' : 'bg-slate-300 cursor-not-allowed'}`}>
                                     Simpan Pembayaran
                                 </button>
                             </div>
@@ -3508,7 +3508,7 @@ export default function Dashboard() {
             {showInvoiceModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md overflow-y-auto print:absolute print:inset-0 print:bg-white print:p-0 print:block" style={{ animation: 'modalIn 0.3s ease' }}>
                     <div className="w-full max-w-lg bg-white/95 backdrop-blur-xl rounded-3xl p-8 border border-white/60 shadow-2xl shadow-emerald-900/20 max-h-[90vh] overflow-y-auto text-slate-900 relative print:max-w-none print:w-full print:shadow-none print:border-none print:rounded-none print:bg-white print:p-12 print:max-h-none print:overflow-visible">
-                        <button onClick={() => setShowInvoiceModal(null)} className="absolute top-4 right-4 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90 print:hidden">
+                        <button aria-label="Action Button"  onClick={() => setShowInvoiceModal(null)} className="absolute top-4 right-4 text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90 print:hidden">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
                         {/* Printable Area */}
@@ -3516,28 +3516,28 @@ export default function Dashboard() {
                             {/* Invoice Header */}
                             <div className="flex justify-between items-start border-b border-slate-200 pb-5">
                                 <div>
-                                    <img src="/images/logo 1.jpeg" alt="KOSPART Logo" className="h-16 w-auto mb-3 object-contain rounded-xl" />
+                                    <img loading="lazy" src="/images/logo 1.jpeg" alt="KOSPART Logo" className="h-16 w-auto mb-3 object-contain rounded-xl" />
                                     <h2 className="font-extrabold text-2xl tracking-tight text-emerald-800 uppercase">KOSPART PH 18</h2>
                                     <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Nota Invoice Tagihan Kos</span>
-                                    <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] leading-relaxed">{showInvoiceModal.room.branch.name}<br />{showInvoiceModal.room.branch.address}</p>
+                                    <p className="text-[10px] text-slate-500 mt-1 max-w-[200px] leading-relaxed">{showInvoiceModal.room.branch.name}<br />{showInvoiceModal.room.branch.address}</p>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-xs text-slate-400 uppercase font-semibold">Nomor Invoice</span>
+                                    <span className="text-xs text-slate-500 uppercase font-semibold">Nomor Invoice</span>
                                     <span className="block font-mono font-bold text-sm text-slate-800">{showInvoiceModal.booking_code}</span>
-                                    <span className="text-[10px] text-slate-400 block mt-2">Dibuat: {new Date(showInvoiceModal.created_at).toLocaleDateString('id-ID')}</span>
+                                    <span className="text-[10px] text-slate-500 block mt-2">Dibuat: {new Date(showInvoiceModal.created_at).toLocaleDateString('id-ID')}</span>
                                 </div>
                             </div>
 
                             {/* Details Row */}
                             <div className="grid grid-cols-2 gap-4 text-xs">
                                 <div>
-                                    <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px] print:text-slate-500">Ditagihkan Kepada:</span>
+                                    <span className="text-slate-500 font-bold block uppercase tracking-wider text-[10px] print:text-slate-500">Ditagihkan Kepada:</span>
                                     <strong className="text-slate-800 text-sm block mt-1 print:text-black">{showInvoiceModal.tenant.name}</strong>
                                     <span className="text-slate-500 block print:text-slate-600">{showInvoiceModal.tenant.email}</span>
                                     <span className="text-slate-500 block print:text-slate-600">{showInvoiceModal.tenant.phone}</span>
                                 </div>
                                 <div>
-                                    <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px] print:text-slate-500">Rincian Hunian:</span>
+                                    <span className="text-slate-500 font-bold block uppercase tracking-wider text-[10px] print:text-slate-500">Rincian Hunian:</span>
                                     <strong className="text-slate-800 text-sm block mt-1 print:text-black">Kamar {showInvoiceModal.room.room_number} ({showInvoiceModal.rental_type === 'daily' ? 'Harian' : (showInvoiceModal.rental_type === 'weekly' ? 'Mingguan' : (showInvoiceModal.rental_type === 'monthly' ? 'Bulanan' : 'Tahunan'))})</strong>
                                     <span className="text-slate-500 block print:text-slate-600">Check-in: {new Date(showInvoiceModal.start_date).toLocaleDateString('id-ID')}</span>
                                     <span className="text-slate-500 block print:text-slate-600">Check-out: {new Date(showInvoiceModal.end_date).toLocaleDateString('id-ID')}</span>
@@ -3656,19 +3656,19 @@ export default function Dashboard() {
                                     <div className="bg-slate-900 text-white font-mono text-[9px] tracking-[6px] px-3 py-1.5 inline-block">
                                         *KP-{showInvoiceModal.booking_code.substring(3, 9)}*
                                     </div>
-                                    <span className="text-[8px] text-slate-400 uppercase tracking-widest block">Verifikasi Invoice Asli</span>
+                                    <span className="text-[8px] text-slate-500 uppercase tracking-widest block">Verifikasi Invoice Asli</span>
                                 </div>
                                 <div className="text-right space-y-1.5 text-xs">
                                     <div>
-                                        <span className="text-slate-400 font-semibold uppercase text-[10px] mr-4">Total Biaya:</span>
+                                        <span className="text-slate-500 font-semibold uppercase text-[10px] mr-4">Total Biaya:</span>
                                         <strong className="font-mono text-slate-800">Rp {parseFloat(showInvoiceModal.total_amount).toLocaleString('id-ID')}</strong>
                                     </div>
                                     <div>
-                                        <span className="text-slate-400 font-semibold uppercase text-[10px] mr-4">Telah Dibayar:</span>
+                                        <span className="text-slate-500 font-semibold uppercase text-[10px] mr-4">Telah Dibayar:</span>
                                         <strong className="font-mono text-emerald-600">Rp {parseFloat(showInvoiceModal.paid_amount).toLocaleString('id-ID')}</strong>
                                     </div>
                                     <div className="border-t border-slate-200 pt-1">
-                                        <span className="text-slate-400 font-bold uppercase text-[10px] mr-4">Status Tagihan:</span>
+                                        <span className="text-slate-500 font-bold uppercase text-[10px] mr-4">Status Tagihan:</span>
                                         <span className={`px-2 py-0.5 font-bold uppercase text-[9px] rounded ${
                                             showInvoiceModal.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-800' :
                                             showInvoiceModal.payment_status === 'unpaid' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
@@ -3682,8 +3682,8 @@ export default function Dashboard() {
 
                         {/* Control Buttons */}
                         <div className="flex justify-end gap-4 border-t border-slate-200 pt-6 mt-6 print:hidden">
-                            <button onClick={() => setShowInvoiceModal(null)} className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition-all">Tutup Invoice</button>
-                            <button onClick={() => window.print()} className="px-8 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white flex items-center justify-center gap-2">
+                            <button aria-label="Action Button"  onClick={() => setShowInvoiceModal(null)} className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition-all">Tutup Invoice</button>
+                            <button aria-label="Action Button"  onClick={() => window.print()} className="px-8 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white flex items-center justify-center gap-2">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                 Cetak / Simpan PDF
                             </button>
@@ -3722,7 +3722,7 @@ export default function Dashboard() {
                                 {paymentErrors?.paid_amount && <p className="text-red-500 text-xs mt-1 font-medium">{paymentErrors.paid_amount[0]}</p>}
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Bukti Pembayaran / Transfer</label>
+                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 mb-1 block">Bukti Pembayaran / Transfer</label>
                                 <DragDropZone
                                     accept="image/*,video/*"
                                     label="Tarik & Lepas Bukti (Maks 10MB)"
@@ -3733,8 +3733,8 @@ export default function Dashboard() {
                                 {paymentErrors?.payment_proof && <p className="text-red-500 text-xs mt-1 font-medium">{paymentErrors.payment_proof[0]}</p>}
                             </div>
                             <div className="flex gap-3 pt-1">
-                                <button type="button" onClick={() => { setShowPaymentModal(null); setPaymentErrors({}); }} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm border border-slate-200 transition-all">Batal</button>
-                                <button type="submit" className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm shadow-md shadow-emerald-700/20 transition-all">Konfirmasi Bayar</button>
+                                <button aria-label="Action Button"  type="button" onClick={() => { setShowPaymentModal(null); setPaymentErrors({}); }} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm border border-slate-200 transition-all">Batal</button>
+                                <button aria-label="Action Button"  type="submit" className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm shadow-md shadow-emerald-700/20 transition-all">Konfirmasi Bayar</button>
                             </div>
                         </form>
                     </div>
@@ -3811,7 +3811,7 @@ export default function Dashboard() {
                         <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-emerald-900/20 w-full max-w-sm overflow-hidden border border-white/60 max-h-[90vh] overflow-y-auto">
                             <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100/50 flex justify-between items-center">
                                 <h3 className="font-extrabold text-slate-800 dark:text-white text-2xl tracking-tight">Perpanjang Sewa</h3>
-                                <button onClick={() => { setShowExtendTenantModal(false); setExtendType(''); setCalendarMonthOffset(0); }} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
+                                <button aria-label="Action Button"  onClick={() => { setShowExtendTenantModal(false); setExtendType(''); setCalendarMonthOffset(0); }} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
                             </div>
@@ -3870,9 +3870,9 @@ export default function Dashboard() {
                                         <div className="flex items-center gap-2">
                                             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider hidden sm:block">Kalender</h4>
                                             <div className="flex bg-slate-100 rounded-md p-0.5">
-                                                <button type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(c => c - 1); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded shadow-sm text-xs font-bold transition-all">&lt;</button>
-                                                <button type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(0); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 text-[10px] font-bold transition-all">Hari Ini</button>
-                                                <button type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(c => c + 1); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded shadow-sm text-xs font-bold transition-all">&gt;</button>
+                                                <button aria-label="Action Button"  type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(c => c - 1); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded shadow-sm text-xs font-bold transition-all">&lt;</button>
+                                                <button aria-label="Action Button"  type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(0); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 text-[10px] font-bold transition-all">Hari Ini</button>
+                                                <button aria-label="Action Button"  type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(c => c + 1); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded shadow-sm text-xs font-bold transition-all">&gt;</button>
                                             </div>
                                         </div>
                                         <div className="flex gap-2 text-[9px] font-medium hidden sm:flex">
@@ -3903,7 +3903,7 @@ export default function Dashboard() {
                                                     if(isWeekend && currentType === 'daily') bgClass = "bg-orange-300 text-orange-900 border-orange-400 font-bold";
                                                     else bgClass = "bg-emerald-200 text-emerald-900 border-emerald-300 font-bold";
                                                 } else if (isOtherMonth) {
-                                                    bgClass = "bg-slate-50/50 text-slate-400 border-transparent";
+                                                    bgClass = "bg-slate-50/50 text-slate-500 border-transparent";
                                                 }
 
                                                 const handleDateClick = () => {
@@ -3932,7 +3932,7 @@ export default function Dashboard() {
                                 </div>
 
                                 <div className="pt-2 border-t border-slate-100 flex justify-end mt-4">
-                                    <button type="submit" className="px-8 py-3 text-white font-bold rounded-xl text-sm shadow-lg transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 w-full">
+                                    <button aria-label="Action Button"  type="submit" className="px-8 py-3 text-white font-bold rounded-xl text-sm shadow-lg transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 w-full">
                                         Konfirmasi Perpanjangan
                                     </button>
                                 </div>
@@ -3946,7 +3946,7 @@ export default function Dashboard() {
                     <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-emerald-900/20 w-full max-w-lg overflow-hidden border border-white/60 my-8">
                         <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100/50 flex justify-between items-center">
                             <h3 className="font-extrabold text-slate-800 dark:text-white text-2xl tracking-tight">Booking Manual</h3>
-                            <button onClick={closeManualBookingModal} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
+                            <button aria-label="Action Button"  onClick={closeManualBookingModal} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
@@ -3958,7 +3958,7 @@ export default function Dashboard() {
                                     Pilih Kamar Sewa
                                 </h4>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Pilih Kamar *</label>
+                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 block mb-2">Pilih Kamar *</label>
                                     <div className="grid grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-1">
                                         {rooms.filter(r => r.status === 'available').length === 0 ? (
                                             <div className="col-span-2 p-4 text-center text-sm text-slate-500 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">Tidak ada kamar tersedia.</div>
@@ -4047,7 +4047,7 @@ export default function Dashboard() {
                                         <input type="text" required placeholder="16 digit NIK" minLength="16" maxLength="16" value={manualBookingData.nik} onChange={(e) => setManualBookingData({...manualBookingData, nik: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900/50 dark:text-white dark:border-slate-700/50 text-sm" />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Foto KTP *</label>
+                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-500 mb-1 block">Foto KTP *</label>
                                         <DragDropZone
                                             accept="image/*"
                                             label="Tarik & Lepas Foto KTP"
@@ -4111,8 +4111,8 @@ export default function Dashboard() {
                             })()}
 
                             <div className="pt-6 flex gap-4 mt-2 border-t border-slate-100">
-                                <button type="button" onClick={closeManualBookingModal} className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition-all">Batal</button>
-                                <button type="submit" className="flex-1 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">Simpan Booking</button>
+                                <button aria-label="Action Button"  type="button" onClick={closeManualBookingModal} className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition-all">Batal</button>
+                                <button aria-label="Action Button"  type="submit" className="flex-1 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">Simpan Booking</button>
                             </div>
                         </form>
                     </div>
@@ -4121,7 +4121,7 @@ export default function Dashboard() {
 
             {/* Floating button to stop annoying canteen ringtone manually */}
             {isCanteenRingtonePlaying && (
-                <button
+                <button aria-label="Action Button" 
                     onClick={stopCanteenRingtone}
                     className="fixed bottom-6 right-6 z-50 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(220,38,38,0.5)] animate-bounce flex items-center gap-2"
                 >
@@ -4199,7 +4199,7 @@ export default function Dashboard() {
                         <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-emerald-900/20 w-full max-w-sm overflow-hidden border border-white/60 max-h-[90vh] overflow-y-auto">
                             <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100/50 flex justify-between items-center">
                                 <h3 className="font-extrabold text-slate-800 dark:text-white text-2xl tracking-tight">Perpanjang Sewa</h3>
-                                <button onClick={() => { setShowExtendManualModal(null); setCalendarMonthOffset(0); }} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
+                                <button aria-label="Action Button"  onClick={() => { setShowExtendManualModal(null); setCalendarMonthOffset(0); }} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
                             </div>
@@ -4285,9 +4285,9 @@ export default function Dashboard() {
                                         <div className="flex items-center gap-2">
                                             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider hidden sm:block">Kalender</h4>
                                             <div className="flex bg-slate-100 rounded-md p-0.5">
-                                                <button type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(c => c - 1); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded shadow-sm text-xs font-bold transition-all">&lt;</button>
-                                                <button type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(0); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 text-[10px] font-bold transition-all">Hari Ini</button>
-                                                <button type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(c => c + 1); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded shadow-sm text-xs font-bold transition-all">&gt;</button>
+                                                <button aria-label="Action Button"  type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(c => c - 1); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded shadow-sm text-xs font-bold transition-all">&lt;</button>
+                                                <button aria-label="Action Button"  type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(0); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 text-[10px] font-bold transition-all">Hari Ini</button>
+                                                <button aria-label="Action Button"  type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(c => c + 1); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded shadow-sm text-xs font-bold transition-all">&gt;</button>
                                             </div>
                                         </div>
                                         <div className="flex gap-2 text-[9px] font-medium hidden sm:flex">
@@ -4317,7 +4317,7 @@ export default function Dashboard() {
                                                     if(isWeekend && currentType === 'daily') bgClass = "bg-orange-300 text-orange-900 border-orange-400 font-bold";
                                                     else bgClass = "bg-emerald-200 text-emerald-900 border-emerald-300 font-bold";
                                                 } else if (isOtherMonth) {
-                                                    bgClass = "bg-slate-50/50 text-slate-400 border-transparent";
+                                                    bgClass = "bg-slate-50/50 text-slate-500 border-transparent";
                                                 }
 
                                                 return (
@@ -4337,10 +4337,10 @@ export default function Dashboard() {
                                 </div>
 
                                 <div className="pt-2 border-t border-slate-100 flex justify-end mt-4 gap-3">
-                                    <button type="button" onClick={() => setShowExtendManualModal(null)} className="px-6 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm transition-all hover:bg-slate-200">
+                                    <button aria-label="Action Button"  type="button" onClick={() => setShowExtendManualModal(null)} className="px-6 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm transition-all hover:bg-slate-200">
                                         Batal
                                     </button>
-                                    <button type="submit" disabled={isProcessing} className="flex-1 py-3 text-white font-bold rounded-xl text-sm shadow-lg transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed">
+                                    <button aria-label="Action Button"  type="submit" disabled={isProcessing} className="flex-1 py-3 text-white font-bold rounded-xl text-sm shadow-lg transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed">
                                         {isProcessing ? 'Memproses...' : 'Simpan Perpanjangan'}
                                     </button>
                                 </div>
@@ -4360,8 +4360,8 @@ export default function Dashboard() {
                         <h3 className="text-lg font-extrabold text-slate-800 mb-2">Konfirmasi Aksi</h3>
                         <p className="text-sm text-slate-500 mb-6 leading-relaxed">{confirmDialog.message}</p>
                         <div className="flex w-full gap-3">
-                            <button onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all">Batal</button>
-                            <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ ...confirmDialog, isOpen: false }); }} className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-amber-500/30">Ya, Lanjutkan</button>
+                            <button aria-label="Action Button"  onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all">Batal</button>
+                            <button aria-label="Action Button"  onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ ...confirmDialog, isOpen: false }); }} className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-amber-500/30">Ya, Lanjutkan</button>
                         </div>
                     </div>
                 </div>

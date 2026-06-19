@@ -36,6 +36,9 @@ class RegisteredUserController extends Controller
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'phone' => 'required|string|max:20|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ], [
+            'phone.unique' => 'Nomor WhatsApp ini sudah terdaftar. Silakan gunakan nomor lain atau login jika Anda sudah memiliki akun.',
+            'email.unique' => 'Email ini sudah terdaftar.',
         ]);
 
         $user = User::create([

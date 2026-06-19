@@ -92,7 +92,7 @@ export default function UpdateProfileInformation({
                 )}
 
                 <div className="flex items-center gap-4 pt-2">
-                    <button type="submit" disabled={processing} className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 disabled:opacity-50">
+                    <button aria-label="Action Button"  type="submit" disabled={processing} className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-700/20 disabled:opacity-50">
                         Simpan Perubahan
                     </button>
 
