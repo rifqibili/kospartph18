@@ -218,7 +218,9 @@ export default function Dashboard() {
 
     // Trigger dummy/simulation notifications (real-time popups)
     const triggerSimulationNotification = (type) => {
-        playNotificationSound();
+        if (type === 'payment') {
+            playNotificationSound();
+        }
         let toast = {};
         if (type === 'unpaid') {
             toast = {
@@ -325,9 +327,11 @@ export default function Dashboard() {
                 
                 if (newNotifs.length > 0) {
                     const hasNewCanteenOrder = newNotifs.some(n => (n.type === 'canteen_admin' && n.title === 'Pesanan Kantin Baru') || n.type === 'canteen_ready');
+                    const hasNewPayment = newNotifs.some(n => n.type === 'payment_unverified' || n.type === 'new_booking');
+                    
                     if (hasNewCanteenOrder) {
                         playCanteenRingtone();
-                    } else {
+                    } else if (hasNewPayment) {
                         playNotificationSound();
                     }
                     
@@ -1843,9 +1847,9 @@ export default function Dashboard() {
                                                             </div>
                                                             <p className="text-[10px] text-slate-500 truncate">{c.description}</p>
                                                             {c.admin_response && (
-                                                                <div className="mt-1.5 bg-emerald-50 border border-emerald-100 rounded-lg p-1.5">
-                                                                    <p className="text-[9px] text-emerald-700 font-bold">Respon Pengelola:</p>
-                                                                    <p className="text-[9px] text-emerald-800 mt-0.5 leading-relaxed">{c.admin_response}</p>
+                                                                <div className="mt-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800/50 rounded-lg p-2">
+                                                                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wide">Respon Pengelola:</p>
+                                                                    <p className="text-xs text-emerald-900 dark:text-emerald-200 mt-1 leading-relaxed">{c.admin_response}</p>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -3173,7 +3177,9 @@ export default function Dashboard() {
                                             <th className="p-4">Tenant / Kamar</th>
                                             <th className="p-4">Kendala</th>
                                             <th className="p-4">Status</th>
-                                            <th className="p-4 pr-6 text-right">Aksi</th>
+                                            {['super_admin', 'operator'].includes(currentRole) && (
+                                                <th className="p-4 pr-6 text-right">Aksi</th>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-sm">
@@ -3194,8 +3200,8 @@ export default function Dashboard() {
                                                     <div className="font-bold text-slate-800">{c.title}</div>
                                                     <div className="text-xs text-slate-600 max-w-sm leading-relaxed">{c.description}</div>
                                                     {c.admin_response && (
-                                                        <div className="mt-2 bg-emerald-50/80 p-2.5 rounded-lg border border-emerald-100 text-[11px] text-emerald-800">
-                                                            <strong className="block text-[10px] text-emerald-600 uppercase">Respon Pengelola:</strong>
+                                                        <div className="mt-2 bg-emerald-50/80 dark:bg-emerald-900/30 p-2.5 rounded-lg border border-emerald-100 dark:border-emerald-800/50 text-[11px] text-emerald-900 dark:text-emerald-200">
+                                                            <strong className="block text-[10px] text-emerald-700 dark:text-emerald-400 uppercase tracking-wide mb-1">Respon Pengelola:</strong>
                                                             {c.admin_response}
                                                         </div>
                                                     )}
@@ -3214,16 +3220,20 @@ export default function Dashboard() {
                                                          c.status === 'completed' ? 'Selesai' : 'Ready'}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 pr-6 text-right">
-                                                    {['super_admin', 'operator'].includes(currentRole) && (
-                                                        <button aria-label="Action Button"  
-                                                            onClick={() => setComplaintResponse({ id: c.id, status: c.status, admin_response: c.admin_response || '' })}
-                                                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-md transition-colors"
-                                                        >
-                                                            Ubah Status
-                                                        </button>
-                                                    )}
-                                                </td>
+                                                {['super_admin', 'operator'].includes(currentRole) && (
+                                                    <td className="p-4 pr-6 text-right">
+                                                        {!['completed', 'ready'].includes(c.status) ? (
+                                                            <button aria-label="Action Button"  
+                                                                onClick={() => setComplaintResponse({ id: c.id, status: c.status, admin_response: c.admin_response || '' })}
+                                                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-md transition-colors"
+                                                            >
+                                                                Ubah Status
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Selesai</span>
+                                                        )}
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
@@ -3251,7 +3261,7 @@ export default function Dashboard() {
                     <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl border border-white/60 p-6 space-y-4 shadow-2xl shadow-emerald-900/20 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-2">
                             <h3 className="font-extrabold text-xl text-slate-800 tracking-tight">Perbarui Status Komplain</h3>
-                            <button aria-label="Action Button"  onClick={() => setEditComplaint(null)} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
+                            <button aria-label="Action Button"  onClick={() => setComplaintResponse({ id: null, status: 'processing', admin_response: '' })} className="text-slate-500 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
