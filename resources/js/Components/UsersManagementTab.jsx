@@ -139,6 +139,20 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
         });
     }, [users, filterRole, searchTerm]);
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterRole]);
+
+    const paginatedUsers = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredUsers, currentPage]);
+
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
     const getRoleBadge = (role) => {
         switch(role) {
             case 'super_admin':
@@ -206,9 +220,9 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
                 </div>
             ) : (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full whitespace-nowrap text-left text-sm text-slate-600">
-                            <thead>
+                    <div className="overflow-auto w-full max-h-[700px] relative">
+                        <table className="w-full whitespace-nowrap min-w-max text-left text-sm text-slate-600">
+                            <thead className="sticky top-0 z-10 shadow-sm">
                                 <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold tracking-wide uppercase text-[10px]">
                                     <th className="p-4 pl-6">Profil Pengguna</th>
                                     <th className="p-4">Kontak</th>
@@ -218,7 +232,7 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredUsers.length === 0 ? (
+                                {paginatedUsers.length === 0 ? (
                                     <tr>
                                         <td colSpan="5" className="p-12 text-center">
                                             <div className="flex flex-col items-center justify-center text-slate-400">
@@ -228,11 +242,11 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
                                             </div>
                                         </td>
                                     </tr>
-                                ) : filteredUsers.map(user => {
+                                ) : paginatedUsers.map(user => {
                                     const activeBooking = user.bookings?.find(b => b.status === 'active' || b.status === 'pending');
                                     
                                     return (
-                                    <tr key={user.id} className="hover:bg-slate-50/60 transition-colors group">
+                                    <tr key={user.id} className="transition-colors group hover:bg-transparent dark:hover:bg-transparent">
                                         <td className="p-4 pl-6">
                                             <div className="flex items-center gap-3">
                                                 <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shadow-sm border border-emerald-200 overflow-hidden flex-shrink-0">
@@ -284,7 +298,7 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
                                             )}
                                         </td>
                                         <td className="p-4 pr-6 text-right">
-                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                            <div className="flex justify-end gap-2 opacity-100 lg:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
                                                 <button onClick={() => handleOpenModal(user)} className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors tooltip" title="Edit Akun">
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                                 </button>
@@ -298,6 +312,29 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
                             </tbody>
                         </table>
                     </div>
+                    {totalPages > 1 && (
+                        <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+                            <span className="text-xs text-slate-500">
+                                Menampilkan {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredUsers.length)} dari {filteredUsers.length} pengguna
+                            </span>
+                            <div className="flex gap-1">
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Sebelumnya
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Selanjutnya
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -397,7 +434,7 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
                 </div>
             )}
             
-            <style jsx>{`
+            <style>{`
                 .animate-fade-in { animation: fadeIn 0.3s ease-out; }
                 .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -410,3 +447,5 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
         </div>
     );
 }
+
+

@@ -34,19 +34,22 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = Auth::user();
-        if (in_array($user->role, ['super_admin', 'operator'])) {
+
+        // Admin, operator, dan karyawan langsung ke dashboard
+        if (in_array($user->role, ['super_admin', 'operator', 'karyawan'])) {
             return redirect()->intended(route('dashboard', absolute: false));
         }
 
-        // Check if the resident has an active or pending booking
+        // Cek apakah penghuni memiliki kamar (aktif, pending, maupun selesai)
         $hasBooking = \App\Models\Booking::where('tenant_id', $user->id)
-            ->whereIn('status', ['active', 'pending'])
+            ->whereIn('status', ['active', 'pending', 'completed'])
             ->exists();
 
         if ($hasBooking) {
             return redirect()->intended(route('dashboard', absolute: false));
         }
 
+        // Tidak punya kamar → ke halaman cari kamar
         return redirect()->intended(route('rooms.index', absolute: false));
     }
 

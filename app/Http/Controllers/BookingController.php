@@ -854,6 +854,116 @@ class BookingController extends Controller
         ]);
     }
 
+    // Extend booking manually by admin/operator
+    public function extendBookingManual(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!in_array($user->role, ['super_admin', 'operator'])) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'duration' => 'required|integer|min:1',
+            'payment_status' => 'required|in:paid,unpaid',
+            'payment_method' => 'nullable|string|in:cash,transfer',
+            'rental_type' => 'nullable|in:daily,weekly,monthly,yearly'
+        ]);
+
+        $booking = Booking::with('room', 'tenant')->findOrFail($id);
+
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            if (!in_array($booking->room->branch_id, $user->assigned_branches)) {
+                return response()->json(['message' => 'Unauthorized branch booking access.'], 403);
+            }
+        }
+
+        $room = $booking->room;
+
+        // Use locked prices from booking, fallback to room price if somehow missing
+        $lockedPriceDaily = $booking->price_daily ?? $room->price_daily;
+        $lockedPriceWeekly = $booking->price_weekly ?? $room->price_weekly;
+        $lockedPriceMonthly = $booking->price_monthly ?? $room->price_monthly;
+        $lockedPriceYearly = $booking->price_yearly ?? $room->price_yearly;
+        $lockedPriceWeekend = $booking->price_weekend ?? $room->price_weekend;
+
+        // Determine extension duration
+        $currentEndDate = \Carbon\Carbon::parse($booking->end_date);
+        $extendType = $request->input('rental_type', $booking->rental_type);
+        $additionalAmount = 0;
+        
+        if ($extendType === 'daily') {
+            $daysToAdd = (int) $request->input('duration', 1);
+            $iterDate = $currentEndDate->copy();
+            for ($i = 0; $i < $daysToAdd; $i++) {
+                $dayOfWeek = $iterDate->format('w');
+                if (($dayOfWeek == 0 || $dayOfWeek == 5 || $dayOfWeek == 6) && $lockedPriceWeekend > 0) {
+                    $additionalAmount += $lockedPriceWeekend;
+                } else {
+                    $additionalAmount += $lockedPriceDaily;
+                }
+                $iterDate->addDay();
+            }
+            $newEndDate = $iterDate;
+        } elseif ($extendType === 'weekly') {
+            $weeksToAdd = (int) $request->input('duration', 1);
+            $newEndDate = $currentEndDate->addWeeks($weeksToAdd);
+            $additionalAmount = $weeksToAdd * $lockedPriceWeekly;
+        } elseif ($extendType === 'monthly') {
+            $monthsToAdd = (int) $request->input('duration', 1);
+            $newEndDate = $currentEndDate->addMonths($monthsToAdd);
+            $additionalAmount = $monthsToAdd * $lockedPriceMonthly;
+        } else {
+            $yearsToAdd = (int) $request->input('duration', 1);
+            $newEndDate = $currentEndDate->addYears($yearsToAdd);
+            $additionalAmount = $yearsToAdd * $lockedPriceYearly;
+        }
+
+        $newTotalAmount = floatval($booking->total_amount) + $additionalAmount;
+        $paymentStatus = $booking->payment_status;
+        $paidAmount = floatval($booking->paid_amount);
+
+        DB::transaction(function () use ($booking, $request, $additionalAmount, $newTotalAmount, $newEndDate, $extendType, &$paymentStatus, &$paidAmount) {
+            if ($request->payment_status === 'paid') {
+                $paidAmount += $additionalAmount;
+                
+                $methodText = $request->payment_method === 'cash' ? 'Tunai' : 'Transfer Bank';
+                
+                Finance::create([
+                    'transaction_type' => 'income',
+                    'amount'           => $additionalAmount,
+                    'category'         => 'rental',
+                    'transaction_date' => now()->format('Y-m-d'),
+                    'description'      => 'Perpanjangan ' . ($extendType === 'daily' ? 'Harian' : ($extendType === 'weekly' ? 'Mingguan' : ($extendType === 'monthly' ? 'Bulanan' : 'Tahunan'))) . ' Kamar ' . $booking->room->room_number . ' (' . $methodText . ') - ' . $booking->tenant->name,
+                    'booking_id'       => $booking->id,
+                    'branch_id'        => $booking->room->branch_id,
+                    'payment_method'   => $request->payment_method ?? 'cash',
+                ]);
+            }
+
+            if ($paidAmount >= $newTotalAmount) {
+                $paymentStatus = 'paid';
+            } elseif ($paidAmount > 0) {
+                $paymentStatus = 'dp';
+            } else {
+                $paymentStatus = 'unpaid';
+            }
+
+            $booking->update([
+                'end_date' => $newEndDate->toDateString(),
+                'total_amount' => $newTotalAmount,
+                'paid_amount' => $paidAmount,
+                'payment_status' => $paymentStatus,
+                'rental_type' => $extendType,
+                'status' => 'active'
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Masa sewa berhasil diperpanjang oleh Admin.',
+            'booking' => $booking->fresh(['room', 'tenant'])
+        ]);
+    }
+
     // Check out resident
     public function checkout($id)
     {

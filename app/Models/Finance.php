@@ -17,6 +17,7 @@ class Finance extends Model
         'branch_id',
         'payment_method',
         'canteen_order_id',
+        'receipt_path',
     ];
 
     protected $casts = [

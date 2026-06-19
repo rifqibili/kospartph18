@@ -45,17 +45,7 @@ class CanteenOrderController extends Controller
             'items.*.quantity' => 'required|integer|min:1'
         ]);
 
-        // Check debt limit if user chooses 'debt'
-        if ($request->payment_method === 'debt') {
-            $totalDebt = CanteenOrder::where('tenant_id', $user->id)
-                ->where('payment_status', 'debt_unpaid')
-                ->sum('total_amount');
-            
-            // Limit is 100.000 for reminder, but we don't block. We just note it.
-            // Wait, if we want to give a reminder on frontend, we should check it on frontend.
-            // But if we want to block, we do it here. The user requested: "beri pengingat saja jika sudah 100.000"
-            // So we don't block. We allow the order to go through.
-        }
+
 
         // Calculate total and reduce stock
         $totalAmount = 0;
@@ -94,6 +84,15 @@ class CanteenOrderController extends Controller
                     'quantity' => $cartItem['quantity'],
                     'price_at_time' => $item->price,
                 ];
+            }
+
+            if ($request->payment_method === 'debt') {
+                $existingDebt = CanteenOrder::where('tenant_id', $user->id)
+                    ->where('payment_status', 'debt_unpaid')
+                    ->sum('total_amount');
+                if ($existingDebt + $totalAmount > 250000) {
+                    throw new \Exception("MAAF, TRANSAKSI DITOLAK! Batas maksimal kasbon adalah Rp 250.000. Total kasbon Anda saat ini: Rp " . number_format($existingDebt, 0, ',', '.') . ". Pesanan baru: Rp " . number_format($totalAmount, 0, ',', '.') . ". Silakan lunasi kasbon terlebih dahulu.");
+                }
             }
 
             // Generate order code
@@ -220,6 +219,21 @@ class CanteenOrderController extends Controller
         $request->validate([
             'payment_status' => 'required|string|in:pending,paid,debt_unpaid'
         ]);
+
+        // Validate debt limit if changing to debt
+        if ($request->payment_status === 'debt_unpaid' && $order->payment_status !== 'debt_unpaid') {
+            if (!$order->tenant_id) {
+                return response()->json(['message' => 'Gagal: Kasbon hanya berlaku untuk pesanan yang terhubung dengan penghuni.'], 400);
+            }
+            
+            $existingDebt = CanteenOrder::where('tenant_id', $order->tenant_id)
+                ->where('payment_status', 'debt_unpaid')
+                ->sum('total_amount');
+                
+            if ($existingDebt + $order->total_amount > 250000) {
+                return response()->json(['message' => 'Gagal: Batas maksimal kasbon penghuni adalah Rp 250.000. Total kasbon saat ini: Rp ' . number_format($existingDebt, 0, ',', '.') . '. Total pesanan ini: Rp ' . number_format($order->total_amount, 0, ',', '.') . '.'], 400);
+            }
+        }
 
         // If changing to paid from something else, log to finances (prevent duplicates using canteen_order_id)
         if ($request->payment_status === 'paid' && $order->payment_status !== 'paid') {
@@ -396,6 +410,17 @@ class CanteenOrderController extends Controller
                     'quantity' => $cartItem['quantity'],
                     'price_at_time' => $item->price,
                 ];
+            }
+
+
+
+            if ($request->payment_method === 'debt' && $request->tenant_id) {
+                $existingDebt = CanteenOrder::where('tenant_id', $request->tenant_id)
+                    ->where('payment_status', 'debt_unpaid')
+                    ->sum('total_amount');
+                if ($existingDebt + $totalAmount > 250000) {
+                    throw new \Exception("MAAF, TRANSAKSI DITOLAK! Batas maksimal kasbon penghuni adalah Rp 250.000. Total kasbon saat ini: Rp " . number_format($existingDebt, 0, ',', '.') . ". Pesanan baru: Rp " . number_format($totalAmount, 0, ',', '.') . ". Silakan minta penghuni melunasi kasbon terlebih dahulu.");
+                }
             }
 
             $status = 'processing'; // Biarkan masuk pesanan aktif agar bisa diselesaikan operator

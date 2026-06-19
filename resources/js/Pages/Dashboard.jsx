@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Menu, Transition } from '@headlessui/react';
 import { Head, usePage, Link } from '@inertiajs/react';
 import Layout from '@/Layouts/AuthenticatedLayout';
@@ -6,6 +6,8 @@ import CanteenTab from '@/Components/CanteenTab';
 import FinancesTab from '@/Components/DashboardTabs/FinancesTab';
 import WebSettingsTab from '@/Components/WebSettingsTab';
 import UsersManagementTab from '@/Components/UsersManagementTab';
+import ThemeToggle from '@/Components/ThemeToggle';
+import DragDropZone from '@/Components/DragDropZone';
 // ── CSRF-aware fetch helper ──────────────────────────────────────────────────
 function getCsrfToken() {
     const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
@@ -66,6 +68,9 @@ export default function Dashboard() {
     const [showInvoiceModal, setShowInvoiceModal] = useState(null);
     const [showChangeRoomModal, setShowChangeRoomModal] = useState(null);
     const [showRescheduleModal, setShowRescheduleModal] = useState(null);
+    const [showExtendManualModal, setShowExtendManualModal] = useState(null);
+    const [extendManualData, setExtendManualData] = useState({ duration: 1, payment_status: 'paid', payment_method: 'cash' });
+    const [isProcessing, setIsProcessing] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
     const [showExtendTenantModal, setShowExtendTenantModal] = useState(false);
     const [extendDuration, setExtendDuration] = useState(1);
@@ -78,6 +83,22 @@ export default function Dashboard() {
     const [showManualPayModal, setShowManualPayModal] = useState(false);
     const [manualPayData, setManualPayData] = useState({ booking_id: '', paid_amount: '', payment_method: 'cash' });
     const [showNotifications, setShowNotifications] = useState(false);
+    const notifRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (notifRef.current && !notifRef.current.contains(event.target)) {
+                setShowNotifications(false);
+            }
+        }
+        if (showNotifications) {
+            document.addEventListener("mousedown", handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [showNotifications]);
+
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [showManualBookingModal, setShowManualBookingModal] = useState(false);
     const [manualBookingData, setManualBookingData] = useState({
@@ -93,6 +114,27 @@ export default function Dashboard() {
         payment_status: 'paid'
     });
     
+    // Auto-calculate end_date for manual booking when start_date or rental_type changes
+    useEffect(() => {
+        if (manualBookingData.start_date && manualBookingData.rental_type) {
+            const start = new Date(manualBookingData.start_date);
+            const end = new Date(start);
+            if (manualBookingData.rental_type === 'daily') {
+                end.setDate(end.getDate() + 1);
+            } else if (manualBookingData.rental_type === 'weekly') {
+                end.setDate(end.getDate() + 7);
+            } else if (manualBookingData.rental_type === 'monthly') {
+                end.setMonth(end.getMonth() + 1);
+            } else if (manualBookingData.rental_type === 'yearly') {
+                end.setFullYear(end.getFullYear() + 1);
+            }
+            const formattedEnd = end.toISOString().split('T')[0];
+            if (manualBookingData.end_date !== formattedEnd) {
+                setManualBookingData(prev => ({ ...prev, end_date: formattedEnd }));
+            }
+        }
+    }, [manualBookingData.start_date, manualBookingData.rental_type]);
+
     // Form Inputs
     const [newBranch, setNewBranch] = useState({ name: '', address: '', maps_link: '', status: 'active', image: null, video: null });
     const [editBranch, setEditBranch] = useState(null);
@@ -607,6 +649,10 @@ export default function Dashboard() {
         const headers = ['Kode Booking', 'Penyewa', 'Cabang', 'Kamar', 'Jenis Sewa', 'Tgl Mulai', 'Tgl Selesai', 'Tagihan', 'Status Sewa', 'Status Bayar'];
         
         const csvData = visibleBookings.map(b => {
+            const statusSewa = b.status === 'active' ? 'Aktif' : b.status === 'completed' ? 'Selesai' : b.status === 'pending' ? 'Menunggu' : b.status === 'rejected' ? 'Ditolak' : 'Dibatalkan';
+            const statusBayar = b.payment_status === 'paid' ? 'Lunas' : b.payment_status === 'unpaid' ? 'Belum Lunas' : b.payment_status === 'rejected' ? 'Ditolak' : 'Menunggu Verifikasi';
+            const tagihan = `Rp ${Number(b.total_amount).toLocaleString('id-ID')}`;
+
             return [
                 b.booking_code,
                 b.tenant?.name || '-',
@@ -615,24 +661,28 @@ export default function Dashboard() {
                 b.rental_type === 'daily' ? 'Harian' : (b.rental_type === 'weekly' ? 'Mingguan' : (b.rental_type === 'monthly' ? 'Bulanan' : 'Tahunan')),
                 b.start_date,
                 b.end_date,
-                b.total_amount,
-                b.status,
-                b.payment_status
-            ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(',');
+                tagihan,
+                statusSewa,
+                statusBayar
+            ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(';');
         });
         
-        const csvContent = [headers.join(','), ...csvData].join('\n');
+        const csvContent = [headers.join(';'), ...csvData].join('\n');
         
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        // Tambahkan BOM agar karakter terbaca baik di Excel
+        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `Export_Penyewaan_${new Date().toISOString().split('T')[0]}.csv`;
+        link.download = `Data_Penyewaan_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
     };
 
     const handleExportFinanceCSV = () => {
         const headers = ['Tanggal', 'Kategori', 'Deskripsi', 'Metode Pembayaran', 'Jumlah', 'Tipe Transaksi', 'Kamar', 'Cabang', 'Penyewa'];
         const csvData = visibleFinances.map(f => {
+            const amount = f.transaction_type === 'income' ? f.amount : -f.amount;
+            const formattedAmount = `Rp ${Number(amount).toLocaleString('id-ID')}`;
+
             return [
                 new Date(f.transaction_date).toLocaleDateString('id-ID'),
                 f.category,
@@ -642,15 +692,15 @@ export default function Dashboard() {
                 f.payment_method === 'qris' ? 'QRIS' : 
                 f.payment_method === 'debt' ? 'Kasbon / Hutang' : 
                 (f.payment_method || '-'),
-                f.transaction_type === 'income' ? f.amount : -f.amount,
+                formattedAmount,
                 f.transaction_type === 'income' ? 'Pemasukan' : 'Pengeluaran',
                 f.booking ? `Kamar ${f.booking.room?.room_number || '-'}` : '-',
                 f.branch?.name?.replace('Kospart PH 18 - ', '') || '-',
                 f.booking?.tenant?.name || '-'
-            ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(',');
+            ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(';');
         });
-        const csvContent = [headers.join(','), ...csvData].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const csvContent = [headers.join(';'), ...csvData].join('\n');
+        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = `Export_Laporan_Keuangan_${new Date().toISOString().split('T')[0]}.csv`;
@@ -711,8 +761,28 @@ export default function Dashboard() {
         } else { showToast(data.message || 'Gagal memproses pembayaran.', 'error'); }
     };
 
+    const closeManualBookingModal = () => {
+        setShowManualBookingModal(false);
+        setManualBookingData({
+            room_id: '',
+            rental_type: 'monthly',
+            start_date: new Date().toISOString().split('T')[0],
+            end_date: '',
+            name: '',
+            phone: '',
+            email: '',
+            nik: '',
+            ktp_photo: null,
+            payment_status: 'paid'
+        });
+    };
+
     const handleManualBookingSubmit = async (e) => {
         e.preventDefault();
+        if (!manualBookingData.room_id) {
+            showToast('Silakan pilih kamar terlebih dahulu.', 'error');
+            return;
+        }
         const formData = new FormData();
         Object.keys(manualBookingData).forEach(key => {
             if (manualBookingData[key] !== null && manualBookingData[key] !== '') {
@@ -757,9 +827,17 @@ export default function Dashboard() {
         } else { showToast(data.message || 'Gagal verifikasi pembayaran.', 'error'); }
     };
 
+    const closeManualPayModal = () => {
+        setShowManualPayModal(false);
+        setManualPayData({ booking_id: '', paid_amount: '', payment_method: 'cash' });
+    };
+
     const handleManualPaySubmit = async (e) => {
         e.preventDefault();
-        if (!showManualPayModal || !manualPayData.booking_id) return;
+        if (!showManualPayModal || !manualPayData.booking_id) {
+            showToast('Silakan pilih penghuni/kamar terlebih dahulu.', 'error');
+            return;
+        }
         
         const res = await authFetch(`/api/bookings/${manualPayData.booking_id}/pay-manual`, {
             method: 'POST',
@@ -841,6 +919,32 @@ export default function Dashboard() {
         else { showToast(data.message || 'Gagal pindah kamar.', 'error'); }
     };
 
+    const handleExtendManualSubmit = async (e) => {
+        e.preventDefault();
+        if (!showExtendManualModal) return;
+        setIsProcessing(true);
+        try {
+            const response = await authFetch(`/api/bookings/${showExtendManualModal.id}/extend-manual`, {
+                method: 'POST',
+                body: JSON.stringify(extendManualData)
+            });
+            const data = await response.json();
+            if (response.ok) {
+                showToast(data.message || 'Sewa berhasil diperpanjang');
+                setShowExtendManualModal(null);
+                setExtendManualData({ duration: 1, payment_status: 'paid', payment_method: 'cash' });
+                loadAllData();
+            } else {
+                showToast(data.message || 'Terjadi kesalahan saat memperpanjang sewa', 'error');
+            }
+        } catch (error) {
+            console.error('Error extending manual:', error);
+            showToast('Terjadi kesalahan sistem saat memproses permintaan', 'error');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const handleRescheduleBill = async (e) => {
         e.preventDefault();
         const res = await authFetch(`/api/bookings/${showRescheduleModal.id}/reschedule-bill`, { method: 'POST', body: JSON.stringify(rescheduleData) });
@@ -892,6 +996,20 @@ export default function Dashboard() {
         if (a.status !== 'active' && b.status === 'active') return 1;
         return new Date(a.end_date) - new Date(b.end_date);
     });
+
+    const [bookingPage, setBookingPage] = useState(1);
+    const bookingsPerPage = 7;
+
+    useEffect(() => {
+        setBookingPage(1);
+    }, [bookingSearch]);
+
+    const paginatedBookings = useMemo(() => {
+        const startIndex = (bookingPage - 1) * bookingsPerPage;
+        return visibleBookings.slice(startIndex, startIndex + bookingsPerPage);
+    }, [visibleBookings, bookingPage]);
+
+    const totalBookingPages = Math.ceil(visibleBookings.length / bookingsPerPage);
 
     const visibleComplaints = complaints.filter(c => {
         if (currentRole === 'operator') return operatorBranches.some(br => Number(br) === Number(c.room?.branch_id));
@@ -1048,159 +1166,169 @@ export default function Dashboard() {
             )}
 
             {/* Sidebar */}
-            <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-50 transform transition-transform duration-300 lg:translate-x-0 print:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 z-50 transform transition-transform duration-300 lg:translate-x-0 print:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 {/* Logo */}
-                <div className="h-20 px-6 border-b border-slate-200 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-emerald-gradient rounded-lg flex items-center justify-center border border-emerald-500/20">
-                        <span className="text-white font-extrabold text-lg">KP</span>
-                    </div>
+                <div className="h-20 px-6 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
+                    <img src="/images/Gemini_Generated_Image_6gwojj6gwojj6gwo-removebg-preview.png" alt="Kospart Logo" className="w-10 h-10 object-contain drop-shadow-md" />
                     <div>
-                        <span className="font-extrabold text-lg tracking-tight text-slate-900 block">KOSPART</span>
-                        <span className="text-emerald-605 text-[10px] font-bold uppercase tracking-widest block -mt-1">ADMIN PANEL</span>
+                        <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white block">KOSPART</span>
+                        <span className="text-emerald-605 text-[10px] font-bold uppercase tracking-widest block -mt-1 dark:text-emerald-500">ADMIN PANEL</span>
                     </div>
                 </div>
 
                 {/* Sidebar Navigation */}
                 <nav className="p-4 flex-1 overflow-y-auto space-y-1">
                     {currentRole !== 'karyawan' && (
-                        <button 
-                            onClick={() => setActiveTab('overview')} 
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                activeTab === 'overview' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                            }`}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z"></path></svg>
-                            {currentRole === 'resident' ? 'Sewa Saya' : 'Ringkasan'}
-                        </button>
-                    )}
-
-                    {currentRole === 'super_admin' && (
-                        <button 
-                            onClick={() => setActiveTab('branches')} 
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                activeTab === 'branches' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                            }`}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                            Master Cabang
-                        </button>
-                    )}
-
-                    {['super_admin', 'operator'].includes(currentRole) && (
-                        <button 
-                            onClick={() => setActiveTab('rooms')} 
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                activeTab === 'rooms' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                            }`}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg>
-                            Master Kamar
-                        </button>
-                    )}
-
-                    {currentRole !== 'karyawan' && (
                         <>
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-2 mb-2 block">Utama</span>
                             <button 
-                                onClick={() => setActiveTab('bookings')} 
-                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'bookings' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                onClick={() => setActiveTab('overview')} 
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                    activeTab === 'overview' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
                                 }`}
                             >
-                                <div className="flex items-center gap-3">
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                                    {currentRole === 'resident' ? 'Riwayat Pembayaran' : 'Penyewaan / Sewa'}
-                                </div>
-                                {urgentSewaCount > 0 && (
-                                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
-                                        {urgentSewaCount}
-                                    </span>
-                                )}
-                            </button>
-
-                            <button 
-                                onClick={() => setActiveTab('complaints')} 
-                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                    activeTab === 'complaints' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                    {currentRole === 'resident' ? 'Komplain Saya' : 'Komplain & Aduan'}
-                                </div>
-                                {pendingComplaintsBadgeCount > 0 && (
-                                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
-                                        {pendingComplaintsBadgeCount}
-                                    </span>
-                                )}
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z"></path></svg>
+                                {currentRole === 'resident' ? 'Sewa Saya' : 'Ringkasan'}
                             </button>
                         </>
                     )}
 
-                    {/* Tab Kantin */}
-                    <button 
-                        onClick={() => setActiveTab('canteen')} 
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                            activeTab === 'canteen' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                        }`}
-                    >
-                        <div className="flex items-center gap-3">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                            {currentRole === 'resident' ? 'Kantin Kos' : 'Master Kantin'}
-                        </div>
-                        {currentRole !== 'resident' && canteenOrders.filter(o => o.status === 'pending_approval' || o.status === 'processing').length > 0 && (
-                            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                {canteenOrders.filter(o => o.status === 'pending_approval' || o.status === 'processing').length}
-                            </span>
+                    {['super_admin', 'operator'].includes(currentRole) && (
+                        <>
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Data Master</span>
+                            {currentRole === 'super_admin' && (
+                                <button 
+                                    onClick={() => setActiveTab('branches')} 
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                        activeTab === 'branches' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    }`}
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                                    Master Cabang
+                                </button>
+                            )}
+
+                            <button 
+                                onClick={() => setActiveTab('rooms')} 
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                    activeTab === 'rooms' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                }`}
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg>
+                                Master Kamar
+                            </button>
+                        </>
+                    )}
+
+                    <>
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Layanan & Transaksi</span>
+                        {currentRole !== 'karyawan' && (
+                            <>
+                                <button 
+                                    onClick={() => setActiveTab('bookings')} 
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                        activeTab === 'bookings' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                                        {currentRole === 'resident' ? 'Riwayat Pembayaran' : 'Penyewaan / Sewa'}
+                                    </div>
+                                    {urgentSewaCount > 0 && (
+                                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                                            {urgentSewaCount}
+                                        </span>
+                                    )}
+                                </button>
+
+                                <button 
+                                    onClick={() => setActiveTab('complaints')} 
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                        activeTab === 'complaints' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                        {currentRole === 'resident' ? 'Komplain Saya' : 'Komplain & Aduan'}
+                                    </div>
+                                    {pendingComplaintsBadgeCount > 0 && (
+                                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                                            {pendingComplaintsBadgeCount}
+                                        </span>
+                                    )}
+                                </button>
+                            </>
                         )}
-                    </button>
+
+                        <button 
+                            onClick={() => setActiveTab('canteen')} 
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                activeTab === 'canteen' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                {currentRole === 'resident' ? 'Kantin Kos' : 'Master Kantin'}
+                            </div>
+                            {currentRole !== 'resident' && canteenOrders.filter(o => o.status === 'pending_approval' || o.status === 'processing').length > 0 && (
+                                <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    {canteenOrders.filter(o => o.status === 'pending_approval' || o.status === 'processing').length}
+                                </span>
+                            )}
+                        </button>
+                    </>
 
                     {['super_admin', 'operator'].includes(currentRole) && (
-                        <button 
-                            onClick={() => setActiveTab('finances')} 
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                activeTab === 'finances' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                            }`}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Laporan Keuangan
-                        </button>
+                        <>
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Laporan</span>
+                            <button 
+                                onClick={() => setActiveTab('finances')} 
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                    activeTab === 'finances' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                }`}
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Laporan Keuangan
+                            </button>
+                        </>
                     )}
 
                     {currentRole === 'super_admin' && (
-                        <button 
-                            onClick={() => setActiveTab('web_settings')} 
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                activeTab === 'web_settings' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                            }`}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
-                            Konten Website
-                        </button>
-                    )}
+                        <>
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 mt-6 mb-2 block">Pengaturan Sistem</span>
+                            <button 
+                                onClick={() => setActiveTab('web_settings')} 
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                    activeTab === 'web_settings' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                }`}
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                                Konten Website
+                            </button>
 
-                    {currentRole === 'super_admin' && (
-                        <button 
-                            onClick={() => setActiveTab('users')} 
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                activeTab === 'users' ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                            }`}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                            Manajemen Pengguna
-                        </button>
+                            <button 
+                                onClick={() => setActiveTab('users')} 
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                    activeTab === 'users' ? 'bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/10 dark:shadow-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                }`}
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                                Manajemen Pengguna
+                            </button>
+                        </>
                     )}
                 </nav>
 
                 {/* Footer / User Profile info */}
-                <div className="p-4 border-t border-slate-200 space-y-4">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300">
                             {auth.user.name.charAt(0)}
                         </div>
                         <div>
-                            <span className="font-semibold text-sm block truncate text-slate-800">{auth.user.name}</span>
-                            <span className="text-[10px] text-slate-500 block truncate">{auth.user.email}</span>
-                            <span className="inline-block px-1.5 py-0.5 mt-1 bg-slate-100 text-slate-600 border border-slate-200 text-[9px] rounded font-bold uppercase tracking-wider">
+                            <span className="font-semibold text-sm block truncate text-slate-800 dark:text-white">{auth.user.name}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">{auth.user.email}</span>
+                            <span className="inline-block px-1.5 py-0.5 mt-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[9px] rounded font-bold uppercase tracking-wider">
                                 {currentRole === 'super_admin' ? 'Admin' : currentRole === 'operator' ? 'Operator' : 'Tenant'}
                             </span>
                         </div>
@@ -1210,7 +1338,7 @@ export default function Dashboard() {
                         href="/logout" 
                         method="post" 
                         as="button" 
-                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl text-xs font-semibold transition-colors"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl text-xs font-semibold transition-colors"
                     >
                         Sign Out
                     </Link>
@@ -1241,8 +1369,9 @@ export default function Dashboard() {
                         </h2>
                     </div>
 
-                    {/* Notification Bell */}
-                    <div className="relative flex items-center gap-4 ml-auto">
+                    {/* Notification Bell & Theme Toggle */}
+                    <div className="relative flex items-center gap-4 ml-auto" ref={notifRef}>
+                        <ThemeToggle />
                         <button 
                             onClick={() => setShowNotifications(!showNotifications)}
                             className="relative p-2 text-slate-500 hover:text-emerald-600 transition-colors bg-slate-50 hover:bg-emerald-50 rounded-full border border-slate-200 hover:border-emerald-200"
@@ -1299,7 +1428,7 @@ export default function Dashboard() {
                             <div>
                                 <h4 className="font-extrabold text-xs uppercase tracking-wider">{toast.title}</h4>
                                 <p className="text-slate-650 text-[11px] mt-1 leading-relaxed font-medium">{toast.message}</p>
-                                <span className="text-[10px] text-slate-500 block mt-2 font-bold underline uppercase">Klik untuk menutup</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-2 font-bold underline uppercase">Klik untuk menutup</span>
                             </div>
                         </div>
                     ))}
@@ -1597,7 +1726,7 @@ export default function Dashboard() {
 
                                         {/* Riwayat Pembayaran */}
                                         <div className="lg:col-span-4 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm">
-                                            <h3 className="font-extrabold text-base text-slate-800 mb-4">💳 Riwayat Pembayaran</h3>
+                                            <h3 className="font-extrabold text-base text-slate-800 dark:text-slate-200 mb-4">💳 Riwayat Pembayaran</h3>
                                             {(() => {
                                                 const myFinances = finances.filter(f => f.booking_id === activeBooking?.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                                                 return myFinances.length === 0 ? (
@@ -1694,93 +1823,101 @@ export default function Dashboard() {
                         <div className="space-y-8">
                             {/* Form Tambah */}
                             <div className="glass-panel p-6 rounded-2xl">
-                                <h3 className="font-extrabold text-lg text-slate-900 mb-4">Tambah Cabang Kos Baru</h3>
-                                <form onSubmit={handleAddBranch} className="grid md:grid-cols-4 gap-4 items-end">
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500">Nama Cabang</label>
-                                        <input 
-                                            type="text" 
-                                            required 
-                                            value={newBranch.name} 
-                                            onChange={(e) => setNewBranch({...newBranch, name: e.target.value})} 
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                            placeholder="Kospart PH 18 - Executive"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500">Alamat Cabang</label>
-                                        <input 
-                                            type="text" 
-                                            required 
-                                            value={newBranch.address} 
-                                            onChange={(e) => setNewBranch({...newBranch, address: e.target.value})} 
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                            placeholder="Jl. PH H. Mustofa No. 20"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-505">Link Google Maps</label>
-                                        <input 
-                                            type="text" 
-                                            value={newBranch.maps_link} 
-                                            onChange={(e) => setNewBranch({...newBranch, maps_link: e.target.value})} 
-                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                            placeholder="https://maps.app.goo.gl/..."
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold text-slate-500 block">Foto Cabang</label>
-                                        
-                                        {newBranch.image && (
-                                            <div className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200 mb-2">
-                                                <img src={URL.createObjectURL(newBranch.image)} alt="new" className="w-full h-full object-cover" />
-                                                <button type="button" onClick={() => setNewBranch({...newBranch, image: null})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
-                                            </div>
-                                        )}
-
-                                        <div className="flex items-center gap-3">
-                                            <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full text-sm font-semibold border border-emerald-200 transition-colors">
-                                                {newBranch.image ? 'Ganti Foto' : 'Choose File'}
+                                <h3 className="font-extrabold text-lg text-slate-900 mb-4 border-b border-slate-100 pb-3">Tambah Cabang Kos Baru</h3>
+                                <form onSubmit={handleAddBranch} className="space-y-5">
+                                    {/* Kategori: Informasi Umum */}
+                                    <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            Informasi Cabang
+                                        </h4>
+                                        <div className="grid md:grid-cols-3 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Nama Cabang *</label>
                                                 <input 
-                                                    type="file" 
+                                                    type="text" 
+                                                    required 
+                                                    value={newBranch.name} 
+                                                    onChange={(e) => setNewBranch({...newBranch, name: e.target.value})} 
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                    placeholder="Kospart PH 18 - Executive"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Alamat Cabang *</label>
+                                                <input 
+                                                    type="text" 
+                                                    required 
+                                                    value={newBranch.address} 
+                                                    onChange={(e) => setNewBranch({...newBranch, address: e.target.value})} 
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                    placeholder="Jl. PH H. Mustofa No. 20"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Link Google Maps</label>
+                                                <input 
+                                                    type="url" 
+                                                    value={newBranch.maps_link} 
+                                                    onChange={(e) => setNewBranch({...newBranch, maps_link: e.target.value})} 
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                    placeholder="https://maps.app.goo.gl/..."
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Kategori: Media & Dokumentasi */}
+                                    <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                            Media & Dokumentasi
+                                        </h4>
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Foto Cabang</label>
+                                                
+                                                {/* Image Preview */}
+                                                {newBranch.image && (
+                                                    <div className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-slate-100 flex items-center justify-center mb-2">
+                                                        <img src={URL.createObjectURL(newBranch.image)} alt="preview" className="w-full h-full object-cover" />
+                                                        <button type="button" onClick={() => setNewBranch({...newBranch, image: null})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
+                                                    </div>
+                                                )}
+
+                                                <DragDropZone
                                                     accept="image/*"
-                                                    className="hidden"
-                                                    onChange={(e) => setNewBranch({...newBranch, image: e.target.files[0]})}
+                                                    label="Tarik & Lepas Foto Cabang"
+                                                    selectedFile={newBranch.image}
+                                                    onFileDrop={(file) => setNewBranch({ ...newBranch, image: file })}
                                                 />
-                                            </label>
-                                            <span className="text-sm text-slate-500 truncate max-w-[150px]">
-                                                {newBranch.image ? newBranch.image.name : 'Belum ada foto'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold text-slate-500 block">Video Cabang (Opsional)</label>
-
-                                        {newBranch.video && (
-                                            <div className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 flex items-center justify-center mb-2">
-                                                <svg className="w-8 h-8 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                <button type="button" onClick={() => setNewBranch({...newBranch, video: null})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
                                             </div>
-                                        )}
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Video Cabang (Opsional)</label>
+                                                
+                                                {/* Video Preview */}
+                                                {newBranch.video && (
+                                                    <div className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 flex items-center justify-center mb-2">
+                                                        <svg className="w-8 h-8 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                        <button type="button" onClick={() => setNewBranch({...newBranch, video: null})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
+                                                    </div>
+                                                )}
 
-                                        <div className="flex items-center gap-3">
-                                            <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full text-sm font-semibold border border-emerald-200 transition-colors">
-                                                {newBranch.video ? 'Ganti Video' : 'Choose Video'}
-                                                <input 
-                                                    type="file" 
+                                                <DragDropZone
                                                     accept="video/mp4,video/x-m4v,video/*"
-                                                    className="hidden"
-                                                    onChange={(e) => setNewBranch({...newBranch, video: e.target.files[0]})}
+                                                    label="Tarik & Lepas Video Cabang"
+                                                    selectedFile={newBranch.video}
+                                                    onFileDrop={(file) => setNewBranch({ ...newBranch, video: file })}
                                                 />
-                                            </label>
-                                            <span className="text-sm text-slate-500 truncate max-w-[150px]">
-                                                {newBranch.video ? newBranch.video.name : 'Belum ada video'}
-                                            </span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <button type="submit" className="md:col-span-4 py-2.5 bg-emerald-600 hover:bg-emerald-505 text-white font-bold rounded-xl text-sm transition-all">
-                                        Simpan Cabang
-                                    </button>
+
+                                    <div className="flex justify-end pt-4 border-t border-slate-100">
+                                        <button type="submit" className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">
+                                            Simpan Cabang Baru
+                                        </button>
+                                    </div>
                                 </form>
                             </div>
 
@@ -1799,7 +1936,13 @@ export default function Dashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-sm">
-                                        {branches.map(b => (
+                                        {branches.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="7" className="p-8 text-center text-slate-400">
+                                                    Belum ada data cabang.
+                                                </td>
+                                            </tr>
+                                        ) : branches.map(b => (
                                             <tr key={b.id} className="hover:bg-slate-50">
                                                 <td className="p-4 pl-6 font-mono text-slate-400">{b.id}</td>
                                                 <td className="p-4 font-bold text-slate-800">{b.name}</td>
@@ -1840,55 +1983,70 @@ export default function Dashboard() {
                                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md overflow-y-auto" style={{ animation: 'modalIn 0.3s ease' }}>
                                     <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 max-w-2xl w-full shadow-2xl shadow-emerald-900/20 border border-white/60 max-h-[90vh] overflow-y-auto">
                                         <div className="flex justify-between items-center mb-6">
-                                            <h3 className="font-extrabold text-2xl text-slate-800 tracking-tight">Edit Cabang Kos</h3>
+                                            <h3 className="font-extrabold text-2xl text-slate-800 dark:text-white tracking-tight">Edit Cabang Kos</h3>
                                             <button onClick={() => setEditBranch(null)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
                                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                             </button>
                                         </div>
-                                        <form onSubmit={handleEditBranchSubmit} className="grid md:grid-cols-2 gap-4">
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Nama Cabang</label>
-                                                <input 
-                                                    type="text" 
-                                                    required 
-                                                    value={editBranch.name} 
-                                                    onChange={(e) => setEditBranch({...editBranch, name: e.target.value})} 
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                />
+                                        <form onSubmit={handleEditBranchSubmit} className="space-y-5">
+                                            {/* Kategori: Informasi Umum */}
+                                            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                                    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                    Informasi Cabang
+                                                </h4>
+                                                <div className="grid md:grid-cols-2 gap-4">
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Nama Cabang</label>
+                                                        <input 
+                                                            type="text" 
+                                                            required 
+                                                            value={editBranch.name} 
+                                                            onChange={(e) => setEditBranch({...editBranch, name: e.target.value})} 
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Status</label>
+                                                        <select 
+                                                            value={editBranch.status} 
+                                                            onChange={(e) => setEditBranch({...editBranch, status: e.target.value})} 
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        >
+                                                            <option value="active">Aktif</option>
+                                                            <option value="inactive">Tidak Aktif</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-1 md:col-span-2">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Alamat Cabang</label>
+                                                        <input 
+                                                            type="text" 
+                                                            required 
+                                                            value={editBranch.address} 
+                                                            onChange={(e) => setEditBranch({...editBranch, address: e.target.value})} 
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1 md:col-span-2">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Link Google Maps</label>
+                                                        <input 
+                                                            type="url" 
+                                                            value={editBranch.maps_link} 
+                                                            onChange={(e) => setEditBranch({...editBranch, maps_link: e.target.value})} 
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Status</label>
-                                                <select 
-                                                    value={editBranch.status} 
-                                                    onChange={(e) => setEditBranch({...editBranch, status: e.target.value})} 
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                >
-                                                    <option value="active">Aktif</option>
-                                                    <option value="inactive">Tidak Aktif</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-1 md:col-span-2">
-                                                <label className="text-xs font-semibold text-slate-500">Alamat Cabang</label>
-                                                <input 
-                                                    type="text" 
-                                                    required 
-                                                    value={editBranch.address} 
-                                                    onChange={(e) => setEditBranch({...editBranch, address: e.target.value})} 
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                />
-                                            </div>
-                                            <div className="space-y-1 md:col-span-2">
-                                                <label className="text-xs font-semibold text-slate-500">Link Google Maps</label>
-                                                <input 
-                                                    type="text" 
-                                                    value={editBranch.maps_link} 
-                                                    onChange={(e) => setEditBranch({...editBranch, maps_link: e.target.value})} 
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-slate-500 block">Foto Cabang</label>
-                                                
+                                            {/* Kategori: Media & Dokumentasi */}
+                                            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                    Media & Dokumentasi
+                                                </h4>
+                                                <div className="grid md:grid-cols-2 gap-6">
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Foto Cabang</label>
                                                 {(editBranch.image_path || editBranch.image) && !editBranch.remove_image && (
                                                     <div className="relative group w-24 h-16 rounded-xl overflow-hidden border border-slate-200 mb-2">
                                                         {editBranch.image ? (
@@ -1899,27 +2057,34 @@ export default function Dashboard() {
                                                         <button type="button" onClick={() => {
                                                             if (editBranch.image) setEditBranch({...editBranch, image: null});
                                                             else setEditBranch({...editBranch, remove_image: true});
-                                                        }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                                                        }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                     </div>
                                                 )}
 
-                                                <div className="flex items-center gap-3">
-                                                    <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full text-sm font-semibold border border-emerald-200 transition-colors">
-                                                        {((editBranch.image_path && !editBranch.remove_image) || editBranch.image) ? 'Ganti Foto' : 'Choose File'}
-                                                        <input 
-                                                            type="file" 
-                                                            accept="image/*"
-                                                            className="hidden"
-                                                            onChange={(e) => setEditBranch({...editBranch, image: e.target.files[0], remove_image: false})}
-                                                        />
-                                                    </label>
-                                                    <span className="text-sm text-slate-500 truncate max-w-[150px]">
-                                                        {editBranch.image ? editBranch.image.name : 'Belum ada foto baru'}
-                                                    </span>
+                                                <div className="flex-1">
+                                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Ubah Foto Cabang (Opsional)</label>
+                                                    <DragDropZone
+                                                        accept="image/*"
+                                                        label="Tarik & Lepas Foto Baru"
+                                                        selectedFile={editBranch.image}
+                                                        onFileDrop={(file) => setEditBranch({ ...editBranch, image: file, remove_image: false })}
+                                                    />
+                                                    <div className="flex justify-between items-center mt-2">
+                                                        <span className="text-sm text-slate-500 truncate max-w-[150px]">
+                                                            {editBranch.remove_image ? <span className="text-red-500 font-semibold italic">Akan dihapus</span> : 
+                                                             editBranch.image ? <span className="text-emerald-600 font-semibold">{editBranch.image.name}</span> : 
+                                                             (editBranch.image_path && <span className="text-slate-500">Ada foto tersimpan</span>)}
+                                                        </span>
+                                                        {editBranch.image_path && !editBranch.remove_image && (
+                                                            <button type="button" onClick={() => setEditBranch({...editBranch, remove_image: true, image: null})} className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors">
+                                                                Hapus Foto
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-slate-500 block">Video Cabang (Opsional)</label>
+                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Video Cabang (Opsional)</label>
 
                                                 {(editBranch.video_path || editBranch.video) && !editBranch.remove_video && (
                                                     <div className="relative group w-24 h-16 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center mb-2">
@@ -1927,28 +2092,37 @@ export default function Dashboard() {
                                                         <button type="button" onClick={() => {
                                                             if (editBranch.video) setEditBranch({...editBranch, video: null});
                                                             else setEditBranch({...editBranch, remove_video: true});
-                                                        }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                                                        }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                     </div>
                                                 )}
 
-                                                <div className="flex items-center gap-3">
-                                                    <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full text-sm font-semibold border border-emerald-200 transition-colors">
-                                                        {((editBranch.video_path && !editBranch.remove_video) || editBranch.video) ? 'Ganti Video' : 'Choose Video'}
-                                                        <input 
-                                                            type="file" 
-                                                            accept="video/mp4,video/x-m4v,video/*"
-                                                            className="hidden"
-                                                            onChange={(e) => setEditBranch({...editBranch, video: e.target.files[0], remove_video: false})}
-                                                        />
-                                                    </label>
-                                                    <span className="text-sm text-slate-500 truncate max-w-[150px]">
-                                                        {editBranch.video ? editBranch.video.name : 'Belum ada video baru'}
-                                                    </span>
+                                                <div className="flex-1">
+                                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Ubah Video Cabang (Opsional)</label>
+                                                    <DragDropZone
+                                                        accept="video/mp4,video/x-m4v,video/*"
+                                                        label="Tarik & Lepas Video Baru"
+                                                        selectedFile={editBranch.video}
+                                                        onFileDrop={(file) => setEditBranch({ ...editBranch, video: file, remove_video: false })}
+                                                    />
+                                                    <div className="flex justify-between items-center mt-2">
+                                                        <span className="text-sm text-slate-500 truncate max-w-[150px]">
+                                                            {editBranch.remove_video ? <span className="text-red-500 font-semibold italic">Akan dihapus</span> : 
+                                                             editBranch.video ? <span className="text-emerald-600 font-semibold">{editBranch.video.name}</span> : 
+                                                             (editBranch.video_path && <span className="text-slate-500">Ada video tersimpan</span>)}
+                                                        </span>
+                                                        {editBranch.video_path && !editBranch.remove_video && (
+                                                            <button type="button" onClick={() => setEditBranch({...editBranch, remove_video: true, video: null})} className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors">
+                                                                Hapus Video
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="md:col-span-2 flex gap-4 pt-4 border-t border-slate-100">
-                                                <button type="button" onClick={() => setEditBranch(null)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all">Batal</button>
-                                                <button type="submit" className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all">Simpan Perubahan</button>
+                                            </div>
+                                            </div>
+                                            <div className="flex justify-end gap-4 pt-4 border-t border-slate-100">
+                                                <button type="button" onClick={() => setEditBranch(null)} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all">Batal</button>
+                                                <button type="submit" className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:-translate-y-0.5 transition-all">Simpan Perubahan</button>
                                             </div>
                                         </form>
                                     </div>
@@ -1963,172 +2137,182 @@ export default function Dashboard() {
                             {/* Form Tambah */}
                             {currentRole === 'super_admin' && (
                                 <div className="glass-panel p-8 rounded-3xl border border-white/60 shadow-xl shadow-slate-200/50">
-                                    <h3 className="font-extrabold text-2xl text-slate-800 tracking-tight mb-6">Tambah Kamar Baru</h3>
-                                    <form onSubmit={handleAddRoom} className="grid md:grid-cols-4 gap-4 items-end">
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Pilih Cabang</label>
-                                            <select 
-                                                required
-                                                value={newRoom.branch_id}
-                                                onChange={(e) => setNewRoom({...newRoom, branch_id: e.target.value})}
-                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                            >
-                                                <option value="">-- Pilih Cabang --</option>
-                                                {branches.map(b => (
-                                                    <option key={b.id} value={b.id}>{b.name}</option>
-                                                ))}
-                                            </select>
+                                <h3 className="font-extrabold text-2xl text-slate-800 dark:text-white tracking-tight mb-4 border-b border-slate-100 pb-4">Tambah Kamar Baru</h3>
+                                <form onSubmit={handleAddRoom} className="space-y-5">
+                                    {/* Kategori: Informasi Dasar */}
+                                    <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                                            Informasi Dasar
+                                        </h4>
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Pilih Cabang *</label>
+                                                <select 
+                                                    required
+                                                    value={newRoom.branch_id}
+                                                    onChange={(e) => setNewRoom({...newRoom, branch_id: e.target.value})}
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                >
+                                                    <option value="">-- Pilih Cabang --</option>
+                                                    {branches.map(b => (
+                                                        <option key={b.id} value={b.id}>{b.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Nomor Kamar *</label>
+                                                <input 
+                                                    type="text" 
+                                                    required
+                                                    value={newRoom.room_number}
+                                                    onChange={(e) => setNewRoom({...newRoom, room_number: e.target.value})}
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                    placeholder="105"
+                                                />
+                                            </div>
+                                            <div className="space-y-1 md:col-span-2">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Fasilitas (pisahkan dengan koma)</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={newRoom.facilities}
+                                                    onChange={(e) => setNewRoom({...newRoom, facilities: e.target.value})}
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                    placeholder="AC, Wi-Fi, Kamar Mandi Dalam, Kasur Springbed"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Nomor Kamar</label>
-                                            <input 
-                                                type="text" 
-                                                required
-                                                value={newRoom.room_number}
-                                                onChange={(e) => setNewRoom({...newRoom, room_number: e.target.value})}
-                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                placeholder="105"
-                                            />
+                                    </div>
+
+                                    {/* Kategori: Pengaturan Harga */}
+                                    <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            Pengaturan Harga Sewa
+                                        </h4>
+                                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Harga Harian (Rp) *</label>
+                                                <input 
+                                                    type="number" 
+                                                    required
+                                                    value={newRoom.price_daily}
+                                                    onChange={(e) => setNewRoom({...newRoom, price_daily: e.target.value})}
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                    placeholder="150000"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Harga Mingguan (Rp) *</label>
+                                                <input 
+                                                    type="number" 
+                                                    required
+                                                    value={newRoom.price_weekly}
+                                                    onChange={(e) => setNewRoom({...newRoom, price_weekly: e.target.value})}
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                    placeholder="850000"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Harga Bulanan (Rp) *</label>
+                                                <input 
+                                                    type="number" 
+                                                    required
+                                                    value={newRoom.price_monthly}
+                                                    onChange={(e) => setNewRoom({...newRoom, price_monthly: e.target.value})}
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                    placeholder="1200000"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Harga Tahunan (Rp) *</label>
+                                                <input 
+                                                    type="number" 
+                                                    required
+                                                    value={newRoom.price_yearly}
+                                                    onChange={(e) => setNewRoom({...newRoom, price_yearly: e.target.value})}
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                    placeholder="12000000"
+                                                />
+                                            </div>
+                                            <div className="space-y-1 lg:col-span-4">
+                                                <label className="text-xs font-semibold text-slate-500 block mb-2">Harga Weekend (Opsional)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={newRoom.price_weekend}
+                                                    onChange={(e) => setNewRoom({...newRoom, price_weekend: e.target.value})}
+                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white lg:w-1/4"
+                                                    placeholder="opsional"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Harga Bulanan (Rp)</label>
-                                            <input 
-                                                type="number" 
-                                                required
-                                                value={newRoom.price_monthly}
-                                                onChange={(e) => setNewRoom({...newRoom, price_monthly: e.target.value})}
-                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                placeholder="1200000"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Harga Harian (Rp)</label>
-                                            <input 
-                                                type="number" 
-                                                required
-                                                value={newRoom.price_daily}
-                                                onChange={(e) => setNewRoom({...newRoom, price_daily: e.target.value})}
-                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                placeholder="150000"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Harga Mingguan (Rp)</label>
-                                            <input 
-                                                type="number" 
-                                                required
-                                                value={newRoom.price_weekly}
-                                                onChange={(e) => setNewRoom({...newRoom, price_weekly: e.target.value})}
-                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                placeholder="850000"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Harga Tahunan (Rp)</label>
-                                            <input 
-                                                type="number" 
-                                                required
-                                                value={newRoom.price_yearly}
-                                                onChange={(e) => setNewRoom({...newRoom, price_yearly: e.target.value})}
-                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                placeholder="12000000"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Harga Weekend (Jumat-Minggu)</label>
-                                            <input 
-                                                type="number" 
-                                                value={newRoom.price_weekend}
-                                                onChange={(e) => setNewRoom({...newRoom, price_weekend: e.target.value})}
-                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                placeholder="opsional"
-                                            />
-                                        </div>
-                                        <div className="space-y-1 md:col-span-4">
-                                            <label className="text-xs font-semibold text-slate-500">Fasilitas (pisahkan dengan koma)</label>
-                                            <input 
-                                                type="text" 
-                                                value={newRoom.facilities}
-                                                onChange={(e) => setNewRoom({...newRoom, facilities: e.target.value})}
-                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                placeholder="AC, Wi-Fi, Kamar Mandi Dalam, Kasur Springbed"
-                                            />
-                                        </div>
-                                        <div className="space-y-2 md:col-span-2">
-                                            <label className="text-xs font-semibold text-slate-500 block">Upload Foto Kamar (Bisa lebih dari 1)</label>
+                                    </div>
+                                    {/* Kategori: Media & Dokumentasi */}
+                                    <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                            Media & Dokumentasi
+                                        </h4>
+                                        <div className="grid md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Upload Foto Kamar (Bisa lebih dari 1)</label>
                                             
                                             {/* Previews */}
                                             {newRoom.photos?.length > 0 && (
                                                 <div className="flex flex-wrap gap-2 mb-2">
                                                     {Array.from(newRoom.photos).map((file, idx) => (
-                                                        <div key={`new-photo-${idx}`} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-emerald-200">
+                                                        <div key={`new-photo-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200">
                                                             <img src={URL.createObjectURL(file)} alt="new" className="w-full h-full object-cover" />
-                                                            <button type="button" onClick={() => setNewRoom({...newRoom, photos: Array.from(newRoom.photos).filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                                                            <button type="button" onClick={() => setNewRoom({...newRoom, photos: Array.from(newRoom.photos).filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                         </div>
                                                     ))}
                                                 </div>
                                             )}
 
-                                            <div className="flex items-center gap-3">
-                                                <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full text-sm font-semibold border border-emerald-200 transition-colors">
-                                                    {newRoom.photos && newRoom.photos.length > 0 ? 'Add More' : 'Choose Files'}
-                                                    <input 
-                                                        type="file" 
-                                                        multiple
-                                                        accept="image/*"
-                                                        className="hidden"
-                                                        onChange={(e) => {
-                                                            const newFiles = Array.from(e.target.files);
-                                                            const existingFiles = newRoom.photos ? Array.from(newRoom.photos) : [];
-                                                            setNewRoom({...newRoom, photos: [...existingFiles, ...newFiles]});
-                                                        }}
-                                                    />
-                                                </label>
-                                                <span className="text-sm text-slate-500">
-                                                    {newRoom.photos && newRoom.photos.length > 0 ? `${newRoom.photos.length} file dipilih` : 'Belum ada file'}
-                                                </span>
-                                            </div>
+                                            <DragDropZone
+                                                accept="image/*"
+                                                multiple={true}
+                                                label="Tarik & Lepas Foto (Bisa lebih dari 1)"
+                                                selectedFile={newRoom.photos}
+                                                onFileDrop={(files) => {
+                                                    const existingFiles = newRoom.photos ? Array.from(newRoom.photos) : [];
+                                                    setNewRoom({...newRoom, photos: [...existingFiles, ...files]});
+                                                }}
+                                            />
                                         </div>
-                                        <div className="space-y-2 md:col-span-2">
-                                            <label className="text-xs font-semibold text-slate-500 block">Upload Video (Opsional, max 20MB)</label>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Upload Video (Opsional, max 20MB)</label>
                                             
                                             {/* Previews */}
                                             {newRoom.videos?.length > 0 && (
                                                 <div className="flex flex-wrap gap-2 mb-2">
                                                     {Array.from(newRoom.videos).map((file, idx) => (
-                                                        <div key={`new-video-${idx}`} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 flex items-center justify-center">
+                                                        <div key={`new-video-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 flex items-center justify-center">
                                                             <svg className="w-8 h-8 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                            <button type="button" onClick={() => setNewRoom({...newRoom, videos: Array.from(newRoom.videos).filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                                                            <button type="button" onClick={() => setNewRoom({...newRoom, videos: Array.from(newRoom.videos).filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                         </div>
                                                     ))}
                                                 </div>
                                             )}
 
-                                            <div className="flex items-center gap-3">
-                                                <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full text-sm font-semibold border border-emerald-200 transition-colors">
-                                                    {newRoom.videos && newRoom.videos.length > 0 ? 'Add More' : 'Choose Video'}
-                                                    <input 
-                                                        type="file" 
-                                                        multiple
-                                                        accept="video/mp4,video/x-m4v,video/*"
-                                                        className="hidden"
-                                                        onChange={(e) => {
-                                                            const newFiles = Array.from(e.target.files);
-                                                            const existingFiles = newRoom.videos ? Array.from(newRoom.videos) : [];
-                                                            setNewRoom({...newRoom, videos: [...existingFiles, ...newFiles]});
-                                                        }}
-                                                    />
-                                                </label>
-                                                <span className="text-sm text-slate-500">
-                                                    {newRoom.videos && newRoom.videos.length > 0 ? `${newRoom.videos.length} video dipilih` : 'Belum ada video'}
-                                                </span>
-                                            </div>
+                                            <DragDropZone
+                                                accept="video/mp4,video/x-m4v,video/*"
+                                                multiple={true}
+                                                label="Tarik & Lepas Video (Opsional, Bisa lebih dari 1)"
+                                                selectedFile={newRoom.videos}
+                                                onFileDrop={(files) => {
+                                                    const existingFiles = newRoom.videos ? Array.from(newRoom.videos) : [];
+                                                    setNewRoom({...newRoom, videos: [...existingFiles, ...files]});
+                                                }}
+                                            />
                                         </div>
-                                        <div className="md:col-span-4 mt-2">
-                                            <button type="submit" className="w-full py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">
-                                                Simpan Kamar
-                                            </button>
-                                        </div>
+                                    </div>
+                                    </div>
+                                    <div className="flex justify-end pt-4 mt-2 border-t border-slate-100">
+                                        <button type="submit" className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">
+                                            Simpan Kamar Baru
+                                        </button>
+                                    </div>
                                     </form>
                                 </div>
                             )}
@@ -2149,7 +2333,13 @@ export default function Dashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-sm">
-                                        {visibleRooms.map(room => (
+                                        {visibleRooms.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="8" className="p-8 text-center text-slate-400">
+                                                    Belum ada data kamar.
+                                                </td>
+                                            </tr>
+                                        ) : visibleRooms.map(room => (
                                             <tr key={room.id} className="hover:bg-slate-50">
                                                 <td className="p-4 pl-6 font-bold text-slate-800 font-mono">No. {room.room_number}</td>
                                                 <td className="p-4 text-slate-600">{room.branch.name.replace('Kospart PH 18 - ', '')}</td>
@@ -2225,191 +2415,200 @@ export default function Dashboard() {
                                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md overflow-y-auto" style={{ animation: 'modalIn 0.3s ease' }}>
                                     <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 max-w-4xl w-full shadow-2xl shadow-emerald-900/20 border border-white/60 max-h-[90vh] overflow-y-auto">
                                         <div className="flex justify-between items-center mb-6">
-                                            <h3 className="font-extrabold text-2xl text-slate-800 tracking-tight">Edit Kamar</h3>
+                                            <h3 className="font-extrabold text-2xl text-slate-800 dark:text-white tracking-tight">Edit Kamar</h3>
                                             <button onClick={() => setEditRoom(null)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2 transition-all duration-300 hover:rotate-90">
                                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                             </button>
                                         </div>
-                                        <form onSubmit={handleEditRoomSubmit} className="grid md:grid-cols-4 gap-4 items-end">
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Cabang</label>
-                                                <select 
-                                                    required
-                                                    value={editRoom.branch_id}
-                                                    onChange={(e) => setEditRoom({...editRoom, branch_id: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                >
-                                                    {branches.map(b => (
-                                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                                    ))}
-                                                </select>
+                                        <form onSubmit={handleEditRoomSubmit} className="space-y-5">
+                                            {/* Kategori: Informasi Dasar */}
+                                            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                                    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                                                    Informasi Dasar
+                                                </h4>
+                                                <div className="grid md:grid-cols-2 gap-4">
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Cabang</label>
+                                                        <select 
+                                                            required
+                                                            value={editRoom.branch_id}
+                                                            onChange={(e) => setEditRoom({...editRoom, branch_id: e.target.value})}
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        >
+                                                            {branches.map(b => (
+                                                                <option key={b.id} value={b.id}>{b.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Nomor Kamar</label>
+                                                        <input 
+                                                            type="text" 
+                                                            required
+                                                            value={editRoom.room_number}
+                                                            onChange={(e) => setEditRoom({...editRoom, room_number: e.target.value})}
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1 md:col-span-2">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Status</label>
+                                                        <select 
+                                                            value={editRoom.status}
+                                                            onChange={(e) => setEditRoom({...editRoom, status: e.target.value})}
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        >
+                                                            <option value="available">Tersedia</option>
+                                                            <option value="occupied">Terisi</option>
+                                                            <option value="booked">Dibooking</option>
+                                                            <option value="maintenance">Maintenance</option>
+                                                            <option value="cleaning">Pembersihan</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-1 md:col-span-2">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Fasilitas (pisahkan dengan koma)</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={editRoom.facilities}
+                                                            onChange={(e) => setEditRoom({...editRoom, facilities: e.target.value})}
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Nomor Kamar</label>
-                                                <input 
-                                                    type="text" 
-                                                    required
-                                                    value={editRoom.room_number}
-                                                    onChange={(e) => setEditRoom({...editRoom, room_number: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                />
+                                            {/* Kategori: Pengaturan Harga */}
+                                            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                                    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                    Pengaturan Harga Sewa
+                                                </h4>
+                                                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Harga Harian (Rp)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            required
+                                                            value={editRoom.price_daily}
+                                                            onChange={(e) => setEditRoom({...editRoom, price_daily: e.target.value})}
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Harga Mingguan (Rp)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            required
+                                                            value={editRoom.price_weekly}
+                                                            onChange={(e) => setEditRoom({...editRoom, price_weekly: e.target.value})}
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Harga Bulanan (Rp)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            required
+                                                            value={editRoom.price_monthly}
+                                                            onChange={(e) => setEditRoom({...editRoom, price_monthly: e.target.value})}
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Harga Tahunan (Rp)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            required
+                                                            value={editRoom.price_yearly}
+                                                            onChange={(e) => setEditRoom({...editRoom, price_yearly: e.target.value})}
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1 lg:col-span-4">
+                                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Harga Weekend (Jumat-Minggu)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={editRoom.price_weekend || ''}
+                                                            onChange={(e) => setEditRoom({...editRoom, price_weekend: e.target.value})}
+                                                            className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white lg:w-1/4"
+                                                            placeholder="opsional"
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Harga Bulanan (Rp)</label>
-                                                <input 
-                                                    type="number" 
-                                                    required
-                                                    value={editRoom.price_monthly}
-                                                    onChange={(e) => setEditRoom({...editRoom, price_monthly: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Harga Harian (Rp)</label>
-                                                <input 
-                                                    type="number" 
-                                                    required
-                                                    value={editRoom.price_daily}
-                                                    onChange={(e) => setEditRoom({...editRoom, price_daily: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Harga Mingguan (Rp)</label>
-                                                <input 
-                                                    type="number" 
-                                                    required
-                                                    value={editRoom.price_weekly}
-                                                    onChange={(e) => setEditRoom({...editRoom, price_weekly: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Harga Tahunan (Rp)</label>
-                                                <input 
-                                                    type="number" 
-                                                    required
-                                                    value={editRoom.price_yearly}
-                                                    onChange={(e) => setEditRoom({...editRoom, price_yearly: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-slate-500">Harga Weekend (Jumat-Minggu)</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={editRoom.price_weekend || ''}
-                                                    onChange={(e) => setEditRoom({...editRoom, price_weekend: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                    placeholder="opsional"
-                                                />
-                                            </div>
-                                            <div className="space-y-1 md:col-span-2">
-                                                <label className="text-xs font-semibold text-slate-500">Status</label>
-                                                <select 
-                                                    value={editRoom.status}
-                                                    onChange={(e) => setEditRoom({...editRoom, status: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                >
-                                                    <option value="available">Tersedia</option>
-                                                    <option value="occupied">Terisi</option>
-                                                    <option value="booked">Dibooking</option>
-                                                    <option value="maintenance">Maintenance</option>
-                                                    <option value="cleaning">Pembersihan</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-1 md:col-span-2">
-                                                <label className="text-xs font-semibold text-slate-500">Fasilitas (pisahkan koma)</label>
-                                                <input 
-                                                    type="text" 
-                                                    value={editRoom.facilities}
-                                                    onChange={(e) => setEditRoom({...editRoom, facilities: e.target.value})}
-                                                    className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                />
-                                            </div>
-                                            <div className="space-y-2 md:col-span-2">
-                                                <label className="text-xs font-semibold text-slate-500 block">Upload Foto (Opsional, menambahkan ke foto lama)</label>
+                                            {/* Kategori: Media & Dokumentasi */}
+                                            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                    Media & Dokumentasi
+                                                </h4>
+                                                <div className="grid md:grid-cols-2 gap-6">
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Upload Foto (Opsional, menambahkan ke foto lama)</label>
                                                 
                                                 {/* Previews */}
                                                 {(editRoom.existing_photos?.length > 0 || editRoom.new_photos?.length > 0) && (
                                                     <div className="flex flex-wrap gap-2 mb-2">
                                                         {editRoom.existing_photos?.map((url, idx) => (
-                                                            <div key={`exist-photo-${idx}`} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-slate-200">
+                                                            <div key={`exist-photo-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-slate-200">
                                                                 <img src={url} alt="existing" className="w-full h-full object-cover" />
-                                                                <button type="button" onClick={() => setEditRoom({...editRoom, existing_photos: editRoom.existing_photos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                                                                <button type="button" onClick={() => setEditRoom({...editRoom, existing_photos: editRoom.existing_photos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                             </div>
                                                         ))}
                                                         {editRoom.new_photos?.map((file, idx) => (
-                                                            <div key={`new-photo-${idx}`} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-emerald-200">
+                                                            <div key={`new-photo-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200">
                                                                 <img src={URL.createObjectURL(file)} alt="new" className="w-full h-full object-cover" />
-                                                                <button type="button" onClick={() => setEditRoom({...editRoom, new_photos: editRoom.new_photos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                                                                <button type="button" onClick={() => setEditRoom({...editRoom, new_photos: editRoom.new_photos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 )}
 
-                                                <div className="flex items-center gap-3">
-                                                    <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full text-sm font-semibold border border-emerald-200 transition-colors">
-                                                        {(editRoom.existing_photos?.length > 0 || editRoom.new_photos?.length > 0) ? 'Add More' : 'Choose File'}
-                                                        <input 
-                                                            type="file" 
-                                                            multiple
-                                                            accept="image/*"
-                                                            className="hidden"
-                                                            onChange={(e) => {
-                                                                const newFiles = Array.from(e.target.files);
-                                                                const existingFiles = editRoom.new_photos ? Array.from(editRoom.new_photos) : [];
-                                                                setEditRoom({...editRoom, new_photos: [...existingFiles, ...newFiles]});
-                                                            }}
-                                                        />
-                                                    </label>
-                                                    <span className="text-sm text-slate-500">
-                                                        {(editRoom.existing_photos?.length || 0) + (editRoom.new_photos?.length || 0)} total file
-                                                    </span>
-                                                </div>
+                                                <DragDropZone
+                                                    accept="image/*"
+                                                    multiple={true}
+                                                    label="Tarik & Lepas Foto (Bisa lebih dari 1)"
+                                                    selectedFile={editRoom.new_photos}
+                                                    onFileDrop={(files) => {
+                                                        const existingFiles = editRoom.new_photos ? Array.from(editRoom.new_photos) : [];
+                                                        setEditRoom({...editRoom, new_photos: [...existingFiles, ...files]});
+                                                    }}
+                                                />
                                             </div>
-                                            <div className="space-y-2 md:col-span-2">
-                                                <label className="text-xs font-semibold text-slate-500 block">Upload Video (Opsional, menambahkan ke video lama)</label>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Upload Video (Opsional, menambahkan ke video lama)</label>
 
                                                 {/* Previews */}
                                                 {(editRoom.existing_videos?.length > 0 || editRoom.new_videos?.length > 0) && (
                                                     <div className="flex flex-wrap gap-2 mb-2">
                                                         {editRoom.existing_videos?.map((url, idx) => (
-                                                            <div key={`exist-video-${idx}`} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
+                                                            <div key={`exist-video-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
                                                                 <svg className="w-8 h-8 text-slate-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                                <button type="button" onClick={() => setEditRoom({...editRoom, existing_videos: editRoom.existing_videos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                                                                <button type="button" onClick={() => setEditRoom({...editRoom, existing_videos: editRoom.existing_videos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                             </div>
                                                         ))}
                                                         {editRoom.new_videos?.map((file, idx) => (
-                                                            <div key={`new-video-${idx}`} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 flex items-center justify-center">
+                                                            <div key={`new-video-${idx}`} className="relative group w-24 h-16 rounded-xl overflow-hidden border border-emerald-200 bg-emerald-50 flex items-center justify-center">
                                                                 <svg className="w-8 h-8 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                                <button type="button" onClick={() => setEditRoom({...editRoom, new_videos: editRoom.new_videos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                                                                <button type="button" onClick={() => setEditRoom({...editRoom, new_videos: editRoom.new_videos.filter((_, i) => i !== idx)})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">&times;</button>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 )}
 
-                                                <div className="flex items-center gap-3">
-                                                    <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full text-sm font-semibold border border-emerald-200 transition-colors">
-                                                        {(editRoom.existing_videos?.length > 0 || editRoom.new_videos?.length > 0) ? 'Add More' : 'Choose Video'}
-                                                        <input 
-                                                            type="file" 
-                                                            multiple
-                                                            accept="video/mp4,video/x-m4v,video/*"
-                                                            className="hidden"
-                                                            onChange={(e) => {
-                                                                const newFiles = Array.from(e.target.files);
-                                                                const existingFiles = editRoom.new_videos ? Array.from(editRoom.new_videos) : [];
-                                                                setEditRoom({...editRoom, new_videos: [...existingFiles, ...newFiles]});
-                                                            }}
-                                                        />
-                                                    </label>
-                                                    <span className="text-sm text-slate-500">
-                                                        {(editRoom.existing_videos?.length || 0) + (editRoom.new_videos?.length || 0)} total video
-                                                    </span>
-                                                </div>
+                                                <DragDropZone
+                                                    accept="video/mp4,video/x-m4v,video/*"
+                                                    multiple={true}
+                                                    label="Tarik & Lepas Video Baru (Opsional, Bisa lebih dari 1)"
+                                                    selectedFile={editRoom.new_videos}
+                                                    onFileDrop={(files) => {
+                                                        const existingFiles = editRoom.new_videos ? Array.from(editRoom.new_videos) : [];
+                                                        setEditRoom({...editRoom, new_videos: [...existingFiles, ...files]});
+                                                    }}
+                                                />
                                             </div>
-                                            <div className="md:col-span-4 mt-4 flex gap-4 pt-4 border-t border-slate-100 justify-end">
+                                        </div>
+                                    </div>
+                                            <div className="flex gap-4 pt-4 border-t border-slate-100 justify-end">
                                                 <button type="button" onClick={() => setEditRoom(null)} className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all">Batal</button>
                                                 <button type="submit" className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">Simpan Perubahan</button>
                                             </div>
@@ -2447,18 +2646,23 @@ export default function Dashboard() {
                                                     onClick={() => {
                                                         const headers = ['Tanggal', 'Kamar', 'Deskripsi', 'Nominal'];
                                                         const csvData = visibleTenantPayments.map(f => {
+                                                            const formattedAmount = `Rp ${Number(f.amount).toLocaleString('id-ID')}`;
                                                             return [
                                                                 new Date(f.transaction_date).toLocaleDateString('id-ID'),
                                                                 `Kamar ${f.booking?.room?.room_number || '-'}`,
                                                                 f.description,
-                                                                f.amount
-                                                            ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(',');
+                                                                formattedAmount
+                                                            ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(';');
                                                         });
-                                                        const csvContent = [headers.join(','), ...csvData].join('\n');
-                                                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                                                        const csvContent = [headers.join(';'), ...csvData].join('\n');
+                                                        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
                                                         const link = document.createElement('a');
                                                         link.href = URL.createObjectURL(blob);
-                                                        link.download = `Export_Riwayat_Pembayaran_${new Date().toISOString().split('T')[0]}.csv`;
+                                                        const safeName = (auth.user?.name || 'User').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                                                        const roomNumber = visibleTenantPayments.length > 0 && visibleTenantPayments[0].booking?.room?.room_number 
+                                                            ? visibleTenantPayments[0].booking.room.room_number 
+                                                            : '';
+                                                        link.download = `riwayat_pembayaran_${safeName}${roomNumber ? '_' + roomNumber : ''}.csv`;
                                                         link.click();
                                                     }}
                                                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm flex items-center gap-2"
@@ -2477,9 +2681,9 @@ export default function Dashboard() {
                                                     <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                                 </div>
                                             </div>
-                                            <div className="overflow-x-auto">
-                                                <div className="overflow-x-auto w-full"><table className="w-full whitespace-nowrap min-w-max text-left border-collapse">
-                                                    <thead>
+                                        <div className="overflow-auto w-full max-h-[700px] relative">
+                                            <table className="w-full whitespace-nowrap min-w-max text-left border-collapse">
+                                                <thead className="sticky top-0 z-10 shadow-sm">
                                                         <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
                                                             <th className="p-4 pl-6">Tanggal</th>
                                                             <th className="p-4">Kamar</th>
@@ -2510,7 +2714,7 @@ export default function Dashboard() {
                                                     </tr>
                                                 )}
                                             </tbody>
-                                        </table></div>
+                                        </table>
                                         </div>
                                     </div>
                                     );
@@ -2551,9 +2755,9 @@ export default function Dashboard() {
                                                 <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                             </div>
                                         </div>
-                                        <div className="overflow-x-auto">
-                                            <div className="overflow-x-auto w-full"><table className="w-full whitespace-nowrap min-w-max text-left border-collapse">
-                                                <thead>
+                                        <div className="overflow-auto w-full max-h-[700px] relative">
+                                            <table className="w-full whitespace-nowrap min-w-max text-left border-collapse">
+                                                <thead className="sticky top-0 z-10 shadow-sm">
                                             <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
                                                 <th className="p-4 pl-6">Kode Booking</th>
                                                 <th className="p-4">Tenant / Kamar</th>
@@ -2565,7 +2769,7 @@ export default function Dashboard() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 text-sm">
-                                            {visibleBookings.map(b => (
+                                            {paginatedBookings.map(b => (
                                                 <tr key={b.id} className="hover:bg-slate-50">
                                                     <td className="p-4 pl-6 font-mono font-bold text-slate-800">{b.booking_code}</td>
                                                     <td className="p-4">
@@ -2702,17 +2906,9 @@ export default function Dashboard() {
                                                                                     <>
                                                                                         <Menu.Item>
                                                                                             {({ active }) => (
-                                                                                                <button onClick={() => setShowChangeRoomModal(b)} className={`${active ? 'bg-blue-50 text-blue-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-semibold transition-colors`}>
-                                                                                                    <svg className="w-4 h-4 mr-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                                                                                                    Pindah Kamar
-                                                                                                </button>
-                                                                                            )}
-                                                                                        </Menu.Item>
-                                                                                        <Menu.Item>
-                                                                                            {({ active }) => (
-                                                                                                <button onClick={() => setShowRescheduleModal(b)} className={`${active ? 'bg-amber-50 text-amber-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-semibold transition-colors`}>
-                                                                                                    <svg className="w-4 h-4 mr-3 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                                                                                    Reschedule
+                                                                                                <button onClick={() => { setShowExtendManualModal(b); setExtendManualData({ duration: 1, payment_status: 'paid', payment_method: 'cash', rental_type: b.rental_type }); setCalendarMonthOffset(0); }} className={`${active ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700'} flex w-full items-center px-4 py-2.5 text-xs font-semibold transition-colors`}>
+                                                                                                    <svg className="w-4 h-4 mr-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                                                                    Perpanjang Sewa
                                                                                                 </button>
                                                                                             )}
                                                                                         </Menu.Item>
@@ -2750,7 +2946,7 @@ export default function Dashboard() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {visibleBookings.length === 0 && (
+                                            {paginatedBookings.length === 0 && (
                                                 <tr>
                                                     <td colSpan="7" className="p-8 text-center text-slate-400">
                                                         {bookingSearch ? 'Tidak ada transaksi yang cocok dengan pencarian Anda.' : 'Belum ada data penyewaan / transaksi.'}
@@ -2758,8 +2954,31 @@ export default function Dashboard() {
                                                 </tr>
                                             )}
                                         </tbody>
-                                    </table></div>
+                                    </table>
                                     </div>
+                                    {totalBookingPages > 1 && (
+                                        <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center rounded-b-2xl">
+                                            <span className="text-xs text-slate-500">
+                                                Menampilkan {((bookingPage - 1) * bookingsPerPage) + 1} - {Math.min(bookingPage * bookingsPerPage, visibleBookings.length)} dari {visibleBookings.length} data
+                                            </span>
+                                            <div className="flex gap-1">
+                                                <button
+                                                    onClick={() => setBookingPage(p => Math.max(1, p - 1))}
+                                                    disabled={bookingPage === 1}
+                                                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    Sebelumnya
+                                                </button>
+                                                <button
+                                                    onClick={() => setBookingPage(p => Math.min(totalBookingPages, p + 1))}
+                                                    disabled={bookingPage === totalBookingPages}
+                                                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    Selanjutnya
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 )}
                             </div>
@@ -2823,10 +3042,10 @@ export default function Dashboard() {
                             {/* Resident view: Submit Complaint */}
                             {currentRole === 'resident' && (
                                 <div className="glass-panel p-6 rounded-2xl max-w-xl border border-slate-200 shadow-sm">
-                                    <h3 className="font-extrabold text-lg text-slate-800 mb-4">Laporkan Komplain / Kerusakan</h3>
+                                    <h3 className="font-extrabold text-lg text-slate-800 dark:text-slate-200 mb-4">Laporkan Komplain / Kerusakan</h3>
                                     <form onSubmit={handleAddComplaint} className="space-y-4">
                                         <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Pilih Kamar Anda</label>
+                                            <label className="text-xs font-semibold text-slate-500 block mb-2">Pilih Kamar Anda</label>
                                             {(() => {
                                                 const resId = auth.user.id;
                                                 const residentOccupiedRooms = rooms.filter(r => 
@@ -2857,7 +3076,7 @@ export default function Dashboard() {
                                             })()}
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Judul Aduan</label>
+                                            <label className="text-xs font-semibold text-slate-500 block mb-2">Judul Aduan</label>
                                             <input 
                                                 type="text" 
                                                 required
@@ -2868,7 +3087,7 @@ export default function Dashboard() {
                                             />
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Deskripsi Lengkap Kendala</label>
+                                            <label className="text-xs font-semibold text-slate-500 block mb-2">Deskripsi Lengkap Kendala</label>
                                             <textarea 
                                                 required
                                                 value={newComplaint.description}
@@ -2897,7 +3116,13 @@ export default function Dashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-sm">
-                                        {visibleComplaints.map(c => (
+                                        {visibleComplaints.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="5" className="p-8 text-center text-slate-400">
+                                                    Belum ada data komplain.
+                                                </td>
+                                            </tr>
+                                        ) : visibleComplaints.map(c => (
                                             <tr key={c.id} className="hover:bg-slate-50">
                                                 <td className="p-4 pl-6 font-mono text-xs text-slate-500">{new Date(c.created_at).toLocaleDateString('id-ID')}</td>
                                                 <td className="p-4">
@@ -2971,7 +3196,7 @@ export default function Dashboard() {
                         </div>
                         <form onSubmit={handleUpdateComplaintStatus} className="space-y-4">
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Pilih Status Kerja</label>
+                                <label className="text-xs font-semibold text-slate-500 block mb-2">Pilih Status Kerja</label>
                                 <select value={complaintResponse.status} onChange={(e) => setComplaintResponse({...complaintResponse, status: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
                                     <option value="pending">Pending</option>
                                     <option value="confirmed">Dikonfirmasi (Antre)</option>
@@ -2981,7 +3206,7 @@ export default function Dashboard() {
                                 </select>
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Pesan Respon Pengelola</label>
+                                <label className="text-xs font-semibold text-slate-500 block mb-2">Pesan Respon Pengelola</label>
                                 <textarea required value={complaintResponse.admin_response} onChange={(e) => setComplaintResponse({...complaintResponse, admin_response: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full h-24" placeholder="Tulis instruksi/info ke tenant terkait perbaikan..." />
                             </div>
                             <div className="flex gap-4 pt-4 mt-2 border-t border-slate-100">
@@ -3006,7 +3231,7 @@ export default function Dashboard() {
                         <p className="text-xs text-slate-600">Pindahkan penghuni <strong>{showChangeRoomModal.tenant.name}</strong> dari Kamar {showChangeRoomModal.room.room_number} ke Kamar baru yang kosong.</p>
                         <form onSubmit={handleChangeRoom} className="space-y-4">
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Pilih Kamar Baru (Tersedia)</label>
+                                <label className="text-xs font-semibold text-slate-500 block mb-2">Pilih Kamar Baru (Tersedia)</label>
                                 <select 
                                     required
                                     value={newRoomIdInput}
@@ -3045,7 +3270,7 @@ export default function Dashboard() {
                         <p className="text-xs text-slate-600">Reset tanggal mulai & selesai sewa untuk <strong>{showRescheduleModal.tenant.name}</strong>. Jumlah tagihan sewa akan otomatis dihitung ulang secara real-time.</p>
                         <form onSubmit={handleRescheduleBill} className="space-y-4">
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Tanggal Mulai Baru</label>
+                                <label className="text-xs font-semibold text-slate-500 block mb-2">Tanggal Mulai Baru</label>
                                 <input 
                                     type="date"
                                     required
@@ -3055,7 +3280,7 @@ export default function Dashboard() {
                                 />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Tanggal Selesai Baru</label>
+                                <label className="text-xs font-semibold text-slate-500 block mb-2">Tanggal Selesai Baru</label>
                                 <input 
                                     type="date"
                                     required
@@ -3083,7 +3308,7 @@ export default function Dashboard() {
                     <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl border border-white/60 shadow-2xl shadow-emerald-900/20 max-h-[90vh] overflow-y-auto">
                         <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100/50 flex items-center justify-between">
                             <div>
-                                <h3 className="font-extrabold text-2xl text-slate-800 tracking-tight">Verifikasi Pembayaran</h3>
+                                <h3 className="font-extrabold text-2xl text-slate-800 dark:text-white tracking-tight">Verifikasi Pembayaran</h3>
                                 <p className="text-emerald-600 text-xs font-bold tracking-wide uppercase bg-emerald-100/50 px-2.5 py-1 rounded-full mt-1.5 inline-block">Kode: {showVerifyPaymentModal.booking_code}</p>
                             </div>
                             <button onClick={() => setShowVerifyPaymentModal(null)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
@@ -3140,40 +3365,69 @@ export default function Dashboard() {
                     <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl border border-white/60 shadow-2xl shadow-emerald-900/20 max-h-[90vh] overflow-y-auto">
                         <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100/50 flex items-center justify-between">
                             <div>
-                                <h3 className="font-extrabold text-2xl text-slate-800 tracking-tight">Terima Pembayaran Manual</h3>
+                                <h3 className="font-extrabold text-2xl text-slate-800 dark:text-white tracking-tight">Terima Pembayaran Manual</h3>
                                 <p className="text-emerald-600 text-xs font-bold tracking-wide uppercase bg-emerald-100/50 px-2.5 py-1 rounded-full mt-1.5 inline-block">Penghuni Belum Lunas</p>
                             </div>
-                            <button onClick={() => setShowManualPayModal(false)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
+                            <button onClick={closeManualPayModal} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
                         <form onSubmit={handleManualPaySubmit} className="p-6 space-y-5">
-                            <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Pilih Penghuni / Kamar</label>
-                                <select required value={manualPayData.booking_id} onChange={(e) => {
-                                    const selectedBookingId = e.target.value;
-                                    const booking = bookings.find(b => b.id == selectedBookingId);
-                                    const remaining = booking ? Math.max(0, parseFloat(booking.total_amount) - parseFloat(booking.paid_amount || 0)) : '';
-                                    setManualPayData({...manualPayData, booking_id: selectedBookingId, paid_amount: remaining});
-                                }} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
-                                    <option value="">-- Pilih Penghuni --</option>
-                                    {bookings.filter(b => ['unpaid', 'dp'].includes(b.payment_status) && parseFloat(b.unverified_amount || 0) === 0).map(b => (
-                                        <option key={b.id} value={b.id}>{b.tenant?.name} - Kamar {b.room?.room_number} (Sisa: Rp {Math.max(0, parseFloat(b.total_amount) - parseFloat(b.paid_amount || 0)).toLocaleString('id-ID')})</option>
-                                    ))}
-                                </select>
-                            </div>
-                            {manualPayData.booking_id && (
+                            {/* Kategori: Pilih Penghuni */}
+                            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                    Pilih Penghuni
+                                </h4>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-500">Nominal Pembayaran (Rp)</label>
-                                    <input type="number" required min="1" value={manualPayData.paid_amount} onChange={(e) => setManualPayData({...manualPayData, paid_amount: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" />
+                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Pilih Penghuni / Kamar *</label>
+                                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                                        {bookings.filter(b => ['unpaid', 'dp'].includes(b.payment_status) && parseFloat(b.unverified_amount || 0) === 0).length === 0 ? (
+                                            <div className="p-3 text-center text-sm text-slate-500 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">Tidak ada penghuni yang belum lunas.</div>
+                                        ) : bookings.filter(b => ['unpaid', 'dp'].includes(b.payment_status) && parseFloat(b.unverified_amount || 0) === 0).map(b => (
+                                            <div 
+                                                key={b.id} 
+                                                onClick={() => {
+                                                    const remaining = Math.max(0, parseFloat(b.total_amount) - parseFloat(b.paid_amount || 0));
+                                                    setManualPayData({...manualPayData, booking_id: b.id, paid_amount: remaining});
+                                                }}
+                                                className={`cursor-pointer p-3 rounded-xl border transition-all ${manualPayData.booking_id == b.id ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/20 shadow-sm' : 'border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/50 hover:border-emerald-300 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:shadow-sm'}`}
+                                            >
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="font-bold text-sm text-slate-800">{b.tenant?.name}</p>
+                                                        <p className="text-xs text-slate-500">Kamar {b.room?.room_number}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-[10px] text-slate-400 uppercase font-semibold">Sisa Tagihan</p>
+                                                        <p className="font-bold text-rose-600 text-sm">Rp {Math.max(0, parseFloat(b.total_amount) - parseFloat(b.paid_amount || 0)).toLocaleString('id-ID')}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            )}
-                            <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Metode Pembayaran</label>
-                                <select value={manualPayData.payment_method} onChange={(e) => setManualPayData({...manualPayData, payment_method: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
-                                    <option value="cash">Uang Tunai / Cash</option>
-                                    <option value="transfer">Transfer Langsung (Tanpa Aplikasi)</option>
-                                </select>
+                            </div>
+                            
+                            {/* Kategori: Detail Pembayaran */}
+                            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 space-y-4">
+                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    Detail Pembayaran
+                                </h4>
+                                {manualPayData.booking_id && (
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Nominal Pembayaran (Rp)</label>
+                                        <input type="number" required min="1" value={manualPayData.paid_amount} onChange={(e) => setManualPayData({...manualPayData, paid_amount: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white" />
+                                    </div>
+                                )}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-slate-500 block mb-2">Metode Pembayaran</label>
+                                    <select value={manualPayData.payment_method} onChange={(e) => setManualPayData({...manualPayData, payment_method: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full bg-white dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-white">
+                                        <option value="cash">Uang Tunai / Cash</option>
+                                        <option value="transfer">Transfer Langsung (Tanpa Aplikasi)</option>
+                                    </select>
+                                </div>
                             </div>
                             <div className="pt-4 mt-2 border-t border-slate-100 flex justify-end">
                                 <button type="submit" disabled={!manualPayData.booking_id} className={`px-8 py-3 text-white font-bold rounded-xl text-sm shadow-lg transition-all ${manualPayData.booking_id ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5' : 'bg-slate-300 cursor-not-allowed'}`}>
@@ -3214,14 +3468,14 @@ export default function Dashboard() {
                                 <div>
                                     <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Ditagihkan Kepada:</span>
                                     <strong className="text-slate-800 text-sm block mt-1">{showInvoiceModal.tenant.name}</strong>
-                                    <span className="text-slate-500 block">{showInvoiceModal.tenant.email}</span>
-                                    <span className="text-slate-500 block">{showInvoiceModal.tenant.phone}</span>
+                                    <span className="text-slate-500 dark:text-slate-400 block">{showInvoiceModal.tenant.email}</span>
+                                    <span className="text-slate-500 dark:text-slate-400 block">{showInvoiceModal.tenant.phone}</span>
                                 </div>
                                 <div>
                                     <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Rincian Hunian:</span>
                                     <strong className="text-slate-800 text-sm block mt-1">Kamar {showInvoiceModal.room.room_number} ({showInvoiceModal.rental_type === 'daily' ? 'Harian' : (showInvoiceModal.rental_type === 'weekly' ? 'Mingguan' : (showInvoiceModal.rental_type === 'monthly' ? 'Bulanan' : 'Tahunan'))})</strong>
-                                    <span className="text-slate-500 block">Check-in: {new Date(showInvoiceModal.start_date).toLocaleDateString('id-ID')}</span>
-                                    <span className="text-slate-500 block">Check-out: {new Date(showInvoiceModal.end_date).toLocaleDateString('id-ID')}</span>
+                                    <span className="text-slate-500 dark:text-slate-400 block">Check-in: {new Date(showInvoiceModal.start_date).toLocaleDateString('id-ID')}</span>
+                                    <span className="text-slate-500 dark:text-slate-400 block">Check-out: {new Date(showInvoiceModal.end_date).toLocaleDateString('id-ID')}</span>
                                 </div>
                             </div>
 
@@ -3316,13 +3570,17 @@ export default function Dashboard() {
                         </div>
                         <form onSubmit={handleTenantPayment} className="space-y-4 mt-4">
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Jumlah yang Dibayarkan (Rp)</label>
+                                <label className="text-xs font-semibold text-slate-500 block mb-2">Jumlah yang Dibayarkan (Rp)</label>
                                 <input type="number" required min="1" value={paymentData.paid_amount} onChange={(e) => setPaymentData({...paymentData, paid_amount: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder={`Maks Rp ${parseFloat(showPaymentModal.total_amount).toLocaleString('id-ID')}`} />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Bukti Pembayaran / Transfer</label>
-                                <input type="file" required accept="image/*,video/*" onChange={(e) => setPaymentData({...paymentData, payment_proof_file: e.target.files[0]})} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
-                                <p className="text-[10px] text-slate-400 mt-1">Unggah foto atau video bukti transfer (Maks. 10MB).</p>
+                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Bukti Pembayaran / Transfer</label>
+                                <DragDropZone
+                                    accept="image/*,video/*"
+                                    label="Tarik & Lepas Bukti (Maks 10MB)"
+                                    selectedFile={paymentData.payment_proof_file}
+                                    onFileDrop={(file) => setPaymentData({ ...paymentData, payment_proof_file: file })}
+                                />
                             </div>
                             <div className="flex gap-3 pt-1">
                                 <button type="button" onClick={() => setShowPaymentModal(null)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm border border-slate-200 transition-all">Batal</button>
@@ -3402,7 +3660,7 @@ export default function Dashboard() {
                     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50 p-4" style={{ animation: 'modalIn 0.3s ease' }}>
                         <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-emerald-900/20 w-full max-w-sm overflow-hidden border border-white/60 max-h-[90vh] overflow-y-auto">
                             <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100/50 flex justify-between items-center">
-                                <h3 className="font-extrabold text-slate-800 text-2xl tracking-tight">Perpanjang Sewa</h3>
+                                <h3 className="font-extrabold text-slate-800 dark:text-white text-2xl tracking-tight">Perpanjang Sewa</h3>
                                 <button onClick={() => { setShowExtendTenantModal(false); setExtendType(''); setCalendarMonthOffset(0); }} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
@@ -3413,11 +3671,11 @@ export default function Dashboard() {
                                 </p>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipe Perpanjangan</label>
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Tipe Perpanjangan</label>
                                     <select 
                                         value={extendType || activeBooking.rental_type}
                                         onChange={(e) => { setExtendType(e.target.value); setExtendDuration(1); }}
-                                        className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-semibold text-slate-800 bg-slate-50 text-sm"
+                                        className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-semibold text-slate-800 bg-slate-50 dark:bg-slate-800/50 dark:text-white dark:border-slate-700/50 text-sm"
                                     >
                                         <option value="daily">Harian</option>
                                         {lockedPriceWeekly > 0 && <option value="weekly">Mingguan</option>}
@@ -3427,7 +3685,7 @@ export default function Dashboard() {
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Durasi ({typeLabel})</label>
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Durasi ({typeLabel})</label>
                                     <input 
                                         type="number" 
                                         min="1" 
@@ -3537,80 +3795,167 @@ export default function Dashboard() {
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ animation: 'modalIn 0.3s ease' }}>
                     <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-emerald-900/20 w-full max-w-lg overflow-hidden border border-white/60 my-8">
                         <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100/50 flex justify-between items-center">
-                            <h3 className="font-extrabold text-slate-800 text-2xl tracking-tight">Booking Manual</h3>
-                            <button onClick={() => setShowManualBookingModal(false)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
+                            <h3 className="font-extrabold text-slate-800 dark:text-white text-2xl tracking-tight">Booking Manual</h3>
+                            <button onClick={closeManualBookingModal} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
                         <form onSubmit={handleManualBookingSubmit} className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
-                            <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-500">Pilih Kamar *</label>
-                                <select required value={manualBookingData.room_id} onChange={(e) => setManualBookingData({...manualBookingData, room_id: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-sm">
-                                    <option value="">-- Pilih Kamar Tersedia --</option>
-                                    {rooms.filter(r => r.status === 'available').map(r => (
-                                        <option key={r.id} value={r.id}>
-                                            Kamar {r.room_number} ({r.branch?.name?.replace('Kospart PH 18 - ', '')}) - Rp {parseFloat(r.price_monthly).toLocaleString('id-ID')}/bln
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            {/* Kategori: Pilih Kamar */}
+                            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                                    Pilih Kamar Sewa
+                                </h4>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-500">Tipe Sewa *</label>
-                                    <select required value={manualBookingData.rental_type} onChange={(e) => setManualBookingData({...manualBookingData, rental_type: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-sm">
-                                        <option value="yearly">Tahunan</option>
-                                        <option value="monthly">Bulanan</option>
-                                        <option value="weekly">Mingguan</option>
-                                        <option value="daily">Harian</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-500">Status Pembayaran *</label>
-                                    <select required value={manualBookingData.payment_status} onChange={(e) => setManualBookingData({...manualBookingData, payment_status: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-sm">
-                                        <option value="paid">Lunas</option>
-                                        <option value="unpaid">Belum Lunas</option>
-                                    </select>
+                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Pilih Kamar *</label>
+                                    <div className="grid grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-1">
+                                        {rooms.filter(r => r.status === 'available').length === 0 ? (
+                                            <div className="col-span-2 p-4 text-center text-sm text-slate-500 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">Tidak ada kamar tersedia.</div>
+                                        ) : rooms.filter(r => r.status === 'available').map(r => (
+                                            <div 
+                                                key={r.id} 
+                                                onClick={() => setManualBookingData({...manualBookingData, room_id: r.id})}
+                                                className={`cursor-pointer p-3 rounded-xl border transition-all ${manualBookingData.room_id == r.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/20 shadow-sm' : 'border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/50 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:shadow-sm'}`}
+                                            >
+                                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                    <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded">Kamar {r.room_number}</span>
+                                                    <span className="text-[10px] text-slate-500 truncate max-w-[100px]" title={r.branch?.name}>{r.branch?.name?.replace('Kospart PH 18 - ', '')}</span>
+                                                </div>
+                                                <p className="font-bold text-sm text-slate-800">Rp {parseFloat(r.price_monthly).toLocaleString('id-ID')}<span className="text-[10px] text-slate-500 font-normal">/bln</span></p>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-500">Tanggal Check-in *</label>
-                                    <input type="date" required value={manualBookingData.start_date} onChange={(e) => setManualBookingData({...manualBookingData, start_date: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-sm" />
+                            
+                            {/* Kategori: Detail Booking */}
+                            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 space-y-4">
+                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    Detail Booking
+                                </h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Tipe Sewa *</label>
+                                        <select required value={manualBookingData.rental_type} onChange={(e) => setManualBookingData({...manualBookingData, rental_type: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900/50 dark:text-white dark:border-slate-700/50 text-sm">
+                                            <option value="yearly">Tahunan</option>
+                                            <option value="monthly">Bulanan</option>
+                                            <option value="weekly">Mingguan</option>
+                                            <option value="daily">Harian</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Status Pembayaran *</label>
+                                        <select required value={manualBookingData.payment_status} onChange={(e) => setManualBookingData({...manualBookingData, payment_status: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900/50 dark:text-white dark:border-slate-700/50 text-sm">
+                                            <option value="paid">Lunas</option>
+                                            <option value="unpaid">Belum Lunas</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-500">Tanggal Check-out *</label>
-                                    <input type="date" required value={manualBookingData.end_date} onChange={(e) => setManualBookingData({...manualBookingData, end_date: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-sm" />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Tanggal Check-in *</label>
+                                        <input type="date" required value={manualBookingData.start_date} onChange={(e) => setManualBookingData({...manualBookingData, start_date: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900/50 dark:text-white dark:border-slate-700/50 text-sm" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Tanggal Check-out *</label>
+                                        <input type="date" required value={manualBookingData.end_date} onChange={(e) => setManualBookingData({...manualBookingData, end_date: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900/50 dark:text-white dark:border-slate-700/50 text-sm" />
+                                    </div>
                                 </div>
                             </div>
-                            <div className="pt-2 border-t border-slate-100">
-                                <h4 className="text-sm font-bold text-slate-800 mb-3">Data Penyewa</h4>
+                            
+                            {/* Kategori: Data Penyewa */}
+                            <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                    Data Penyewa
+                                </h4>
                                 <div className="space-y-4">
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500">Nama Lengkap *</label>
-                                        <input type="text" required placeholder="Nama sesuai KTP" value={manualBookingData.name} onChange={(e) => setManualBookingData({...manualBookingData, name: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-sm" />
+                                        <label className="text-xs font-semibold text-slate-500 block mb-2">Nama Lengkap *</label>
+                                        <input type="text" required placeholder="Nama sesuai KTP" value={manualBookingData.name} onChange={(e) => setManualBookingData({...manualBookingData, name: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900/50 dark:text-white dark:border-slate-700/50 text-sm" />
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">No. WhatsApp *</label>
-                                            <input type="text" required placeholder="Contoh: 0812..." value={manualBookingData.phone} onChange={(e) => setManualBookingData({...manualBookingData, phone: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-sm" />
+                                            <label className="text-xs font-semibold text-slate-500 block mb-2">No. WhatsApp *</label>
+                                            <input type="text" required placeholder="Contoh: 0812..." value={manualBookingData.phone} onChange={(e) => setManualBookingData({...manualBookingData, phone: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900/50 dark:text-white dark:border-slate-700/50 text-sm" />
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500">Email *</label>
-                                            <input type="email" required placeholder="Email aktif" value={manualBookingData.email} onChange={(e) => setManualBookingData({...manualBookingData, email: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-sm" />
+                                            <label className="text-xs font-semibold text-slate-500 block mb-2">Email *</label>
+                                            <input type="email" required placeholder="Email aktif" value={manualBookingData.email} onChange={(e) => setManualBookingData({...manualBookingData, email: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900/50 dark:text-white dark:border-slate-700/50 text-sm" />
                                         </div>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500">NIK (Nomor Induk Kependudukan) *</label>
-                                        <input type="text" required placeholder="16 digit NIK" minLength="16" maxLength="16" value={manualBookingData.nik} onChange={(e) => setManualBookingData({...manualBookingData, nik: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-sm" />
+                                        <label className="text-xs font-semibold text-slate-500 block mb-2">NIK (Nomor Induk Kependudukan) *</label>
+                                        <input type="text" required placeholder="16 digit NIK" minLength="16" maxLength="16" value={manualBookingData.nik} onChange={(e) => setManualBookingData({...manualBookingData, nik: e.target.value})} className="w-full border-slate-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900/50 dark:text-white dark:border-slate-700/50 text-sm" />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-500">Foto KTP *</label>
-                                        <input type="file" required accept="image/*" onChange={(e) => setManualBookingData({...manualBookingData, ktp_photo: e.target.files[0]})} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Foto KTP *</label>
+                                        <DragDropZone
+                                            accept="image/*"
+                                            label="Tarik & Lepas Foto KTP"
+                                            selectedFile={manualBookingData.ktp_photo}
+                                            onFileDrop={(file) => setManualBookingData({ ...manualBookingData, ktp_photo: file })}
+                                        />
                                     </div>
                                 </div>
                             </div>
+                            {/* Estimasi Harga */}
+                            {(() => {
+                                if (!manualBookingData.room_id || !manualBookingData.start_date || !manualBookingData.end_date) return null;
+                                const room = rooms.find(r => r.id == manualBookingData.room_id);
+                                if (!room) return null;
+                                
+                                const start = new Date(manualBookingData.start_date);
+                                const end = new Date(manualBookingData.end_date);
+                                const diffTime = end.getTime() - start.getTime();
+                                if (diffTime <= 0) return null;
+
+                                const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                let totalAmount = 0;
+
+                                if (manualBookingData.rental_type === 'daily') {
+                                    let currentDate = new Date(start);
+                                    for (let i = 0; i < days; i++) {
+                                        const dayOfWeek = currentDate.getDay();
+                                        if ((dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) && parseFloat(room.price_weekend) > 0) {
+                                            totalAmount += parseFloat(room.price_weekend);
+                                        } else {
+                                            totalAmount += parseFloat(room.price_daily);
+                                        }
+                                        currentDate.setDate(currentDate.getDate() + 1);
+                                    }
+                                } else if (manualBookingData.rental_type === 'weekly') {
+                                    const weeks = Math.ceil(days / 7) || 1;
+                                    totalAmount = weeks * parseFloat(room.price_weekly);
+                                } else if (manualBookingData.rental_type === 'monthly') {
+                                    let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+                                    if (end.getDate() > start.getDate()) months++;
+                                    if (months < 1) months = 1;
+                                    totalAmount = months * parseFloat(room.price_monthly);
+                                } else if (manualBookingData.rental_type === 'yearly') {
+                                    let years = end.getFullYear() - start.getFullYear();
+                                    if (end.getMonth() > start.getMonth() || (end.getMonth() === start.getMonth() && end.getDate() > start.getDate())) years++;
+                                    if (years < 1) years = 1;
+                                    totalAmount = years * parseFloat(room.price_yearly);
+                                }
+
+                                return (
+                                    <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-800/50 flex justify-between items-center mb-4">
+                                        <div>
+                                            <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Estimasi Total Harga</p>
+                                            <p className="text-xs text-emerald-500/80 dark:text-emerald-500/70 mt-0.5">Berdasarkan durasi & tipe sewa</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">Rp {totalAmount.toLocaleString('id-ID')}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                             <div className="pt-6 flex gap-4 mt-2 border-t border-slate-100">
-                                <button type="button" onClick={() => setShowManualBookingModal(false)} className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition-all">Batal</button>
+                                <button type="button" onClick={closeManualBookingModal} className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition-all">Batal</button>
                                 <button type="submit" className="flex-1 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white">Simpan Booking</button>
                             </div>
                         </form>
@@ -3629,6 +3974,230 @@ export default function Dashboard() {
                 </button>
             )}
 
+            {/* Extend Rent Manual Modal */}
+            {showExtendManualModal && (() => {
+                const activeBooking = showExtendManualModal;
+                const room = activeBooking.room || {};
+                const currentType = extendManualData.rental_type || activeBooking.rental_type;
+                const typeLabel = currentType === 'daily' ? 'Hari' : (currentType === 'weekly' ? 'Minggu' : (currentType === 'monthly' ? 'Bulan' : 'Tahun'));
+                
+                const lockedPriceDaily = parseFloat(activeBooking.price_daily) || parseFloat(room.price_daily) || 0;
+                const lockedPriceWeekly = parseFloat(activeBooking.price_weekly) || parseFloat(room.price_weekly) || 0;
+                const lockedPriceMonthly = parseFloat(activeBooking.price_monthly) || parseFloat(room.price_monthly) || 0;
+                const lockedPriceYearly = parseFloat(activeBooking.price_yearly) || parseFloat(room.price_yearly) || 0;
+                const lockedPriceWeekend = parseFloat(activeBooking.price_weekend) || parseFloat(room.price_weekend) || 0;
+
+                // Calculate projected end date and additional cost
+                let projectedEndDate = new Date(activeBooking.end_date);
+                let additionalCost = 0;
+                let weekendDaysCount = 0;
+                let regularDaysCount = 0;
+
+                const durationNum = parseInt(extendManualData.duration) || 1;
+
+                if (currentType === 'daily') {
+                    for (let i = 0; i < durationNum; i++) {
+                        const dayOfWeek = projectedEndDate.getDay();
+                        if ((dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) && lockedPriceWeekend > 0) {
+                            additionalCost += lockedPriceWeekend;
+                            weekendDaysCount++;
+                        } else {
+                            additionalCost += lockedPriceDaily;
+                            regularDaysCount++;
+                        }
+                        projectedEndDate.setDate(projectedEndDate.getDate() + 1);
+                    }
+                } else if (currentType === 'weekly') {
+                    projectedEndDate.setDate(projectedEndDate.getDate() + (durationNum * 7));
+                    additionalCost = durationNum * lockedPriceWeekly;
+                } else if (currentType === 'monthly') {
+                    projectedEndDate.setMonth(projectedEndDate.getMonth() + durationNum);
+                    additionalCost = durationNum * lockedPriceMonthly;
+                } else if (currentType === 'yearly') {
+                    projectedEndDate.setFullYear(projectedEndDate.getFullYear() + durationNum);
+                    additionalCost = durationNum * lockedPriceYearly;
+                }
+
+                // Calendar Logic
+                const baseDate = new Date(activeBooking.end_date);
+                baseDate.setHours(0,0,0,0);
+                const projectedDateOnly = new Date(projectedEndDate);
+                projectedDateOnly.setHours(0,0,0,0);
+
+                const viewingDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + calendarMonthOffset, 1);
+                const startOfViewMonth = new Date(viewingDate.getFullYear(), viewingDate.getMonth(), 1);
+                const firstDayIndex = startOfViewMonth.getDay();
+                const daysInMonth = new Date(viewingDate.getFullYear(), viewingDate.getMonth() + 1, 0).getDate();
+                
+                const calendarDays = [];
+                for(let i=0; i<firstDayIndex; i++) calendarDays.push(null);
+                for(let i=1; i<=daysInMonth; i++) calendarDays.push(new Date(viewingDate.getFullYear(), viewingDate.getMonth(), i));
+                
+                let nextMonthDay = 1;
+                while(calendarDays.length < 42) {
+                    calendarDays.push(new Date(viewingDate.getFullYear(), viewingDate.getMonth() + 1, nextMonthDay++));
+                }
+
+                return (
+                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50 p-4" style={{ animation: 'modalIn 0.3s ease' }}>
+                        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-emerald-900/20 w-full max-w-sm overflow-hidden border border-white/60 max-h-[90vh] overflow-y-auto">
+                            <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100/50 flex justify-between items-center">
+                                <h3 className="font-extrabold text-slate-800 dark:text-white text-2xl tracking-tight">Perpanjang Sewa</h3>
+                                <button onClick={() => { setShowExtendManualModal(null); setCalendarMonthOffset(0); }} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-full p-2.5 transition-all duration-300 hover:rotate-90">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                            <form onSubmit={handleExtendManualSubmit} className="p-5 space-y-4">
+                                <p className="text-xs text-slate-600">Perpanjang sewa untuk <strong>{activeBooking.tenant?.name}</strong> (Kamar {room?.room_number}).</p>
+                                <p className="text-sm text-slate-600 leading-relaxed">
+                                    Sewa berakhir pada <strong className="text-slate-800">{new Date(activeBooking.end_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>.
+                                </p>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Tipe Perpanjangan</label>
+                                    <select 
+                                        value={currentType}
+                                        onChange={(e) => setExtendManualData({...extendManualData, rental_type: e.target.value, duration: 1})}
+                                        className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-semibold text-slate-800 bg-slate-50 dark:bg-slate-800/50 dark:text-white dark:border-slate-700/50 text-sm"
+                                    >
+                                        <option value="daily">Harian</option>
+                                        {lockedPriceWeekly > 0 && <option value="weekly">Mingguan</option>}
+                                        {lockedPriceMonthly > 0 && <option value="monthly">Bulanan</option>}
+                                        {lockedPriceYearly > 0 && <option value="yearly">Tahunan</option>}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Durasi ({typeLabel})</label>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        required
+                                        value={extendManualData.duration} 
+                                        onChange={(e) => setExtendManualData({...extendManualData, duration: e.target.value})}
+                                        className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-bold text-slate-800 bg-slate-50"
+                                    />
+                                </div>
+                                
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Status Pembayaran</label>
+                                    <select 
+                                        value={extendManualData.payment_status}
+                                        onChange={(e) => setExtendManualData({...extendManualData, payment_status: e.target.value})}
+                                        className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-semibold text-slate-800 bg-slate-50 dark:bg-slate-800/50 dark:text-white dark:border-slate-700/50 text-sm"
+                                    >
+                                        <option value="paid">Lunas (Uang telah diterima Admin)</option>
+                                        <option value="unpaid">Belum Lunas (Masuk Tagihan)</option>
+                                    </select>
+                                </div>
+
+                                {extendManualData.payment_status === 'paid' && (
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Metode Pembayaran</label>
+                                        <select 
+                                            value={extendManualData.payment_method}
+                                            onChange={(e) => setExtendManualData({...extendManualData, payment_method: e.target.value})}
+                                            className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-semibold text-slate-800 bg-slate-50 dark:bg-slate-800/50 dark:text-white dark:border-slate-700/50 text-sm"
+                                        >
+                                            <option value="cash">Tunai / Cash</option>
+                                            <option value="transfer">Transfer Bank (Langsung ke Admin)</option>
+                                        </select>
+                                    </div>
+                                )}
+
+                                <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 space-y-2 mt-4 shadow-inner">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-emerald-800 font-medium">Tagihan Tambahan:</span>
+                                        <span className="text-emerald-700 font-extrabold">Rp {additionalCost.toLocaleString('id-ID')}</span>
+                                    </div>
+                                    
+                                    {currentType === 'daily' && lockedPriceWeekend > 0 && durationNum > 0 && (
+                                        <div className="text-[10px] text-emerald-600 space-y-0.5 pt-1 border-t border-emerald-200/60 mt-1">
+                                            {regularDaysCount > 0 && <div className="flex justify-between"><span>{regularDaysCount} hari reguler (Sen-Kam):</span> <span>Rp {(regularDaysCount * lockedPriceDaily).toLocaleString('id-ID')}</span></div>}
+                                            {weekendDaysCount > 0 && <div className="flex justify-between"><span>{weekendDaysCount} hari weekend (Jum-Min):</span> <span>Rp {(weekendDaysCount * lockedPriceWeekend).toLocaleString('id-ID')}</span></div>}
+                                        </div>
+                                    )}
+
+                                    <div className="pt-2 border-t border-emerald-200/60 mt-2">
+                                        <span className="text-xs text-emerald-800 font-medium block mb-1">Masa sewa baru berakhir pada:</span>
+                                        <strong className="text-emerald-700 text-base">{projectedEndDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })}</strong>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-slate-100">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider hidden sm:block">Kalender</h4>
+                                            <div className="flex bg-slate-100 rounded-md p-0.5">
+                                                <button type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(c => c - 1); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded shadow-sm text-xs font-bold transition-all">&lt;</button>
+                                                <button type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(0); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 text-[10px] font-bold transition-all">Hari Ini</button>
+                                                <button type="button" onClick={(e) => { e.preventDefault(); setCalendarMonthOffset(c => c + 1); }} className="px-2 py-0.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded shadow-sm text-xs font-bold transition-all">&gt;</button>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2 text-[9px] font-medium hidden sm:flex">
+                                            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-emerald-500"></div> Awal</span>
+                                            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-emerald-200 border border-emerald-300"></div> Reguler</span>
+                                            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-orange-300 border border-orange-400"></div> Weekend</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-sm select-none">
+                                        <div className="grid grid-cols-7 gap-1 mb-1 text-center text-[10px] font-bold text-slate-500">
+                                            <div className="text-rose-500">Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div className="text-emerald-600">Jum</div><div className="text-emerald-600">Sab</div>
+                                        </div>
+                                        <div className="grid grid-cols-7 gap-1">
+                                            {calendarDays.map((date, idx) => {
+                                                if(!date) return <div key={idx} className="h-6"></div>;
+                                                
+                                                date.setHours(0,0,0,0);
+                                                const t = date.getTime();
+                                                const isStart = t === baseDate.getTime();
+                                                const isInRange = t > baseDate.getTime() && t <= projectedDateOnly.getTime();
+                                                const isWeekend = date.getDay() === 0 || date.getDay() === 5 || date.getDay() === 6;
+                                                const isOtherMonth = date.getMonth() !== viewingDate.getMonth();
+                                                
+                                                let bgClass = "bg-white border-slate-100 text-slate-600";
+                                                if(isStart) bgClass = "bg-emerald-500 text-white border-emerald-600 font-bold shadow-md z-10 scale-[1.15]";
+                                                else if(isInRange) {
+                                                    if(isWeekend && currentType === 'daily') bgClass = "bg-orange-300 text-orange-900 border-orange-400 font-bold";
+                                                    else bgClass = "bg-emerald-200 text-emerald-900 border-emerald-300 font-bold";
+                                                } else if (isOtherMonth) {
+                                                    bgClass = "bg-slate-50/50 text-slate-400 border-transparent";
+                                                }
+
+                                                return (
+                                                    <div 
+                                                        key={idx} 
+                                                        className={`h-6 flex items-center justify-center rounded-md border text-[10px] transition-all duration-300 cursor-default ${bgClass}`}
+                                                    >
+                                                        {date.getDate()}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <p className="text-center text-[10px] text-slate-500 mt-2 font-bold tracking-wide uppercase">
+                                            {startOfViewMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="pt-2 border-t border-slate-100 flex justify-end mt-4 gap-3">
+                                    <button type="button" onClick={() => setShowExtendManualModal(null)} className="px-6 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm transition-all hover:bg-slate-200">
+                                        Batal
+                                    </button>
+                                    <button type="submit" disabled={isProcessing} className="flex-1 py-3 text-white font-bold rounded-xl text-sm shadow-lg transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed">
+                                        {isProcessing ? 'Memproses...' : 'Simpan Perpanjangan'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            })()}
+
         </div>
     );
 }
+
+
+
+

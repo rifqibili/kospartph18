@@ -62,9 +62,22 @@ class FinanceController extends Controller
             'description' => 'nullable|string',
             'branch_id' => 'required|exists:branches,id',
             'payment_method' => 'nullable|string',
+            'receipt_file' => 'required_if:transaction_type,expense|image|max:5120',
+        ], [
+            'receipt_file.required_if' => 'Foto struk/bukti bayar wajib diunggah untuk pengeluaran kas.',
+            'receipt_file.image' => 'File struk harus berupa gambar.',
         ]);
 
-        $finance = Finance::create($request->all());
+        $data = $request->except('receipt_file');
+
+        if ($request->hasFile('receipt_file')) {
+            $file = $request->file('receipt_file');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('images/receipts'), $filename);
+            $data['receipt_path'] = 'images/receipts/' . $filename;
+        }
+
+        $finance = Finance::create($data);
 
         return response()->json([
             'message' => 'Transaksi keuangan berhasil dicatat.',

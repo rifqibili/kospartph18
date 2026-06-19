@@ -65,6 +65,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/bookings/verify-otp', [BookingController::class, 'verifyOtp']);
     Route::post('/api/bookings/{id}/payment-proof', [BookingController::class, 'uploadPaymentProof']);
     Route::post('/api/bookings/{id}/extend', [BookingController::class, 'extendBooking']);
+    Route::post('/api/bookings/{id}/extend-manual', [BookingController::class, 'extendBookingManual']);
 
     // Admin & Resident Booking Operations
     Route::get('/api/bookings', [BookingController::class, 'index']);
@@ -125,3 +126,4 @@ Route::get('/setup-production', function () {
         return 'Error: ' . $e->getMessage();
     }
 })->middleware('auth');
+
