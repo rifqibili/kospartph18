@@ -61,12 +61,18 @@ class SendBookingReminders extends Command
             $amountFormatted = 'Rp ' . number_format($amountDue, 0, ',', '.');
             $dueDate = Carbon::parse($booking->end_date)->format('d M Y');
 
+            $rentalType = $booking->rental_type ?? 'monthly';
+            $price = $booking->{'price_' . $rentalType} ?? $booking->room->{'price_' . $rentalType} ?? 0;
+            $rentalTypeStr = $rentalType === 'daily' ? 'Hari' : ($rentalType === 'weekly' ? 'Minggu' : ($rentalType === 'monthly' ? 'Bulan' : 'Tahun'));
+            $priceFormatted = 'Rp ' . number_format($price, 0, ',', '.') . ' / ' . $rentalTypeStr;
+
             $message = "*REMINDER OTOMATIS KOSPART PH 18*\n\n"
                 . "Halo {$booking->tenant->name},\n\n"
                 . "Mengingatkan kembali bahwa tagihan sewa kamar Anda belum lunas.\n\n"
                 . "Detail Tagihan:\n"
                 . "- Kamar: {$booking->room->room_number}\n"
                 . "- Cabang: {$booking->room->branch->name}\n"
+                . "- Harga Sewa: *{$priceFormatted}*\n"
                 . "- Sisa Tagihan: *{$amountFormatted}*\n"
                 . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
                 . "Silakan selesaikan pembayaran ke rekening berikut:\n"

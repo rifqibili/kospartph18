@@ -574,6 +574,11 @@ class BookingController extends Controller
         }
 
         $dueDate = \Carbon\Carbon::parse($booking->end_date)->format('d M Y');
+        
+        $rentalType = $booking->rental_type ?? 'monthly';
+        $price = $booking->{'price_' . $rentalType} ?? $booking->room->{'price_' . $rentalType} ?? 0;
+        $rentalTypeStr = $rentalType === 'daily' ? 'Hari' : ($rentalType === 'weekly' ? 'Minggu' : ($rentalType === 'monthly' ? 'Bulan' : 'Tahun'));
+        $priceFormatted = 'Rp ' . number_format($price, 0, ',', '.') . ' / ' . $rentalTypeStr;
 
         if ($booking->payment_status === 'paid') {
             // Jika sudah lunas, kirim reminder batas waktu sewa
@@ -583,6 +588,7 @@ class BookingController extends Controller
                 . "Detail Sewa:\n"
                 . "- Kamar: {$booking->room->room_number}\n"
                 . "- Cabang: {$booking->room->branch->name}\n"
+                . "- Harga Sewa: *{$priceFormatted}*\n"
                 . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
                 . "Silakan selesaikan pembayaran perpanjangan ke rekening berikut:\n"
                 . "- BCA: 8447060951\n"
@@ -600,6 +606,7 @@ class BookingController extends Controller
                 . "Detail Tagihan:\n"
                 . "- Kamar: {$booking->room->room_number}\n"
                 . "- Cabang: {$booking->room->branch->name}\n"
+                . "- Harga Sewa: *{$priceFormatted}*\n"
                 . "- Sisa Tagihan: *{$amountFormatted}*\n"
                 . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
                 . "Silakan selesaikan pembayaran ke rekening berikut:\n"
