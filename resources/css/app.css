@@ -100,6 +100,23 @@
   scrollbar-width: none;  /* Firefox */
 }
 
+/* KECUALI untuk elemen yang secara eksplisit butuh scrollbar (seperti navbar bawah) */
+.show-scrollbar::-webkit-scrollbar {
+  display: block;
+  height: 4px;
+}
+.show-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.show-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.show-scrollbar {
+  -ms-overflow-style: auto;
+  scrollbar-width: thin;
+}
+
 /* 21st Century Glassmorphism Theme (Dark & Neon) */
 .bg-mesh-dark {
   background-color: #020617; /* Slate 950 fallback */

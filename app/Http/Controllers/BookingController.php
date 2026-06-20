@@ -574,11 +574,7 @@ class BookingController extends Controller
         }
 
         $dueDate = \Carbon\Carbon::parse($booking->end_date)->format('d M Y');
-        
-        $rentalType = $booking->rental_type ?? 'monthly';
-        $price = $booking->{'price_' . $rentalType} ?? $booking->room->{'price_' . $rentalType} ?? 0;
-        $rentalTypeStr = $rentalType === 'daily' ? 'Hari' : ($rentalType === 'weekly' ? 'Minggu' : ($rentalType === 'monthly' ? 'Bulan' : 'Tahun'));
-        $priceFormatted = 'Rp ' . number_format($price, 0, ',', '.') . ' / ' . $rentalTypeStr;
+        $roomPriceFormatted = 'Rp ' . number_format($booking->total_amount, 0, ',', '.');
 
         if ($booking->payment_status === 'paid') {
             // Jika sudah lunas, kirim reminder batas waktu sewa
@@ -588,12 +584,12 @@ class BookingController extends Controller
                 . "Detail Sewa:\n"
                 . "- Kamar: {$booking->room->room_number}\n"
                 . "- Cabang: {$booking->room->branch->name}\n"
-                . "- Harga Sewa: *{$priceFormatted}*\n"
+                . "- Biaya Sewa (Perpanjangan): *{$roomPriceFormatted}*\n"
                 . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
-                . "Silakan selesaikan pembayaran perpanjangan ke rekening berikut:\n"
-                . "- BCA: 8447060951\n"
-                . "A/N PRAYOGA HERIYANTO\n\n"
-                . "Mohon segera melakukan perpanjangan sewa dan *kirimkan bukti pembayaran Anda melalui chat ini*, atau konfirmasi jika Anda ingin checkout.\n\n"
+                . "Jika Anda ingin melanjutkan perpanjangan sewa, silakan selesaikan pembayaran ke rekening berikut:\n"
+                . "- *BCA: 8447060951*\n"
+                . "- *A/N PRAYOGA HERIYANTO*\n\n"
+                . "Mohon segera melakukan perpanjangan dan *kirimkan bukti bayarnya langsung di chat ini*, atau hubungi kami untuk konfirmasi checkout.\n\n"
                 . "Terima kasih!";
         } else {
             // Jika belum lunas, kirim reminder tagihan
@@ -606,13 +602,13 @@ class BookingController extends Controller
                 . "Detail Tagihan:\n"
                 . "- Kamar: {$booking->room->room_number}\n"
                 . "- Cabang: {$booking->room->branch->name}\n"
-                . "- Harga Sewa: *{$priceFormatted}*\n"
+                . "- Harga Kamar / Biaya Sewa: *{$roomPriceFormatted}*\n"
                 . "- Sisa Tagihan: *{$amountFormatted}*\n"
-                . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
-                . "Silakan selesaikan pembayaran ke rekening berikut:\n"
-                . "- BCA: 8447060951\n"
-                . "A/N PRAYOGA HERIYANTO\n\n"
-                . "Mohon segera melakukan pembayaran dan *kirimkan bukti pembayaran Anda melalui chat ini*, atau hubungi operator kami jika ada kendala.\n\n"
+                . "- Batas Waktu Pembayaran: *{$dueDate}*\n\n"
+                . "Silakan selesaikan pembayaran tagihan Anda ke rekening berikut:\n"
+                . "- *BCA: 8447060951*\n"
+                . "- *A/N PRAYOGA HERIYANTO*\n\n"
+                . "Mohon segera melunasi tagihan dan *kirimkan bukti bayarnya langsung di chat ini*.\n\n"
                 . "Abaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih!";
         }
 

@@ -22,7 +22,10 @@
         "vite": "^8.0.0"
     },
     "dependencies": {
+        "@paper-design/shaders-react": "^0.0.76",
         "chart.js": "^4.5.1",
+        "framer-motion": "^12.40.0",
+        "lucide-react": "^1.21.0",
         "react-chartjs-2": "^5.3.1",
         "xlsx": "^0.18.5"
     }

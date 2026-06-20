@@ -59,12 +59,8 @@ class SendBookingReminders extends Command
 
             $amountDue = $booking->total_amount - $booking->paid_amount;
             $amountFormatted = 'Rp ' . number_format($amountDue, 0, ',', '.');
+            $roomPriceFormatted = 'Rp ' . number_format($booking->total_amount, 0, ',', '.');
             $dueDate = Carbon::parse($booking->end_date)->format('d M Y');
-
-            $rentalType = $booking->rental_type ?? 'monthly';
-            $price = $booking->{'price_' . $rentalType} ?? $booking->room->{'price_' . $rentalType} ?? 0;
-            $rentalTypeStr = $rentalType === 'daily' ? 'Hari' : ($rentalType === 'weekly' ? 'Minggu' : ($rentalType === 'monthly' ? 'Bulan' : 'Tahun'));
-            $priceFormatted = 'Rp ' . number_format($price, 0, ',', '.') . ' / ' . $rentalTypeStr;
 
             $message = "*REMINDER OTOMATIS KOSPART PH 18*\n\n"
                 . "Halo {$booking->tenant->name},\n\n"
@@ -72,13 +68,13 @@ class SendBookingReminders extends Command
                 . "Detail Tagihan:\n"
                 . "- Kamar: {$booking->room->room_number}\n"
                 . "- Cabang: {$booking->room->branch->name}\n"
-                . "- Harga Sewa: *{$priceFormatted}*\n"
+                . "- Harga Kamar / Biaya Sewa: *{$roomPriceFormatted}*\n"
                 . "- Sisa Tagihan: *{$amountFormatted}*\n"
                 . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
-                . "Silakan selesaikan pembayaran ke rekening berikut:\n"
-                . "- BCA: 8447060951\n"
-                . "A/N PRAYOGA HERIYANTO\n\n"
-                . "Mohon segera melakukan pembayaran dan *kirimkan bukti pembayaran Anda melalui chat ini*, atau hubungi operator kami jika ada kendala.\n\n"
+                . "Silakan selesaikan pembayaran ke salah satu rekening berikut:\n"
+                . "- *BCA: 8447060951*\n"
+                . "- *A/N PRAYOGA HERIYANTO*\n\n"
+                . "Mohon segera melakukan pembayaran dan *kirimkan bukti bayarnya langsung di chat ini*, atau hubungi operator kami jika ada kendala.\n\n"
                 . "Abaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih!";
 
             $response = Http::withHeaders([

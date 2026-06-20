@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head, Link } from '@inertiajs/react';
+import { CTASection } from '@/Components/ui/hero-dithering-card';
 
 function useReveal() {
     const ref = useRef(null);
@@ -71,21 +72,21 @@ export default function Branches({ branches, auth }) {
             <Head title="Cabang Lokasi – Kospart PH 18 | Kost Premium Lampung" />
 
             {/* ── HEADER ── */}
-            <header className="lux-header sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <header className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl bg-white/60 backdrop-blur-md rounded-full border border-white/40 shadow-[0_8px_30px_rgba(0,0,0,0.1)] transition-all duration-300">
+                <div className="px-5 sm:px-8 h-16 sm:h-20 flex items-center justify-between">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl overflow-hidden border border-[rgba(201,168,76,0.3)] shadow-sm">
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden border border-white/50 shadow-sm">
                             <img loading="lazy" src="/images/logo 2.jpeg" alt="Logo Kospart" className="w-full h-full object-cover" />
                         </div>
                         <div>
-                            <span className="font-extrabold text-xl tracking-tight text-forest block" style={{ fontFamily: "'Outfit', sans-serif" }}>KOSPART</span>
-                            <span className="text-gold text-[10px] font-bold tracking-[0.2em] uppercase block -mt-0.5">PH 18 LAMPUNG</span>
+                            <span className="font-extrabold text-lg sm:text-xl tracking-tight text-forest block leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>KOSPART</span>
+                            <span className="text-gold text-[8px] sm:text-[10px] font-bold tracking-[0.2em] uppercase block mt-0.5">PH 18 LAMPUNG</span>
                         </div>
                     </Link>
 
                     {/* Nav */}
-                    <nav className="hidden md:flex items-center gap-8">
+                    <nav className="hidden md:flex items-center gap-6 lg:gap-8">
                         <Link href="/" className="lux-nav-link">Beranda</Link>
                         <Link href="/kamar" className="lux-nav-link">Cari Kamar</Link>
                         <Link href="/cabang" className="lux-nav-link active">Cabang Kos</Link>
@@ -134,30 +135,35 @@ export default function Branches({ branches, auth }) {
             </header>
 
             {/* ── HERO ── */}
-            <section className="lux-hero lux-texture py-16 md:py-24 border-b border-[rgba(201,168,76,0.1)]">
+            <section className="relative border-b border-[rgba(201,168,76,0.1)] pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
+                {/* Background Image */}
+                <div className="absolute inset-0 z-0">
+                    <img loading="lazy" src="/images/ruang%20tamu.jpeg" alt="Hero Background" className="w-full h-full object-cover object-center" />
+                </div>
+
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-forest leading-tight mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight mb-4 drop-shadow-xl" style={{ fontFamily: "'Playfair Display', serif", textShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
                         Cabang <span className="text-gold">Kospart</span> PH 18
                     </h1>
-                    <p className="text-slate-500 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-white/95 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed drop-shadow-lg" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.6)" }}>
                         Hadir di lokasi-lokasi strategis jantung Kota Bandar Lampung, dekat pusat perbelanjaan, fasilitas umum, dan jalur transportasi utama.
                     </p>
 
                     {/* Stats bar */}
-                    <div className="mt-10 inline-flex items-center gap-8 bg-white rounded-2xl border border-[rgba(201,168,76,0.2)] shadow-sm px-8 py-4 mx-auto">
+                    <div className="mt-10 inline-flex items-center gap-8 bg-black/20 backdrop-blur-md rounded-2xl border border-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.3)] px-8 py-5 mx-auto">
                         <div className="text-center">
-                            <div className="text-2xl font-extrabold text-forest">{branches.length}</div>
-                            <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Cabang Aktif</div>
+                            <div className="text-2xl font-extrabold text-white">{branches.length}</div>
+                            <div className="text-xs text-white/80 font-semibold uppercase tracking-wider mt-1">Cabang Aktif</div>
                         </div>
-                        <div className="w-px h-10 bg-[rgba(201,168,76,0.2)]"></div>
+                        <div className="w-px h-10 bg-white/30"></div>
                         <div className="text-center">
-                            <div className="text-2xl font-extrabold text-forest">{branches.reduce((a, b) => a + (b.total_rooms || 0), 0)}</div>
-                            <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Total Kamar</div>
+                            <div className="text-2xl font-extrabold text-white">{branches.reduce((a, b) => a + (b.total_rooms || 0), 0)}</div>
+                            <div className="text-xs text-white/80 font-semibold uppercase tracking-wider mt-1">Total Kamar</div>
                         </div>
-                        <div className="w-px h-10 bg-[rgba(201,168,76,0.2)]"></div>
+                        <div className="w-px h-10 bg-white/30"></div>
                         <div className="text-center">
-                            <div className="text-2xl font-extrabold text-[#2d6a4f]">{branches.reduce((a, b) => a + (b.available_rooms || 0), 0)}</div>
-                            <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Kamar Kosong</div>
+                            <div className="text-2xl font-extrabold text-gold">{branches.reduce((a, b) => a + (b.available_rooms || 0), 0)}</div>
+                            <div className="text-xs text-white/80 font-semibold uppercase tracking-wider mt-1">Kamar Kosong</div>
                         </div>
                     </div>
                 </div>
@@ -302,53 +308,8 @@ export default function Branches({ branches, auth }) {
                 </div>
             </main>
 
-            {/* --- Contact Section --- */}
-            <section id="contact" className="lux-section bg-forest">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid md:grid-cols-12 gap-12 items-center">
-                        <div className="md:col-span-5 order-2 md:order-1 space-y-6">
-                            <div>
-                                <span className="text-gold text-[10px] font-bold tracking-[0.15em] uppercase block mb-3">Hubungi Kami</span>
-                                <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
-                                    Konsultasi Gratis dengan Admin Kami
-                                </h2>
-                            </div>
-                            <p className="text-[rgba(250,247,242,0.7)] text-base leading-relaxed">
-                                Punya pertanyaan? Tim admin Kospart siap membantu Anda memilih kamar yang paling sesuai dengan kebutuhan.
-                            </p>
-                            <div className="space-y-3">
-                                {[
-                                    { icon: '📱', label: 'WhatsApp', val: '+62 898-0598-327', href: 'https://wa.me/628980598327' },
-                                    { icon: '📍', label: 'Alamat', val: 'Komplek PH 18, Palapa, Bandar Lampung', href: '#' },
-                                ].map((c, i) => (
-                                    <a key={i} href={c.href} target={c.href !== '#' ? '_blank' : undefined} rel="noopener noreferrer" className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-colors group">
-                                        <span className="text-xl">{c.icon}</span>
-                                        <div>
-                                            <div className="text-gold text-[10px] font-bold uppercase tracking-wider">{c.label}</div>
-                                            <div className="text-white text-sm font-semibold">{c.val}</div>
-                                        </div>
-                                    </a>
-                                ))}
-                            </div>
-                            <a href="https://wa.me/628980598327?text=Halo%20Kospart%20PH%2018,%20saya%20ingin%20tanya%20tentang%20kamar%20kos." target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 lux-btn-outline border-[rgba(201,168,76,0.5)] text-gold hover:bg-[rgba(201,168,76,0.1)] px-7 py-4 text-sm">
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                                Chat via WhatsApp
-                            </a>
-                        </div>
-                        <div className="md:col-span-7 order-1 md:order-2">
-                            <div className="rounded-3xl overflow-hidden border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-                                <iframe
-                                    src="https://maps.google.com/maps?q=-5.416147,105.2535747&z=17&output=embed"
-                                    className="w-full h-96 border-0"
-                                    allowFullScreen=""
-                                    loading="lazy"
-                                    referrerPolicy="no-referrer-when-downgrade"
-                                ></iframe>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            {/* ── CONTACT ── */}
+            <CTASection />
 
             {/* ── FOOTER ── */}
             <footer className="lux-footer mt-auto py-10">
@@ -357,7 +318,7 @@ export default function Branches({ branches, auth }) {
                         <div className="w-8 h-8 rounded-lg overflow-hidden border border-[rgba(201,168,76,0.3)]">
                             <img loading="lazy" src="/images/logo 2.jpeg" alt="Logo" className="w-full h-full object-cover" />
                         </div>
-                        <span className="font-extrabold text-white/90 tracking-wide">KOSPART PH 18</span>
+                        <span className="font-extrabold text-white/90 tracking-wide" style={{ fontFamily: "'Outfit', sans-serif" }}>KOSPART PH 18</span>
                     </div>
                     <p className="text-xs text-center text-white/70">
                         &copy; {new Date().getFullYear()} Kospart PH 18. All rights reserved.{' '}
@@ -375,4 +336,3 @@ export default function Branches({ branches, auth }) {
         </div>
     );
 }
-

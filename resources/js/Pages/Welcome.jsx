@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import DragDropZone from '@/Components/DragDropZone';
-
-
-/* ─── Scroll-reveal hook ─── */
+import WaveBackground from '@/Components/WaveBackground';
+import { CardStack } from '@/Components/ui/card-stack';
+import { CTASection } from '@/Components/ui/hero-dithering-card';
+import { ElegantPatternBg } from '@/Components/ui/elegant-dark-pattern';
+import { TestimonialsSection } from '@/Components/ui/testimonial-v2';
 function useReveal() {
     const ref = useRef(null);
     const [visible, setVisible] = useState(false);
@@ -191,13 +193,21 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
         { icon: '👔', title: 'Laundry Praktis', desc: 'Layanan cuci & setrika pakaian langsung di dalam kompleks' },
     ];
 
+    const dummyTestimonials = [
+        { name: "Budi Santoso", role: "Karyawan Swasta", text: "Kospart PH 18 benar-benar memberikan kenyamanan seperti hotel. Fasilitas lounge dan kursinya luar biasa. Sangat direkomendasikan untuk profesional!", rating: 5 },
+        { name: "Sarah Aulia", role: "Mahasiswi", text: "Bersih, aman, dan estetik! Kamar mandinya selalu wangi, AC dingin, dan adminnya ramah-ramah. Betah banget tinggal di sini.", rating: 5 },
+        { name: "Reza Pratama", role: "Freelancer", text: "Internetnya kencang banget, cocok buat saya yang sering WFH. Suasananya tenang dan damai, the best kos in Bandar Lampung!", rating: 5 },
+    ];
+    
+    const displayTestimonials = testimonials && testimonials.length > 0 ? testimonials : dummyTestimonials;
+
     return (
         <div className="min-h-screen bg-lux text-slate-700 flex flex-col font-sans selection:bg-[#2d6a4f] selection:text-white overflow-x-hidden" style={{ position: 'relative' }}>
             <style>{`
                 @keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
                 @keyframes scaleIn { from { transform: scale(0); } to { transform: scale(1); } }
                 @keyframes lux-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-                .lux-marquee-inner { animation: lux-marquee 30s linear infinite; }
+                .lux-marquee-inner { animation: lux-marquee 60s linear infinite; }
                 @keyframes lux-float-slow { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-30px) scale(1.05); } }
                 @keyframes lux-float-slow2 { 0%,100% { transform: translateY(0) scale(1) rotate(0deg); } 50% { transform: translateY(20px) scale(0.96) rotate(6deg); } }
                 .lux-blob-1 { animation: lux-float-slow 14s ease-in-out infinite; }
@@ -232,10 +242,10 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
 
 
             {/* ── HEADER ── */}
-            <header className="lux-header sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <header className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl bg-white/60 backdrop-blur-md rounded-full border border-white/40 shadow-[0_8px_30px_rgba(0,0,0,0.1)] transition-all duration-300">
+                <div className="px-5 sm:px-8 h-16 sm:h-20 flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl overflow-hidden border border-[rgba(201,168,76,0.3)] shadow-sm">
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden border border-white/50 shadow-sm">
                             <img loading="lazy" src="/images/logo 2.jpeg" alt="Logo Kospart" className="w-full h-full object-cover" />
                         </div>
                         <div>
@@ -289,67 +299,37 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             </header>
 
             {/* ── HERO ── */}
-            <section className="lux-hero lux-texture relative overflow-hidden border-b border-[rgba(201,168,76,0.1)]">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-28 relative z-10 grid md:grid-cols-12 gap-12 items-center">
-                    {/* Left copy */}
-                    <div className="md:col-span-7 space-y-7">
-                        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-forest leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
-                            Hunian Nyaman,<br />
-                            Strategis &{' '}
-                            <span className="italic text-gold">Premium</span>
+            <section className="relative overflow-hidden border-b border-[rgba(201,168,76,0.1)] bg-cover bg-center min-h-screen flex items-center" style={{ backgroundImage: "url('/images/ruang tamu.png')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full pt-20">
+                    <Reveal className="max-w-2xl space-y-6">
+                        
+                        <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white leading-tight drop-shadow-xl uppercase" style={{ fontFamily: "'Playfair Display', serif", textShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
+                            KOST NYAMAN, <br />
+                            <span className="text-gold italic drop-shadow-xl">RASA APARTEMEN.</span>
                         </h1>
-                        <p className="text-slate-500 text-base sm:text-lg max-w-xl leading-relaxed">
-                            Nikmati fasilitas lengkap sekelas hotel di Kospart PH 18 — AC, TV Android, kamar mandi dalam, lounge eksklusif, resto, laundry, dan kursi pijat premium dalam satu tempat.
+                        
+                        <p className="text-white/95 text-lg sm:text-xl font-medium leading-relaxed max-w-xl drop-shadow-lg" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.6)" }}>
+                            Lebih dari sekadar tempat singgah. Temukan standar baru kos-kosan elit dengan fasilitas premium, privasi maksimal, dan pelayanan bintang lima.
                         </p>
-                        <div className="flex flex-wrap gap-4">
-                            <Link href="/kamar" className="lux-btn-primary px-7 py-4 text-sm">
-                                Pesan Kamar Sekarang
-                            </Link>
-                            <a href="#contact" className="lux-btn-outline px-7 py-4 text-sm flex items-center gap-2">
-                                <svg className="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                                Tanya Admin (WA)
+                        
+                        <div className="flex flex-wrap gap-4 pt-4">
+                            <a href="#rooms" className="lux-btn-primary px-8 py-4 text-base flex items-center gap-2 group hover:scale-105 transition-transform shadow-lg shadow-black/20">
+                                Jelajahi Kamar
+                                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                            </a>
+                            <a href="https://wa.me/628980598327" target="_blank" rel="noopener noreferrer" className="bg-black/20 backdrop-blur-md border border-white/30 text-white hover:bg-black/40 px-8 py-4 rounded-full font-bold text-base flex items-center gap-2 hover:scale-105 transition-all shadow-lg shadow-black/20">
+                                Tanya Admin
                             </a>
                         </div>
-
-                        {/* Trust indicators */}
-                        <div className="flex flex-wrap gap-6 pt-2">
-                            {[
-                                { value: `${rooms.filter(r => r.status === 'available').length}`, label: 'Kamar Tersedia' },
-                                { value: '2+', label: 'Lokasi Cabang' },
-                                { value: '100%', label: 'Kepuasan Penghuni' },
-                            ].map((s, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                    <span className="text-xl font-extrabold text-forest" style={{ fontFamily: "'Outfit', sans-serif" }}>{s.value}</span>
-                                    <span className="text-xs text-slate-500 font-medium leading-tight">{s.label}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Right image */}
-                    <div className="md:col-span-5 relative animate-float">
-                        <div className="relative rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(26,61,43,0.15)] border border-[rgba(201,168,76,0.2)]">
-                            <img loading="lazy" src="/images/ruang tamu.jpeg" alt="Kospart PH 18" className="w-full h-80 object-cover" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#1a3d2b]/50 to-transparent"></div>
-                            <div className="absolute bottom-5 left-5">
-                                <span className="text-white font-extrabold text-lg block drop-shadow" style={{ fontFamily: "'Outfit', sans-serif" }}>Kospart PH 18</span>
-                                <span className="text-gold text-xs font-semibold">Bandar Lampung</span>
-                            </div>
-                        </div>
-                        {/* Floating badge */}
-                        <div className="absolute -top-4 -right-4 bg-white rounded-2xl px-5 py-3 shadow-[0_8px_30px_rgba(26,61,43,0.12)] border border-[rgba(201,168,76,0.2)] text-center">
-                            <div className="text-2xl font-extrabold text-forest" style={{ fontFamily: "'Outfit', sans-serif" }}>{rooms.filter(r => r.status === 'available').length}</div>
-                            <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Kamar Kosong</div>
-                        </div>
-                    </div>
+                    </Reveal>
                 </div>
             </section>
 
             {/* ── MARQUEE ── */}
-            <div className="bg-forest border-y border-[rgba(201,168,76,0.3)] overflow-hidden h-11 flex items-center">
+            <div className="bg-forest border-y border-[rgba(201,168,76,0.3)] overflow-hidden h-14 sm:h-16 flex items-center">
                 <div className="flex whitespace-nowrap lux-marquee-inner">
-                    {[...Array(10)].map((_, i) => (
-                        <span key={i} className="text-xs font-bold text-[rgba(201,168,76,0.9)] tracking-[0.2em] uppercase px-8">
+                    {[...Array(40)].map((_, i) => (
+                        <span key={i} className="text-sm sm:text-base font-extrabold text-[rgba(201,168,76,0.9)] tracking-[0.25em] uppercase px-10">
                             KOSPART PH 18 &nbsp;✦&nbsp;
                         </span>
                     ))}
@@ -426,8 +406,15 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             </section>
 
             {/* ── ROOMS ── */}
-            <section id="rooms" className="lux-section bg-white border-y border-[rgba(201,168,76,0.08)]">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <section id="rooms" className="relative lux-section overflow-hidden bg-gradient-to-b from-[#faf7f2] via-white to-[#faf7f2] border-y border-[rgba(201,168,76,0.08)]">
+                {/* Decorative Interactive Background */}
+                <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden z-0">
+                    <WaveBackground />
+                    <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] rounded-full bg-[rgba(201,168,76,0.04)] blur-[100px] animate-pulse" style={{ animationDuration: '6s' }}></div>
+                    <div className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-[rgba(26,61,43,0.04)] blur-[120px] animate-pulse" style={{ animationDuration: '8s', animationDelay: '2s' }}></div>
+                    <div className="absolute top-[40%] left-[60%] w-[30vw] h-[30vw] rounded-full bg-[rgba(201,168,76,0.03)] blur-[80px] animate-pulse" style={{ animationDuration: '7s', animationDelay: '1s' }}></div>
+                </div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                     <Reveal className="text-center max-w-2xl mx-auto mb-12 space-y-4">
                         <span className="lux-section-label">Unit Kamar Pilihan</span>
                         <h2 className="text-3xl sm:text-4xl font-extrabold text-forest" style={{ fontFamily: "'Playfair Display', serif" }}>
@@ -472,7 +459,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                             <Reveal key={room.id} delay={idx * 0.06}>
                                 <div
                                     onClick={() => { setShowRoomDetail(room); setActiveGalleryIndex(0); }}
-                                    className="lux-card group cursor-pointer flex flex-row sm:flex-col"
+                                    className="lux-card group cursor-pointer flex flex-row sm:flex-col transform transition-all duration-500 hover:-translate-y-4 hover:scale-[1.02] hover:shadow-[0_35px_60px_-15px_rgba(26,61,43,0.25)] hover:border-[rgba(201,168,76,0.4)] bg-white/90 backdrop-blur-sm"
                                 >
                                     {/* Room Image */}
                                     <div className="relative w-[38%] sm:w-full sm:h-48 shrink-0 overflow-hidden rounded-tl-[20px] rounded-bl-[20px] sm:rounded-b-none sm:rounded-t-[20px] bg-slate-100">
@@ -595,40 +582,49 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
 
             {/* ── VIDEO TOUR ── */}
             {virtualTours && virtualTours.length > 0 && (
-                <section id="video-tour" className="lux-section border-t border-[rgba(201,168,76,0.08)]">
+                <ElegantPatternBg id="video-tour" className="lux-section border-y border-[rgba(201,168,76,0.15)]">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
                         <Reveal className="text-center max-w-2xl mx-auto space-y-4">
                             <span className="lux-section-label">Video Virtual Tour</span>
                             <h2 className="text-3xl sm:text-4xl font-extrabold text-forest" style={{ fontFamily: "'Playfair Display', serif" }}>Tur Virtual Kos & Fasilitas</h2>
-                            <p className="text-slate-500 font-medium">Saksikan suasana fasilitas kami secara langsung.</p>
+                            <p className="text-slate-500 font-medium">Saksikan suasana fasilitas kami secara langsung dengan tampilan yang elegan.</p>
                         </Reveal>
-                        <div className="max-w-4xl mx-auto">
+                        <div className="max-w-4xl mx-auto pt-10 pb-20">
                             <Reveal>
-                                <div className="space-y-4">
-                                    <p className="text-center text-sm font-bold text-gold uppercase tracking-widest">{virtualTours[activeTourIndex]?.title}</p>
-                                    <div className="rounded-3xl overflow-hidden border border-[rgba(201,168,76,0.15)] shadow-[0_20px_60px_rgba(26,61,43,0.1)] aspect-video">
-                                        <video key={activeTourIndex} src={virtualTours[activeTourIndex]?.video_path} controls className="w-full h-full object-cover"></video>
-                                    </div>
-                                    {virtualTours.length > 1 && (
-                                        <div className="flex gap-2 justify-center flex-wrap">
-                                            {virtualTours.map((t, i) => (
-                                                <button aria-label="Action Button"  key={i} onClick={() => setActiveTourIndex(i)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${i === activeTourIndex ? 'lux-btn-primary' : 'lux-btn-outline'}`}>
-                                                    {t.title}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                <CardStack
+                                    items={virtualTours.map((t, i) => ({
+                                        id: i,
+                                        title: t.title,
+                                        description: "",
+                                        videoSrc: t.video_path
+                                    }))}
+                                    initialIndex={0}
+                                    autoAdvance={false}
+                                    intervalMs={3000}
+                                    pauseOnHover={true}
+                                    showDots={true}
+                                />
                             </Reveal>
                         </div>
                     </div>
-                </section>
+                </ElegantPatternBg>
             )}
+
+            {/* ── TESTIMONIALS ── */}
+            <TestimonialsSection testimonials={displayTestimonials} />
 
             {/* ── FAQ ── */}
             {faqs && faqs.length > 0 && (
-                <section id="faq" className="lux-section bg-white border-t border-[rgba(201,168,76,0.08)]">
-                    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                <section id="faq" className="lux-section bg-white border-t border-[rgba(201,168,76,0.08)] relative overflow-hidden">
+                    {/* Amber/Gold Glow Background from bottom */}
+                    <div
+                        className="absolute inset-0 z-0 pointer-events-none opacity-60"
+                        style={{
+                            backgroundImage: "radial-gradient(125% 125% at 50% 90%, #ffffff 40%, #c9a84c 100%)",
+                            backgroundSize: "100% 100%",
+                        }}
+                    />
+                    <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 z-10">
                         <Reveal className="text-center mb-12 space-y-4">
                             <span className="lux-section-label">Pertanyaan Umum</span>
                             <h2 className="text-3xl sm:text-4xl font-extrabold text-forest" style={{ fontFamily: "'Playfair Display', serif" }}>
@@ -650,54 +646,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             )}
 
             {/* ── CONTACT ── */}
-            <section id="contact" className="lux-section bg-forest">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid md:grid-cols-12 gap-12 items-center">
-                        <SlideReveal from="left" className="md:col-span-5 order-2 md:order-1 space-y-6">
-                            <div>
-                                <span className="text-gold text-[10px] font-bold tracking-[0.15em] uppercase block mb-3">Hubungi Kami</span>
-                                <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
-                                    Konsultasi Gratis dengan Admin Kami
-                                </h2>
-                            </div>
-                            <p className="text-[rgba(250,247,242,0.7)] text-base leading-relaxed">
-                                Punya pertanyaan? Tim admin Kospart siap membantu Anda memilih kamar yang paling sesuai dengan kebutuhan.
-                            </p>
-                            <div className="space-y-3">
-                                {[
-                                    { icon: '📱', label: 'WhatsApp', val: '+62 898-0598-327', href: 'https://wa.me/628980598327' },
-                                    { icon: '📍', label: 'Alamat', val: 'Komplek PH 18, Palapa, Bandar Lampung', href: '#' },
-                                ].map((c, i) => (
-                                    <a key={i} href={c.href} target={c.href !== '#' ? '_blank' : undefined} rel="noopener noreferrer" className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-colors group">
-                                        <span className="text-xl">{c.icon}</span>
-                                        <div>
-                                            <div className="text-gold text-[10px] font-bold uppercase tracking-wider">{c.label}</div>
-                                            <div className="text-white text-sm font-semibold">{c.val}</div>
-                                        </div>
-                                    </a>
-                                ))}
-                            </div>
-                            <a href="https://wa.me/628980598327?text=Halo%20Kospart%20PH%2018,%20saya%20ingin%20tanya%20tentang%20kamar%20kos." target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center gap-3 lux-btn-outline border-[rgba(201,168,76,0.5)] text-gold hover:bg-[rgba(201,168,76,0.1)] px-7 py-4 text-sm">
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                                Chat via WhatsApp
-                            </a>
-                        </SlideReveal>
-
-                        <SlideReveal from="right" className="md:col-span-7 order-1 md:order-2">
-                            <div className="rounded-3xl overflow-hidden border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-                                <iframe
-                                    src="https://maps.google.com/maps?q=-5.416147,105.2535747&z=17&output=embed"
-                                    className="w-full h-96 border-0"
-                                    allowFullScreen=""
-                                    loading="lazy"
-                                    referrerPolicy="no-referrer-when-downgrade"
-                                ></iframe>
-                            </div>
-                        </SlideReveal>
-                    </div>
-                </div>
-            </section>
+            <CTASection />
 
             {/* ── ROOM DETAIL MODAL ── */}
             {showRoomDetail && (
