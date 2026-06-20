@@ -584,7 +584,10 @@ class BookingController extends Controller
                 . "- Kamar: {$booking->room->room_number}\n"
                 . "- Cabang: {$booking->room->branch->name}\n"
                 . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
-                . "Mohon segera melakukan perpanjangan sewa melalui aplikasi Kospart PH 18 jika Anda ingin melanjutkan, atau hubungi operator kami untuk konfirmasi checkout.\n\n"
+                . "Silakan selesaikan pembayaran perpanjangan ke rekening berikut:\n"
+                . "- BCA: 8447060951\n"
+                . "A/N PRAYOGA HERIYANTO\n\n"
+                . "Mohon segera melakukan perpanjangan sewa dan *kirimkan bukti pembayaran Anda melalui chat ini*, atau konfirmasi jika Anda ingin checkout.\n\n"
                 . "Terima kasih!";
         } else {
             // Jika belum lunas, kirim reminder tagihan
@@ -599,10 +602,10 @@ class BookingController extends Controller
                 . "- Cabang: {$booking->room->branch->name}\n"
                 . "- Sisa Tagihan: *{$amountFormatted}*\n"
                 . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
-                . "Silakan selesaikan pembayaran ke salah satu rekening berikut:\n"
+                . "Silakan selesaikan pembayaran ke rekening berikut:\n"
                 . "- BCA: 8447060951\n"
                 . "A/N PRAYOGA HERIYANTO\n\n"
-                . "Mohon segera melakukan pembayaran dan sertakan juga bukti bayarnya melalui aplikasi Kospart PH 18, atau hubungi operator kami jika ada kendala.\n\n"
+                . "Mohon segera melakukan pembayaran dan *kirimkan bukti pembayaran Anda melalui chat ini*, atau hubungi operator kami jika ada kendala.\n\n"
                 . "Abaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih!";
         }
 

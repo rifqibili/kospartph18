@@ -103,7 +103,73 @@ export default function Dashboard() {
         };
     }, [showNotifications]);
 
-    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    // Reset search and filter states when changing tabs
+    useEffect(() => {
+        setBookingSearch('');
+        setFinanceSearch('');
+        setTenantPaymentSearch('');
+        setRoomStatusFilter('all');
+    }, [activeTab]);
+
+    const [isMobileNavVisible, setIsMobileNavVisible] = useState(true);
+
+    useEffect(() => {
+        let timeout;
+        let hasOpenModal = false;
+
+        const checkModals = () => {
+            // Cek apakah ada elemen modal form yang terbuka di DOM
+            hasOpenModal = document.querySelectorAll('.fixed.inset-0.z-50, .fixed.inset-0.z-\\[60\\], .fixed.inset-0.z-\\[100\\]').length > 0;
+            const scrollContainer = document.getElementById('main-scroll-container');
+            
+            if (hasOpenModal) {
+                setIsMobileNavVisible(false);
+                if (scrollContainer) scrollContainer.style.overflow = 'hidden'; // Mengunci layar latar belakang
+                document.body.style.overflow = 'hidden'; // Kunci juga body untuk jaga-jaga
+                clearTimeout(timeout);
+            } else {
+                if (scrollContainer) scrollContainer.style.overflow = ''; // Membuka kunci layar
+                document.body.style.overflow = '';
+                resetTimer();
+            }
+        };
+
+        const resetTimer = () => {
+            if (!hasOpenModal) {
+                setIsMobileNavVisible(true);
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    setIsMobileNavVisible(false);
+                }, 2000);
+            }
+        };
+
+        // Check initially
+        checkModals();
+
+        // Setup MutationObserver to watch for modals being added/removed to the DOM
+        const observer = new MutationObserver(() => {
+            checkModals();
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // Event listeners untuk mendeteksi interaksi pengguna
+        window.addEventListener('touchstart', resetTimer);
+        window.addEventListener('scroll', resetTimer, true);
+        window.addEventListener('click', resetTimer);
+
+        return () => {
+            clearTimeout(timeout);
+            const scrollContainer = document.getElementById('main-scroll-container');
+            if (scrollContainer) scrollContainer.style.overflow = ''; // Clean up lock
+            document.body.style.overflow = '';
+            observer.disconnect();
+            window.removeEventListener('touchstart', resetTimer);
+            window.removeEventListener('scroll', resetTimer, true);
+            window.removeEventListener('click', resetTimer);
+        };
+    }, []);
     const [showManualBookingModal, setShowManualBookingModal] = useState(false);
     const [manualBookingData, setManualBookingData] = useState({
         room_id: '',
@@ -1206,16 +1272,8 @@ export default function Dashboard() {
         <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex font-sans print:bg-white print:block">
             <Head title="Admin Dashboard - Kospart PH 18" />
 
-            {/* Mobile Sidebar Backdrop */}
-            {isMobileSidebarOpen && (
-                <div 
-                    className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden"
-                    onClick={() => setIsMobileSidebarOpen(false)}
-                />
-            )}
-
             {/* Sidebar */}
-            <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 z-50 transform transition-transform duration-300 lg:translate-x-0 print:hidden ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <aside className={`hidden lg:flex inset-y-0 left-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col shrink-0 z-50 print:hidden`}>
                 {/* Logo */}
                 <div className="h-20 px-6 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
                     <img loading="lazy" src="/images/Gemini_Generated_Image_6gwojj6gwojj6gwo-removebg-preview.png" alt="Kospart Logo" className="w-10 h-10 object-contain drop-shadow-md" />
@@ -1399,23 +1457,16 @@ export default function Dashboard() {
                 {/* Dashboard Top Header */}
                 <header className="h-20 bg-white border-b border-slate-200 px-4 md:px-8 flex items-center justify-between shrink-0 shadow-sm">
                     <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
-                        {/* Mobile Hamburger Button */}
-                        <button aria-label="Action Button"  
-                            onClick={() => setIsMobileSidebarOpen(true)}
-                            className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg shrink-0"
-                        >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                        </button>
-                        <h2 className="font-extrabold text-lg md:text-2xl text-slate-900 truncate">
-                            {activeTab === 'overview' ? (currentRole === 'resident' ? 'Informasi Sewa Saya' : 'Ringkasan Dashboard') : 
-                             activeTab === 'branches' ? 'Master Cabang Kos' :
-                             activeTab === 'rooms' ? 'Master Kamar Kos' :
-                             activeTab === 'bookings' ? (currentRole === 'resident' ? 'Riwayat Pembayaran' : 'Log Transaksi Penyewaan') :
-                             activeTab === 'canteen' ? (currentRole === 'resident' ? 'Kantin Kos' : 'Pesanan & Stok Kantin') :
-                             activeTab === 'complaints' ? 'Pengaduan Komplain & Perbaikan' : 
-                             activeTab === 'users' ? 'Manajemen Pengguna' :
-                             activeTab === 'web_settings' ? 'Pengaturan Konten Website' : 'Laporan Keuangan'}
-                        </h2>
+                        {/* Mobile Hamburger Button Removed */}
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-200 shadow-sm shrink-0">
+                                <img loading="lazy" src="/images/logo 2.jpeg" alt="Logo Kospart" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="font-extrabold text-lg tracking-tight text-emerald-800 block leading-tight">KOSPART</span>
+                                <span className="text-amber-500 text-[10px] font-bold tracking-[0.2em] uppercase block">PH 18 LAMPUNG</span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Notification Bell & Theme Toggle */}
@@ -1484,7 +1535,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Dashboard Workspace */}
-                <main className="flex-grow p-8 overflow-y-auto">
+                <main id="main-scroll-container" className="flex-grow p-4 md:p-8 overflow-y-auto pb-24 lg:pb-8">
                     
                     {/* Ringkasan Dashboard (Tab: Overview) */}
                     {activeTab === 'overview' && (
@@ -4377,6 +4428,65 @@ export default function Dashboard() {
                 </div>
             )}
 
+            {/* Mobile Bottom Navigation Bar */}
+            <nav className={`fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-[90] lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.05)] pb-safe transform transition-transform duration-300 ${isMobileNavVisible ? 'translate-y-0' : 'translate-y-full'}`}>
+                <div className="flex overflow-x-auto hide-scrollbar px-2 py-2 gap-1 items-center w-full justify-between">
+                    <button aria-label="Action Button" onClick={() => setActiveTab('overview')} className={`flex-1 flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'overview' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                        <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                        <span className="text-[10px] font-bold tracking-tight">{currentRole === 'resident' ? 'Informasi' : 'Beranda'}</span>
+                    </button>
+
+                    {currentRole === 'super_admin' && (
+                        <button aria-label="Action Button" onClick={() => setActiveTab('branches')} className={`flex-1 flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'branches' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                            <span className="text-[10px] font-bold tracking-tight">Cabang</span>
+                        </button>
+                    )}
+
+                    {['super_admin', 'operator'].includes(currentRole) && (
+                        <button aria-label="Action Button" onClick={() => setActiveTab('rooms')} className={`flex-1 flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'rooms' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            <span className="text-[10px] font-bold tracking-tight">Kamar</span>
+                        </button>
+                    )}
+
+                    <button aria-label="Action Button" onClick={() => setActiveTab('bookings')} className={`flex-1 flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'bookings' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                        <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span className="text-[10px] font-bold tracking-tight">Transaksi</span>
+                    </button>
+
+                    <button aria-label="Action Button" onClick={() => setActiveTab('canteen')} className={`flex-1 flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'canteen' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                        <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        <span className="text-[10px] font-bold tracking-tight">Kantin</span>
+                    </button>
+
+                    <button aria-label="Action Button" onClick={() => setActiveTab('complaints')} className={`flex-1 flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'complaints' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                        <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                        <span className="text-[10px] font-bold tracking-tight">Komplain</span>
+                    </button>
+
+                    {['super_admin', 'operator'].includes(currentRole) && (
+                        <button aria-label="Action Button" onClick={() => setActiveTab('finances')} className={`flex-1 flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'finances' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span className="text-[10px] font-bold tracking-tight">Keuangan</span>
+                        </button>
+                    )}
+
+                    {currentRole === 'super_admin' && (
+                        <button aria-label="Action Button" onClick={() => setActiveTab('users')} className={`flex-1 flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'users' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                            <span className="text-[10px] font-bold tracking-tight">Penghuni</span>
+                        </button>
+                    )}
+
+                    {currentRole === 'super_admin' && (
+                        <button aria-label="Action Button" onClick={() => setActiveTab('web_settings')} className={`flex-1 flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'web_settings' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                            <span className="text-[10px] font-bold tracking-tight">Sistem</span>
+                        </button>
+                    )}
+                </div>
+            </nav>
         </div>
     );
 }

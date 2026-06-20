@@ -192,7 +192,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
     ];
 
     return (
-        <div className="min-h-screen bg-lux text-slate-700 flex flex-col font-sans selection:bg-[#2d6a4f] selection:text-white" style={{ position: 'relative' }}>
+        <div className="min-h-screen bg-lux text-slate-700 flex flex-col font-sans selection:bg-[#2d6a4f] selection:text-white overflow-x-hidden" style={{ position: 'relative' }}>
             <style>{`
                 @keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
                 @keyframes scaleIn { from { transform: scale(0); } to { transform: scale(1); } }
@@ -261,12 +261,10 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                                 <Link href="/register" className="lux-btn-primary px-5 py-2.5 text-sm">Daftar</Link>
                             </div>
                         )}
-                        <button aria-label="Action Button"  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-slate-600">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                {isMobileMenuOpen
-                                    ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                                    : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />}
-                            </svg>
+                        <button aria-label="Toggle Menu" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden relative w-10 h-10 flex flex-col justify-center items-center gap-[5px] p-2 rounded-xl border border-[#2d6a4f] hover:bg-[#2d6a4f]/10 transition-colors duration-300 focus:outline-none">
+                            <span className={`block h-[2px] w-5 bg-[#2d6a4f] rounded-full transition-all duration-300 ease-in-out ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px] bg-gold' : ''}`} />
+                            <span className={`block h-[2px] w-5 bg-[#2d6a4f] rounded-full transition-all duration-300 ease-in-out ${isMobileMenuOpen ? 'opacity-0 translate-x-3' : ''}`} />
+                            <span className={`block h-[2px] w-5 bg-[#2d6a4f] rounded-full transition-all duration-300 ease-in-out ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px] bg-gold' : ''}`} />
                         </button>
                     </div>
                 </div>
