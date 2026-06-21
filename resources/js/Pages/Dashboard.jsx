@@ -3625,55 +3625,156 @@ export default function Dashboard() {
                                         const end = new Date(showInvoiceModal.end_date);
                                         const diffDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
                                         
-                                        let duration = 1;
-                                        let unitLabel = '';
-                                        let periodLabel = '';
-                                        let addTime = (d, i) => d;
+                                        let items = [];
+                                        let remainingDays = diffDays;
+                                        let currentStart = new Date(start);
                                         
-                                        if (showInvoiceModal.rental_type === 'daily') {
-                                            duration = diffDays;
-                                            unitLabel = 'Hari';
-                                            periodLabel = 'Perhari';
-                                            addTime = (d, i) => { let nd = new Date(d); nd.setDate(nd.getDate() + i); return nd; };
-                                        } else if (showInvoiceModal.rental_type === 'weekly') {
-                                            duration = Math.max(1, Math.round(diffDays / 7));
-                                            unitLabel = 'Minggu';
-                                            periodLabel = 'Perminggu';
-                                            addTime = (d, i) => { let nd = new Date(d); nd.setDate(nd.getDate() + (i * 7)); return nd; };
-                                        } else if (showInvoiceModal.rental_type === 'monthly') {
-                                            duration = Math.max(1, Math.round(diffDays / 30));
-                                            unitLabel = 'Bulan';
-                                            periodLabel = 'Perbulan';
-                                            addTime = (d, i) => { let nd = new Date(d); nd.setMonth(nd.getMonth() + i); return nd; };
-                                        } else {
-                                            duration = Math.max(1, Math.round(diffDays / 365));
-                                            unitLabel = 'Tahun';
-                                            periodLabel = 'Pertahun';
-                                            addTime = (d, i) => { let nd = new Date(d); nd.setFullYear(nd.getFullYear() + i); return nd; };
+                                        const addPeriod = (days, label, unitPrice) => {
+                                            const itemStart = new Date(currentStart);
+                                            currentStart.setDate(currentStart.getDate() + days);
+                                            let itemEnd = new Date(currentStart);
+                                            if (itemEnd > end) itemEnd = new Date(end);
+                                            
+                                            items.push({
+                                                label: label,
+                                                start: itemStart,
+                                                end: itemEnd,
+                                                price: unitPrice
+                                            });
+                                            remainingDays -= days;
+                                        };
+
+                                        let priceDaily = parseFloat(showInvoiceModal.price_daily || showInvoiceModal.room.price_daily || 0);
+                                        let priceWeekly = parseFloat(showInvoiceModal.price_weekly || showInvoiceModal.room.price_weekly || 0);
+                                        let priceMonthly = parseFloat(showInvoiceModal.price_monthly || showInvoiceModal.room.price_monthly || 0);
+                                        let priceYearly = parseFloat(showInvoiceModal.price_yearly || showInvoiceModal.room.price_yearly || 0);
+                                        let priceWeekend = parseFloat(showInvoiceModal.price_weekend || showInvoiceModal.room.price_weekend || 0);
+
+                                        let baseRentalType = showInvoiceModal.rental_type;
+                                        let actualTotal = parseFloat(showInvoiceModal.total_amount);
+                                        
+                                        // Auto-detect correct base rental type for old bookings that were overwritten to 'daily'
+                                        if (baseRentalType === 'daily' && remainingDays >= 7) {
+                                            let wCount = Math.floor(remainingDays / 7);
+                                            let dCount = remainingDays % 7;
+                                            
+                                            let pWeekly = priceWeekly > 0 ? priceWeekly : ((actualTotal - (dCount * priceDaily)) / wCount);
+                                            // Prevent negative inferred prices
+                                            if (pWeekly < 0) pWeekly = priceDaily * 7;
+                                            
+                                            let expWeekly = wCount * pWeekly + dCount * priceDaily;
+                                            let expDaily = remainingDays * priceDaily;
+                                            
+                                            if (Math.abs(expWeekly - actualTotal) < Math.abs(expDaily - actualTotal) || (priceWeekly === 0 && actualTotal < expDaily)) {
+                                                baseRentalType = 'weekly';
+                                                priceWeekly = pWeekly;
+                                            } else if (remainingDays >= 30) {
+                                                let mCount = Math.floor(remainingDays / 30);
+                                                let left = remainingDays % 30;
+                                                let ewCount = Math.floor(left / 7);
+                                                let edCount = left % 7;
+                                                
+                                                let pMonthly = priceMonthly > 0 ? priceMonthly : ((actualTotal - (ewCount * pWeekly) - (edCount * priceDaily)) / mCount);
+                                                if (pMonthly < 0) pMonthly = priceDaily * 30;
+                                                
+                                                let expMonthly = mCount * pMonthly + ewCount * pWeekly + edCount * priceDaily;
+                                                if (Math.abs(expMonthly - actualTotal) < Math.abs(expDaily - actualTotal) || (priceMonthly === 0 && actualTotal < expDaily)) {
+                                                    baseRentalType = 'monthly';
+                                                    priceMonthly = pMonthly;
+                                                }
+                                            }
+                                        }
+
+                                        const addExactPeriod = (nextDate, label, unitPrice) => {
+                                            const itemStart = new Date(currentStart);
+                                            currentStart = new Date(nextDate);
+                                            let itemEnd = new Date(currentStart);
+                                            if (itemEnd > end) itemEnd = new Date(end);
+                                            
+                                            const daysSpanned = Math.round((itemEnd - itemStart) / (1000 * 60 * 60 * 24));
+                                            if (daysSpanned <= 0) return;
+                                            
+                                            items.push({
+                                                label: label,
+                                                start: itemStart,
+                                                end: itemEnd,
+                                                price: unitPrice
+                                            });
+                                            remainingDays -= daysSpanned;
+                                        };
+
+                                        if (baseRentalType === 'yearly') {
+                                            let i = 0;
+                                            while (true) {
+                                                let nextDate = new Date(currentStart);
+                                                nextDate.setFullYear(nextDate.getFullYear() + 1);
+                                                if (nextDate.getTime() > end.getTime()) break;
+                                                addExactPeriod(nextDate, `Tahun ke-${i+1}`, priceYearly);
+                                                i++;
+                                            }
+                                        }
+                                        if (baseRentalType === 'monthly' || (baseRentalType === 'yearly' && remainingDays >= 28)) {
+                                            let i = 0;
+                                            while (true) {
+                                                let nextDate = new Date(currentStart);
+                                                nextDate.setMonth(nextDate.getMonth() + 1);
+                                                if (currentStart.getDate() > 28 && nextDate.getDate() < currentStart.getDate()) {
+                                                    nextDate.setDate(0);
+                                                }
+                                                if (nextDate.getTime() > end.getTime()) break;
+                                                addExactPeriod(nextDate, `Bulan ke-${i+1}`, priceMonthly);
+                                                i++;
+                                            }
+                                        }
+                                        if (baseRentalType === 'weekly' || (['yearly', 'monthly'].includes(baseRentalType) && remainingDays >= 7)) {
+                                            let count = Math.floor(remainingDays / 7);
+                                            for(let i=0; i<count; i++) {
+                                                let nextDate = new Date(currentStart);
+                                                nextDate.setDate(nextDate.getDate() + 7);
+                                                addExactPeriod(nextDate, `Minggu ke-${i+1}`, priceWeekly);
+                                            }
                                         }
                                         
-                                        const unitPrice = parseFloat(showInvoiceModal.total_amount) / duration;
-                                        const paidAmount = parseFloat(showInvoiceModal.paid_amount || 0);
+                                        if (remainingDays > 0) {
+                                            let count = remainingDays;
+                                            let isExtension = items.length > 0;
+                                            for(let i=0; i<count; i++) {
+                                                let dayOfWeek = currentStart.getDay();
+                                                let isWeekend = (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6);
+                                                let priceToUse = (isWeekend && priceWeekend > 0) ? priceWeekend : priceDaily;
+                                                
+                                                let nextDate = new Date(currentStart);
+                                                nextDate.setDate(nextDate.getDate() + 1);
+                                                let label = isExtension ? `Hari ke-${i+1} (Tambahan)` : `Hari ke-${i+1}`;
+                                                addExactPeriod(nextDate, label, priceToUse);
+                                            }
+                                        }
+                                        
+                                        let calculatedTotal = items.reduce((sum, item) => sum + item.price, 0);
+                                        
+                                        if (calculatedTotal > 0 && Math.abs(calculatedTotal - actualTotal) > 1) {
+                                            let ratio = actualTotal / calculatedTotal;
+                                            items.forEach(item => {
+                                                item.price = item.price * ratio;
+                                            });
+                                        }
 
-                                        return Array.from({ length: duration }).map((_, i) => {
-                                            const rowStart = addTime(start, i);
-                                            let rowEnd = addTime(start, i + 1);
-                                            // Make sure the last segment caps at the exact end_date to avoid minor JS overflow
-                                            if (i === duration - 1) rowEnd = end;
+                                        let paidAmount = parseFloat(showInvoiceModal.paid_amount || 0);
 
+                                        return items.map((item, i) => {
                                             let status = 'Belum Lunas';
                                             let statusClass = 'bg-red-100 text-red-800';
-                                            let kurangAmount = unitPrice;
+                                            let kurangAmount = item.price;
                                             let rowPaidAmount = 0;
                                             
-                                            const amountCoveredBeforeThis = i * unitPrice;
-                                            const amountCoveredAfterThis = (i + 1) * unitPrice;
+                                            let amountCoveredBeforeThis = items.slice(0, i).reduce((sum, it) => sum + it.price, 0);
+                                            let amountCoveredAfterThis = amountCoveredBeforeThis + item.price;
                                             
                                             if (paidAmount >= amountCoveredAfterThis - 0.01) {
                                                 status = 'Lunas';
                                                 statusClass = 'bg-emerald-100 text-emerald-800';
                                                 kurangAmount = 0;
-                                                rowPaidAmount = unitPrice;
+                                                rowPaidAmount = item.price;
                                             } else if (paidAmount > amountCoveredBeforeThis + 0.01) {
                                                 status = 'DP/Sebagian';
                                                 statusClass = 'bg-amber-100 text-amber-800';
@@ -3684,13 +3785,13 @@ export default function Dashboard() {
                                             return (
                                                 <tr key={i} className="border-b border-slate-200 print:border-slate-300">
                                                     <td className="p-3 font-semibold text-slate-800 print:text-black">
-                                                        Sewa Kamar {showInvoiceModal.room.room_number} - {unitLabel} ke-{i+1} <br />
+                                                        Sewa Kamar {showInvoiceModal.room.room_number} - {item.label} <br />
                                                         <span className="text-[10px] text-slate-500 font-normal print:text-slate-600">
-                                                            {rowStart.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})} s.d {rowEnd.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})}
+                                                            {item.start.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})} s.d {item.end.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})}
                                                         </span>
                                                     </td>
                                                     <td className="p-3 text-right font-mono text-slate-600 print:text-black">
-                                                        Rp {Math.round(unitPrice).toLocaleString('id-ID')}
+                                                        Rp {Math.round(item.price).toLocaleString('id-ID')}
                                                     </td>
                                                     <td className="p-3 text-right font-mono font-bold text-slate-800 print:text-black">
                                                         Rp {Math.round(rowPaidAmount).toLocaleString('id-ID')}
@@ -4375,6 +4476,7 @@ export default function Dashboard() {
                                                 const isInRange = t > baseDate.getTime() && t <= projectedDateOnly.getTime();
                                                 const isWeekend = date.getDay() === 0 || date.getDay() === 5 || date.getDay() === 6;
                                                 const isOtherMonth = date.getMonth() !== viewingDate.getMonth();
+                                                const isValidClick = t > baseDate.getTime();
                                                 
                                                 let bgClass = "bg-white border-slate-100 text-slate-600";
                                                 if(isStart) bgClass = "bg-emerald-500 text-white border-emerald-600 font-bold shadow-md z-10 scale-[1.15]";
@@ -4385,10 +4487,18 @@ export default function Dashboard() {
                                                     bgClass = "bg-slate-50/50 text-slate-500 border-transparent";
                                                 }
 
+                                                const handleDateClick = () => {
+                                                    if(!isValidClick) return;
+                                                    const diffTime = t - baseDate.getTime();
+                                                    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                                                    setExtendManualData({...extendManualData, rental_type: 'daily', duration: diffDays});
+                                                };
+
                                                 return (
                                                     <div 
                                                         key={idx} 
-                                                        className={`h-6 flex items-center justify-center rounded-md border text-[10px] transition-all duration-300 cursor-default ${bgClass}`}
+                                                        onClick={handleDateClick}
+                                                        className={`h-6 flex items-center justify-center rounded-md border text-[10px] transition-all duration-300 ${isValidClick ? 'cursor-pointer hover:ring-2 hover:ring-emerald-400 hover:shadow-sm' : 'cursor-not-allowed opacity-70'} ${bgClass}`}
                                                     >
                                                         {date.getDate()}
                                                     </div>

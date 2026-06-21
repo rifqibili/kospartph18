@@ -993,7 +993,6 @@ class BookingController extends Controller
                 'total_amount' => $newTotalAmount,
                 'paid_amount' => $paidAmount,
                 'payment_status' => $paymentStatus,
-                'rental_type' => $extendType,
                 'status' => 'active'
             ]);
         });

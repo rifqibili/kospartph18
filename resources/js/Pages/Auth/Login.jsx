@@ -43,14 +43,14 @@ export default function Login({ status, canResetPassword }) {
 
             {/* Header Form */}
             <div className="mb-10 text-center">
-                <h2 className="text-3xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-800 bg-clip-text text-transparent tracking-tight font-outfit mb-2">Selamat Datang</h2>
+                <h2 className="text-3xl font-extrabold text-forest tracking-tight font-outfit mb-2">Selamat Datang</h2>
                 <p className="text-xs text-slate-500 leading-relaxed font-medium">
                     Masuk dengan email atau nomor WhatsApp terdaftar.
                 </p>
             </div>
 
             {status && (
-                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-100 text-sm font-medium text-emerald-800 rounded-xl">
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 text-sm font-bold text-forest rounded-xl">
                     {status}
                 </div>
             )}
@@ -58,12 +58,12 @@ export default function Login({ status, canResetPassword }) {
             <form onSubmit={submit} className="space-y-5">
                 {/* Field: Email / Phone */}
                 <div className="space-y-1.5">
-                    <label htmlFor="email" className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
+                    <label htmlFor="email" className="text-xs font-bold text-forest uppercase tracking-wider block">
                         Email atau Nomor Telepon
                     </label>
                     <div className="relative rounded-xl shadow-sm">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5 text-slate-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5 text-gold">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                             </svg>
                         </div>
@@ -75,7 +75,7 @@ export default function Login({ status, canResetPassword }) {
                             autoComplete="username"
                             autoFocus
                             onChange={(e) => setData('email', e.target.value)}
-                            className="pl-11 pr-4 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm w-full focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-emerald-300"
+                            className="pl-11 pr-4 py-3 rounded-2xl border border-gold/30 bg-white/50 backdrop-blur-sm w-full focus:border-gold focus:ring-4 focus:ring-gold/20 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-gold"
                             placeholder="Email atau No. WA"
                             required
                         />
@@ -86,13 +86,13 @@ export default function Login({ status, canResetPassword }) {
                 {/* Field: Password */}
                 <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
-                        <label htmlFor="password" className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
+                        <label htmlFor="password" className="text-xs font-bold text-forest uppercase tracking-wider block">
                             Password
                         </label>
                         {canResetPassword && (
                             <Link
                                 href={route('password.request')}
-                                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors focus:outline-none focus:underline"
+                                className="text-xs font-bold text-gold hover:text-[#8a6914] transition-colors focus:outline-none focus:underline"
                             >
                                 Lupa Password?
                             </Link>
@@ -100,7 +100,7 @@ export default function Login({ status, canResetPassword }) {
                     </div>
                     <div className="relative rounded-xl shadow-sm">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5 text-slate-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5 text-gold">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                             </svg>
                         </div>
@@ -111,14 +111,14 @@ export default function Login({ status, canResetPassword }) {
                             value={data.password}
                             autoComplete="current-password"
                             onChange={(e) => setData('password', e.target.value)}
-                            className="pl-11 pr-10 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm w-full focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-emerald-300"
+                            className="pl-11 pr-10 py-3 rounded-2xl border border-gold/30 bg-white/50 backdrop-blur-sm w-full focus:border-gold focus:ring-4 focus:ring-gold/20 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-gold"
                             placeholder="••••••••"
                             required
                         />
                         <button aria-label="Action Button" 
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-600 focus:outline-none"
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-gold focus:outline-none"
                         >
                             {showPassword ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
@@ -143,9 +143,9 @@ export default function Login({ status, canResetPassword }) {
                         name="remember"
                         checked={data.remember}
                         onChange={(e) => setData('remember', e.target.checked)}
-                        className="rounded border-slate-300 text-emerald-600 shadow-sm focus:ring-emerald-500 transition-colors"
+                        className="rounded border-gold/50 text-forest shadow-sm focus:ring-forest transition-colors"
                     />
-                    <label htmlFor="remember" className="ms-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
+                    <label htmlFor="remember" className="ms-2 text-xs font-bold text-forest cursor-pointer select-none">
                         Ingat Saya
                     </label>
                 </div>
@@ -154,7 +154,7 @@ export default function Login({ status, canResetPassword }) {
                 <div className="pt-3">
                     <button aria-label="Action Button" 
                         type="submit"
-                        className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-2xl text-sm transition-all duration-300 shadow-lg shadow-emerald-600/25 active:scale-[0.98] hover:shadow-xl hover:shadow-emerald-600/40 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:opacity-50"
+                        className="w-full py-3.5 lux-btn-primary rounded-2xl text-sm transition-all duration-300 disabled:opacity-50 flex items-center justify-center"
                         disabled={processing}
                     >
                         {processing ? 'Memproses Masuk...' : 'Masuk Sekarang'}
@@ -166,7 +166,7 @@ export default function Login({ status, canResetPassword }) {
                     <span className="text-xs text-slate-500">Belum punya akun? </span>
                     <Link
                         href={route('register')}
-                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors focus:outline-none focus:underline"
+                        className="text-xs font-bold text-gold hover:text-[#8a6914] transition-colors focus:outline-none focus:underline"
                     >
                         Daftar Baru di Sini
                     </Link>

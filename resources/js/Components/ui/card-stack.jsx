@@ -174,7 +174,7 @@ export function CardStack({
                 <motion.div
                   key={item.id}
                   className={cn(
-                    "absolute bottom-0 rounded-[32px] border-[8px] border-white/60 bg-white/20 backdrop-blur-xl overflow-hidden shadow-[0_40px_80px_-20px_rgba(26,61,43,0.5)]",
+                    "absolute bottom-0 rounded-[32px] border-[8px] border-[#F5F5DC] bg-white/20 backdrop-blur-xl overflow-hidden shadow-[0_40px_80px_-20px_rgba(26,61,43,0.5)]",
                     "will-change-transform select-none ring-1 ring-black/5",
                     isActive ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
                   )}

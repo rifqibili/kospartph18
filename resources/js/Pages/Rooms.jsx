@@ -250,8 +250,9 @@ export default function Rooms({ branches, rooms, auth }) {
             <Head title="Cari Kamar – Kospart PH 18 | Hunian Premium Lampung" />
 
             {/* ── HEADER ── */}
-            <header className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl bg-white/60 backdrop-blur-md rounded-full border border-white/40 shadow-[0_8px_30px_rgba(0,0,0,0.1)] transition-all duration-300">
-                <div className="px-5 sm:px-8 h-16 sm:h-20 flex items-center justify-between">
+            <header className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl transition-all duration-300">
+                <div className="absolute inset-0 bg-white/60 backdrop-blur-md rounded-full border border-white/40 shadow-[0_8px_30px_rgba(0,0,0,0.1)] pointer-events-none -z-10"></div>
+                <div className="px-5 sm:px-8 h-16 sm:h-20 flex items-center justify-between relative z-10">
                     <Link href="/" className="flex items-center gap-3">
                         <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden border border-white/50 shadow-sm">
                             <img loading="lazy" src="/images/logo 2.jpeg" alt="Logo Kospart" className="w-full h-full object-cover" />
@@ -286,20 +287,22 @@ export default function Rooms({ branches, rooms, auth }) {
                     </div>
                 </div>
                 {isMobileMenuOpen && (
-                    <div className="md:hidden absolute w-full bg-[#faf7f2] border-t border-[rgba(201,168,76,0.15)] shadow-lg z-50 p-5 space-y-3">
-                        <Link href="/" className="block text-slate-700 font-semibold py-2">Beranda</Link>
-                        <Link href="/kamar" className="block text-forest font-bold py-2">Cari Kamar</Link>
-                        <Link href="/cabang" className="block text-slate-700 font-semibold py-2">Cabang Kos</Link>
-                        <a href="/#contact" onClick={() => setIsMobileMenuOpen(false)} className="block text-slate-700 font-semibold py-2">Kontak</a>
-                        <div className="pt-3 border-t border-[rgba(201,168,76,0.15)] flex flex-col gap-2">
-                            {auth.user ? (
-                                <Link href="/dashboard" className="lux-btn-primary px-5 py-3 text-center text-sm">Dashboard</Link>
-                            ) : (
-                                <>
-                                    <Link href="/login" className="lux-btn-outline px-5 py-3 text-center text-sm">Masuk</Link>
-                                    <Link href="/register" className="lux-btn-primary px-5 py-3 text-center text-sm">Daftar Akun</Link>
-                                </>
-                            )}
+                    <div className="md:hidden absolute left-0 right-0 top-[110%] mx-auto w-full px-2 z-50">
+                        <div className="bg-white/60 backdrop-blur-2xl border border-white/40 shadow-[0_8px_30px_rgba(0,0,0,0.1)] rounded-3xl p-5 flex flex-col gap-1">
+                            <Link href="/" className="block text-slate-600 hover:text-forest hover:bg-forest/5 px-4 py-3 rounded-2xl transition-colors font-semibold text-[15px]">Beranda</Link>
+                            <Link href="/kamar" className="block text-forest hover:bg-forest/5 px-4 py-3 rounded-2xl transition-colors font-bold text-[15px]">Cari Kamar</Link>
+                            <Link href="/cabang" className="block text-slate-600 hover:text-forest hover:bg-forest/5 px-4 py-3 rounded-2xl transition-colors font-semibold text-[15px]">Cabang Kos</Link>
+                            <a href="/#contact" onClick={() => setIsMobileMenuOpen(false)} className="block text-slate-600 hover:text-forest hover:bg-forest/5 px-4 py-3 rounded-2xl transition-colors font-semibold text-[15px]">Kontak</a>
+                            <div className="pt-4 mt-2 border-t border-white/40 flex flex-row gap-3">
+                                {auth.user ? (
+                                    <Link href="/dashboard" className="lux-btn-primary flex-1 py-3 rounded-2xl text-center text-sm font-bold shadow-md">Dashboard</Link>
+                                ) : (
+                                    <>
+                                        <Link href="/login" className="lux-btn-outline flex-1 py-3 rounded-2xl text-center text-sm font-bold bg-white/40">Masuk</Link>
+                                        <Link href="/register" className="lux-btn-primary flex-1 py-3 rounded-2xl text-center text-sm font-bold shadow-md">Daftar</Link>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -309,7 +312,7 @@ export default function Rooms({ branches, rooms, auth }) {
             <section className="relative border-b border-[rgba(201,168,76,0.1)] pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
                 {/* Background Image */}
                 <div className="absolute inset-0 z-0">
-                    <img loading="lazy" src="/images/ruang%20tamu.jpeg" alt="Hero Background" className="w-full h-full object-cover object-center" />
+                    <img loading="lazy" src="/images/ruang%20tamu.png" alt="Hero Background" className="w-full h-full object-cover object-center" />
                 </div>
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
