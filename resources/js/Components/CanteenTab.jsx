@@ -1075,7 +1075,7 @@ export default function CanteenTab({
                                 className="glass-input rounded-xl px-4 py-2 text-sm w-full sm:w-64 border border-slate-200 shadow-sm focus:ring-2 focus:ring-emerald-500/20"
                             />
                         </div>
-                        <div className="flex overflow-x-auto gap-2 pb-2 show-scrollbar w-full mt-1">
+                        <div className="flex flex-wrap gap-2 w-full mt-1">
                             {[
                                 { value: '', label: 'Semua Menu', icon: '🍽️' },
                                 { value: 'food', label: 'Makanan', icon: '🍱' },
