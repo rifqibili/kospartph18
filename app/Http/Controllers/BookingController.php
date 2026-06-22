@@ -1077,7 +1077,7 @@ class BookingController extends Controller
 
         $headers = [
             "Content-type" => "application/vnd.ms-word",
-            "Content-Disposition" => "attachment;Filename=Surat_Perjanjian_Sewa_" . str_replace(' ', '_', $booking->tenant->name ?? 'Kospart') . ".doc"
+            "Content-Disposition" => "attachment;Filename=Surat_Kontrak_" . str_replace(' ', '_', $booking->tenant->name ?? 'Kospart') . "_" . str_replace(' ', '_', $booking->room->room_number ?? 'Kamar') . ".doc"
         ];
 
         return response()->make($view, 200, $headers);
