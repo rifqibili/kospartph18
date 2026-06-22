@@ -899,20 +899,23 @@ export default function Rooms({ branches, rooms, auth }) {
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bukti Pembayaran</label>
-                                    <div className="border-2 border-dashed border-[rgba(201,168,76,0.3)] rounded-xl p-5 text-center bg-[rgba(201,168,76,0.02)] hover:bg-[rgba(201,168,76,0.05)] transition-colors relative">
-                                        <input type="file" accept="image/*,application/pdf" onChange={(e) => setPaymentProofInput(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required />
-                                        <div className="pointer-events-none">
-                                            {paymentProofInput ? (
-                                                <div className="text-[#2d6a4f] font-bold text-xs">{paymentProofInput.name}</div>
-                                            ) : (
-                                                <>
-                                                    <svg className="w-7 h-7 text-slate-300 mx-auto mb-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                                    <span className="text-xs font-semibold text-slate-500 block">Klik atau seret file ke sini</span>
-                                                    <span className="text-[10px] text-slate-500">JPG, PNG, PDF (Maks. 2MB)</span>
-                                                </>
-                                            )}
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <input type="file" required accept="image/*,application/pdf" onChange={(e) => setPaymentProofInput(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                            <div className="bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-xs w-full flex flex-col items-center justify-center gap-1.5 font-semibold text-slate-600 cursor-pointer hover:border-slate-300 hover:bg-slate-50 transition-all text-center h-full">
+                                                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                                <span className="truncate w-full block px-1 leading-snug">{paymentProofInput ? paymentProofInput.name : 'Pilih File / Galeri'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="relative flex-1">
+                                            <input type="file" accept="image/*" capture="environment" onChange={(e) => setPaymentProofInput(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                            <div className="bg-emerald-50 border-2 border-emerald-100 rounded-xl px-4 py-3 text-xs w-full flex flex-col items-center justify-center gap-1.5 font-semibold text-emerald-700 cursor-pointer hover:bg-emerald-100 transition-all text-center h-full">
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                                <span>Ambil Foto</span>
+                                            </div>
                                         </div>
                                     </div>
+                                    <span className="text-[10px] text-slate-400 block text-center mt-1.5 font-medium">Format: JPG, PNG, PDF (Maks. 2MB)</span>
                                 </div>
                                 <div className="flex gap-3">
                                     <button aria-label="Action Button"  type="button" onClick={() => setBookingStep('otp')} className="flex-1 py-3 lux-btn-outline text-sm font-bold">Kembali</button>
