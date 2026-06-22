@@ -3644,11 +3644,11 @@ export default function Dashboard() {
                                             remainingDays -= days;
                                         };
 
-                                        let priceDaily = parseFloat(showInvoiceModal.price_daily || showInvoiceModal.room.price_daily || 0);
-                                        let priceWeekly = parseFloat(showInvoiceModal.price_weekly || showInvoiceModal.room.price_weekly || 0);
-                                        let priceMonthly = parseFloat(showInvoiceModal.price_monthly || showInvoiceModal.room.price_monthly || 0);
-                                        let priceYearly = parseFloat(showInvoiceModal.price_yearly || showInvoiceModal.room.price_yearly || 0);
-                                        let priceWeekend = parseFloat(showInvoiceModal.price_weekend || showInvoiceModal.room.price_weekend || 0);
+                                        let priceDaily = parseFloat(showInvoiceModal.price_daily) || parseFloat(showInvoiceModal.room?.price_daily) || 0;
+                                        let priceWeekly = parseFloat(showInvoiceModal.price_weekly) || parseFloat(showInvoiceModal.room?.price_weekly) || 0;
+                                        let priceMonthly = parseFloat(showInvoiceModal.price_monthly) || parseFloat(showInvoiceModal.room?.price_monthly) || 0;
+                                        let priceYearly = parseFloat(showInvoiceModal.price_yearly) || parseFloat(showInvoiceModal.room?.price_yearly) || 0;
+                                        let priceWeekend = parseFloat(showInvoiceModal.price_weekend) || parseFloat(showInvoiceModal.room?.price_weekend) || 0;
 
                                         let baseRentalType = showInvoiceModal.rental_type;
                                         let actualTotal = parseFloat(showInvoiceModal.total_amount);
@@ -3761,13 +3761,13 @@ export default function Dashboard() {
 
                                         let paidAmount = parseFloat(showInvoiceModal.paid_amount || 0);
 
-                                        return items.map((item, i) => {
+                                        return items.filter(item => Math.round(item.price) > 0).map((item, i, filteredItems) => {
                                             let status = 'Belum Lunas';
                                             let statusClass = 'bg-red-100 text-red-800';
                                             let kurangAmount = item.price;
                                             let rowPaidAmount = 0;
                                             
-                                            let amountCoveredBeforeThis = items.slice(0, i).reduce((sum, it) => sum + it.price, 0);
+                                            let amountCoveredBeforeThis = filteredItems.slice(0, i).reduce((sum, it) => sum + it.price, 0);
                                             let amountCoveredAfterThis = amountCoveredBeforeThis + item.price;
                                             
                                             if (paidAmount >= amountCoveredAfterThis - 0.01) {
@@ -4408,22 +4408,42 @@ export default function Dashboard() {
                                         onChange={(e) => setExtendManualData({...extendManualData, payment_status: e.target.value})}
                                         className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-semibold text-slate-800 bg-slate-50 dark:bg-slate-800/50 dark:text-white dark:border-slate-700/50 text-sm"
                                     >
-                                        <option value="paid">Lunas (Uang telah diterima Admin)</option>
+                                        <option value="paid">Lunas (Bayar Penuh Sesuai Tagihan)</option>
+                                        <option value="dp">DP / Sebagian (Input Nominal)</option>
                                         <option value="unpaid">Belum Lunas (Masuk Tagihan)</option>
                                     </select>
                                 </div>
 
-                                {extendManualData.payment_status === 'paid' && (
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Metode Pembayaran</label>
-                                        <select 
-                                            value={extendManualData.payment_method}
-                                            onChange={(e) => setExtendManualData({...extendManualData, payment_method: e.target.value})}
-                                            className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-semibold text-slate-800 bg-slate-50 dark:bg-slate-800/50 dark:text-white dark:border-slate-700/50 text-sm"
-                                        >
-                                            <option value="cash">Tunai / Cash</option>
-                                            <option value="transfer">Transfer Bank (Langsung ke Admin)</option>
-                                        </select>
+                                {['paid', 'dp'].includes(extendManualData.payment_status) && (
+                                    <div className="space-y-4">
+                                        {extendManualData.payment_status === 'dp' && (
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Nominal Uang Diterima</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Rp</span>
+                                                    <input 
+                                                        type="number"
+                                                        min="1"
+                                                        required
+                                                        value={extendManualData.paid_amount || ''}
+                                                        onChange={(e) => setExtendManualData({...extendManualData, paid_amount: e.target.value})}
+                                                        className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-bold text-slate-800 bg-slate-50 pl-11"
+                                                        placeholder={`Maks: ${additionalCost.toLocaleString('id-ID')}`}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Metode Pembayaran</label>
+                                            <select 
+                                                value={extendManualData.payment_method}
+                                                onChange={(e) => setExtendManualData({...extendManualData, payment_method: e.target.value})}
+                                                className="w-full border-slate-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 font-semibold text-slate-800 bg-slate-50 dark:bg-slate-800/50 dark:text-white dark:border-slate-700/50 text-sm"
+                                            >
+                                                <option value="cash">Tunai / Cash</option>
+                                                <option value="transfer">Transfer Bank (Langsung ke Admin)</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 )}
 

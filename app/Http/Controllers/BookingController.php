@@ -727,12 +727,12 @@ class BookingController extends Controller
             }
         }
 
-        // Recalculate price using locked booking prices (if missing, fallback to room price)
-        $lockedPriceDaily = $booking->price_daily ?? $room->price_daily;
-        $lockedPriceWeekly = $booking->price_weekly ?? $room->price_weekly;
-        $lockedPriceMonthly = $booking->price_monthly ?? $room->price_monthly;
-        $lockedPriceYearly = $booking->price_yearly ?? $room->price_yearly;
-        $lockedPriceWeekend = $booking->price_weekend ?? $room->price_weekend;
+        // Recalculate price using locked booking prices (if missing or 0, fallback to room price)
+        $lockedPriceDaily = floatval($booking->price_daily) > 0 ? floatval($booking->price_daily) : floatval($room->price_daily);
+        $lockedPriceWeekly = floatval($booking->price_weekly) > 0 ? floatval($booking->price_weekly) : floatval($room->price_weekly);
+        $lockedPriceMonthly = floatval($booking->price_monthly) > 0 ? floatval($booking->price_monthly) : floatval($room->price_monthly);
+        $lockedPriceYearly = floatval($booking->price_yearly) > 0 ? floatval($booking->price_yearly) : floatval($room->price_yearly);
+        $lockedPriceWeekend = floatval($booking->price_weekend) > 0 ? floatval($booking->price_weekend) : floatval($room->price_weekend);
 
         $startDate = new \DateTime($request->start_date);
         $endDate = new \DateTime($request->end_date);
@@ -802,12 +802,12 @@ class BookingController extends Controller
 
         $room = $booking->room;
 
-        // Use locked prices from booking, fallback to room price if somehow missing
-        $lockedPriceDaily = $booking->price_daily ?? $room->price_daily;
-        $lockedPriceWeekly = $booking->price_weekly ?? $room->price_weekly;
-        $lockedPriceMonthly = $booking->price_monthly ?? $room->price_monthly;
-        $lockedPriceYearly = $booking->price_yearly ?? $room->price_yearly;
-        $lockedPriceWeekend = $booking->price_weekend ?? $room->price_weekend;
+        // Use locked prices from booking, fallback to room price if somehow missing or 0
+        $lockedPriceDaily = floatval($booking->price_daily) > 0 ? floatval($booking->price_daily) : floatval($room->price_daily);
+        $lockedPriceWeekly = floatval($booking->price_weekly) > 0 ? floatval($booking->price_weekly) : floatval($room->price_weekly);
+        $lockedPriceMonthly = floatval($booking->price_monthly) > 0 ? floatval($booking->price_monthly) : floatval($room->price_monthly);
+        $lockedPriceYearly = floatval($booking->price_yearly) > 0 ? floatval($booking->price_yearly) : floatval($room->price_yearly);
+        $lockedPriceWeekend = floatval($booking->price_weekend) > 0 ? floatval($booking->price_weekend) : floatval($room->price_weekend);
 
         // Determine extension duration
         $currentEndDate = \Carbon\Carbon::parse($booking->end_date);
@@ -829,15 +829,15 @@ class BookingController extends Controller
             $newEndDate = $iterDate;
         } elseif ($extendType === 'weekly') {
             $weeksToAdd = (int) $request->input('duration', 1);
-            $newEndDate = $currentEndDate->addWeeks($weeksToAdd);
+            $newEndDate = $currentEndDate->copy()->addWeeks($weeksToAdd);
             $additionalAmount = $weeksToAdd * $lockedPriceWeekly;
         } elseif ($extendType === 'monthly') {
             $monthsToAdd = (int) $request->input('duration', 1);
-            $newEndDate = $currentEndDate->addMonths($monthsToAdd);
+            $newEndDate = $currentEndDate->copy()->addMonths($monthsToAdd);
             $additionalAmount = $monthsToAdd * $lockedPriceMonthly;
         } else {
             $yearsToAdd = (int) $request->input('duration', 1);
-            $newEndDate = $currentEndDate->addYears($yearsToAdd);
+            $newEndDate = $currentEndDate->copy()->addYears($yearsToAdd);
             $additionalAmount = $yearsToAdd * $lockedPriceYearly;
         }
 
@@ -887,9 +887,10 @@ class BookingController extends Controller
 
         $request->validate([
             'duration' => 'required|integer|min:1',
-            'payment_status' => 'required|in:paid,unpaid',
+            'payment_status' => 'required|in:paid,unpaid,dp',
             'payment_method' => 'nullable|string|in:cash,transfer',
-            'rental_type' => 'nullable|in:daily,weekly,monthly,yearly'
+            'rental_type' => 'nullable|in:daily,weekly,monthly,yearly',
+            'paid_amount' => 'nullable|numeric|min:1'
         ]);
 
         $booking = Booking::with('room', 'tenant')->findOrFail($id);
@@ -902,12 +903,12 @@ class BookingController extends Controller
 
         $room = $booking->room;
 
-        // Use locked prices from booking, fallback to room price if somehow missing
-        $lockedPriceDaily = $booking->price_daily ?? $room->price_daily;
-        $lockedPriceWeekly = $booking->price_weekly ?? $room->price_weekly;
-        $lockedPriceMonthly = $booking->price_monthly ?? $room->price_monthly;
-        $lockedPriceYearly = $booking->price_yearly ?? $room->price_yearly;
-        $lockedPriceWeekend = $booking->price_weekend ?? $room->price_weekend;
+        // Use locked prices from booking, fallback to room price if somehow missing or 0
+        $lockedPriceDaily = floatval($booking->price_daily) > 0 ? floatval($booking->price_daily) : floatval($room->price_daily);
+        $lockedPriceWeekly = floatval($booking->price_weekly) > 0 ? floatval($booking->price_weekly) : floatval($room->price_weekly);
+        $lockedPriceMonthly = floatval($booking->price_monthly) > 0 ? floatval($booking->price_monthly) : floatval($room->price_monthly);
+        $lockedPriceYearly = floatval($booking->price_yearly) > 0 ? floatval($booking->price_yearly) : floatval($room->price_yearly);
+        $lockedPriceWeekend = floatval($booking->price_weekend) > 0 ? floatval($booking->price_weekend) : floatval($room->price_weekend);
 
         // Determine extension duration
         $currentEndDate = \Carbon\Carbon::parse($booking->end_date);
@@ -929,15 +930,15 @@ class BookingController extends Controller
             $newEndDate = $iterDate;
         } elseif ($extendType === 'weekly') {
             $weeksToAdd = (int) $request->input('duration', 1);
-            $newEndDate = $currentEndDate->addWeeks($weeksToAdd);
+            $newEndDate = $currentEndDate->copy()->addWeeks($weeksToAdd);
             $additionalAmount = $weeksToAdd * $lockedPriceWeekly;
         } elseif ($extendType === 'monthly') {
             $monthsToAdd = (int) $request->input('duration', 1);
-            $newEndDate = $currentEndDate->addMonths($monthsToAdd);
+            $newEndDate = $currentEndDate->copy()->addMonths($monthsToAdd);
             $additionalAmount = $monthsToAdd * $lockedPriceMonthly;
         } else {
             $yearsToAdd = (int) $request->input('duration', 1);
-            $newEndDate = $currentEndDate->addYears($yearsToAdd);
+            $newEndDate = $currentEndDate->copy()->addYears($yearsToAdd);
             $additionalAmount = $yearsToAdd * $lockedPriceYearly;
         }
 
@@ -962,40 +963,48 @@ class BookingController extends Controller
             return response()->json(['message' => 'Gagal: Kamar ini sudah dipesan oleh orang lain pada rentang waktu perpanjangan tersebut.'], 400);
         }
 
-        DB::transaction(function () use ($booking, $request, $additionalAmount, $newTotalAmount, $newEndDate, $extendType, &$paymentStatus, &$paidAmount) {
-            if ($request->payment_status === 'paid') {
-                $paidAmount += $additionalAmount;
-                
-                $methodText = $request->payment_method === 'cash' ? 'Tunai' : 'Transfer Bank';
-                
-                Finance::create([
-                    'transaction_type' => 'income',
-                    'amount'           => $additionalAmount,
-                    'category'         => 'rental',
-                    'transaction_date' => now()->format('Y-m-d'),
-                    'description'      => 'Perpanjangan ' . ($extendType === 'daily' ? 'Harian' : ($extendType === 'weekly' ? 'Mingguan' : ($extendType === 'monthly' ? 'Bulanan' : 'Tahunan'))) . ' Kamar ' . $booking->room->room_number . ' (' . $methodText . ') - ' . $booking->tenant->name,
-                    'booking_id'       => $booking->id,
-                    'branch_id'        => $booking->room->branch_id,
-                    'payment_method'   => $request->payment_method ?? 'cash',
+        try {
+            DB::transaction(function () use ($booking, $request, $additionalAmount, $newTotalAmount, $newEndDate, $extendType, &$paymentStatus, &$paidAmount) {
+                if (in_array($request->payment_status, ['paid', 'dp'])) {
+                    $actualPaid = $request->payment_status === 'dp' ? floatval($request->paid_amount) : $additionalAmount;
+                    $paidAmount += $actualPaid;
+                    
+                    if ($actualPaid > 0) {
+                        $methodText = $request->payment_method === 'cash' ? 'Tunai' : 'Transfer Bank';
+                        
+                        Finance::create([
+                            'transaction_type' => 'income',
+                            'amount'           => $actualPaid,
+                            'category'         => 'rental',
+                            'transaction_date' => now()->format('Y-m-d'),
+                            'description'      => 'Perpanjangan ' . ($extendType === 'daily' ? 'Harian' : ($extendType === 'weekly' ? 'Mingguan' : ($extendType === 'monthly' ? 'Bulanan' : 'Tahunan'))) . ' Kamar ' . $booking->room->room_number . ' (' . $methodText . ') - ' . $booking->tenant->name,
+                            'booking_id'       => $booking->id,
+                            'branch_id'        => $booking->room->branch_id,
+                            'payment_method'   => $request->payment_method ?? 'cash',
+                        ]);
+                    }
+                }
+
+                if ($paidAmount >= $newTotalAmount) {
+                    $paymentStatus = 'paid';
+                } elseif ($paidAmount > 0) {
+                    $paymentStatus = 'dp';
+                } else {
+                    $paymentStatus = 'unpaid';
+                }
+
+                $booking->update([
+                    'end_date'       => $newEndDate->toDateString(),
+                    'total_amount'   => $newTotalAmount,
+                    'paid_amount'    => $paidAmount,
+                    'payment_status' => $paymentStatus,
+                    'status'         => 'active'
                 ]);
-            }
-
-            if ($paidAmount >= $newTotalAmount) {
-                $paymentStatus = 'paid';
-            } elseif ($paidAmount > 0) {
-                $paymentStatus = 'dp';
-            } else {
-                $paymentStatus = 'unpaid';
-            }
-
-            $booking->update([
-                'end_date' => $newEndDate->toDateString(),
-                'total_amount' => $newTotalAmount,
-                'paid_amount' => $paidAmount,
-                'payment_status' => $paymentStatus,
-                'status' => 'active'
-            ]);
-        });
+            });
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('extendBookingManual error: ' . $e->getMessage());
+            return response()->json(['message' => 'Terjadi kesalahan saat memproses perpanjangan: ' . $e->getMessage()], 500);
+        }
 
         return response()->json([
             'message' => 'Masa sewa berhasil diperpanjang oleh Admin.',
