@@ -32,9 +32,25 @@ const Reveal = ({ children, delay = 0, className = '' }) => {
 
 export default function Branches({ branches, auth }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const headerRef = useRef(null);
+
     useEffect(() => {
         document.documentElement.classList.remove('dark');
     }, []);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (isMobileMenuOpen && headerRef.current && !headerRef.current.contains(event.target)) {
+                setIsMobileMenuOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [isMobileMenuOpen]);
 
     return (
         <div className="min-h-screen bg-lux text-slate-700 flex flex-col font-sans" style={{ position: 'relative' }}>
@@ -72,7 +88,7 @@ export default function Branches({ branches, auth }) {
             <Head title="Cabang Lokasi – Kospart PH 18 | Kost Premium Lampung" />
 
             {/* ── HEADER ── */}
-            <header className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl transition-all duration-300">
+            <header ref={headerRef} className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl transition-all duration-300">
                 <div className="absolute inset-0 bg-white/60 backdrop-blur-md rounded-full border border-white/40 shadow-[0_8px_30px_rgba(0,0,0,0.1)] pointer-events-none -z-10"></div>
                 <div className="px-5 sm:px-8 h-16 sm:h-20 flex items-center justify-between relative z-10">
                     {/* Logo */}
