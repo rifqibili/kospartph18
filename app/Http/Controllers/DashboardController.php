@@ -143,6 +143,9 @@ class DashboardController extends Controller
             ->where('status', 'pending')
             ->where('unverified_amount', 0); // Still waiting for upload or approval
 
+        $rejectedPaymentsQuery = Booking::with(['tenant', 'room.branch'])
+            ->where('payment_status', 'rejected');
+
         // Canteen Queries
         $canteenAdminAlertsQuery = CanteenOrder::with(['tenant', 'branch'])
             ->whereIn('status', ['pending_approval'])
@@ -182,6 +185,7 @@ class DashboardController extends Controller
             $pendingComplaintsListQuery->where('tenant_id', $user->id);
             $unverifiedPaymentsQuery->where('tenant_id', $user->id);
             $newBookingsQuery->where('tenant_id', $user->id);
+            $rejectedPaymentsQuery->where('tenant_id', $user->id);
             
             $canteenTenantReadyQuery->where('tenant_id', $user->id);
             $canteenTenantDebtQuery->where('tenant_id', $user->id);
@@ -193,6 +197,7 @@ class DashboardController extends Controller
             $pendingComplaintsListQuery->whereRaw('1 = 0');
             $unverifiedPaymentsQuery->whereRaw('1 = 0');
             $newBookingsQuery->whereRaw('1 = 0');
+            $rejectedPaymentsQuery->whereRaw('1 = 0');
             $canteenTenantReadyQuery->whereRaw('1 = 0');
             $canteenTenantDebtQuery->whereRaw('1 = 0');
         }
@@ -203,6 +208,7 @@ class DashboardController extends Controller
         $pendingComplaintsList = $pendingComplaintsListQuery->get();
         $unverifiedPayments = $unverifiedPaymentsQuery->get();
         $newBookings = $newBookingsQuery->get();
+        $rejectedPayments = $user->role === 'resident' ? $rejectedPaymentsQuery->get() : collect();
         
         $canteenAdminAlerts = (in_array($user->role, ['super_admin', 'operator'])) ? clone $canteenAdminAlertsQuery->get() : collect();
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
@@ -220,6 +226,17 @@ class DashboardController extends Controller
                     ? 'Tagihan sewa Anda di ' . $b->room->branch->name . ' Kamar ' . $b->room->room_number . ' belum lunas dari bulan sebelumnya.'
                     : 'Tagihan sewa bulanan ' . $b->room->branch->name . ' Kamar ' . $b->room->room_number . ' atas nama ' . $b->tenant->name . ' belum lunas dari bulan sebelumnya.',
                 'meta' => ['booking_code' => $b->booking_code, 'tenant' => $b->tenant->name, 'room' => $b->room->room_number, 'amount' => $b->total_amount],
+                'timestamp' => $b->updated_at->toIso8601String()
+            ];
+        }
+
+        foreach ($rejectedPayments as $b) {
+            $notifications[] = [
+                'id' => 'rejected-payment-' . $b->id,
+                'type' => 'payment_rejected',
+                'title' => 'Verifikasi Pembayaran Ditolak',
+                'message' => 'Bukti pembayaran Anda untuk ' . $b->room->branch->name . ' Kamar ' . $b->room->room_number . ' ditolak oleh pengelola. Harap unggah ulang bukti yang valid.',
+                'meta' => ['booking_code' => $b->booking_code, 'room' => $b->room->room_number],
                 'timestamp' => $b->updated_at->toIso8601String()
             ];
         }

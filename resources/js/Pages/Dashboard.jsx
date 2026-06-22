@@ -398,7 +398,7 @@ export default function Dashboard() {
                     // Tampilkan toast untuk notifikasi baru
                     newNotifs.forEach(n => {
                         let color = 'border-slate-200 text-slate-800 bg-white shadow-lg';
-                        if (n.type === 'unpaid_bill') color = 'border-red-200 text-red-800 bg-red-50 shadow-lg';
+                        if (n.type === 'unpaid_bill' || n.type === 'payment_rejected') color = 'border-red-200 text-red-800 bg-red-50 shadow-lg';
                         else if (n.type === 'rental_expiry') color = 'border-amber-200 text-amber-800 bg-amber-50 shadow-lg';
                         else if (n.type === 'payment_unverified') color = 'border-blue-200 text-blue-800 bg-blue-50 shadow-lg';
                         else if (n.type === 'new_booking') color = 'border-emerald-200 text-emerald-800 bg-emerald-50 shadow-lg';
@@ -1218,6 +1218,14 @@ export default function Dashboard() {
 
     const visibleFinances = [...baseVisibleFinances, ...kasbonFinances].sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date));
 
+    // For resident/operator: only click to navigate for unpaid/expiry/checkout/rejected
+    const shouldClickToNavigate = (notif) => {
+        if (currentRole === 'resident' || currentRole === 'operator') {
+            if (['unpaid_bill', 'payment_rejected', 'rental_expiry', 'daily_checkout_today'].includes(notif.type)) return true;
+        }
+        return false;
+    };
+
     const getSimulatedResidentName = () => {
         if (auth.user.role === 'resident') return auth.user.name;
         const resId = auth.user.id;
@@ -1260,7 +1268,7 @@ export default function Dashboard() {
 
     // Menghitung jumlah alert untuk Penyewaan/Sewa (semua notifikasi kecuali komplain)
     const urgentSewaCount = visibleNotifications.filter(n => n.type !== 'new_complaint').length;
-    const urgentNotifCount = visibleNotifications.filter(n => ['unpaid_bill', 'rental_expiry', 'daily_checkout_today'].includes(n.type)).length;
+    const urgentNotifCount = visibleNotifications.filter(n => ['unpaid_bill', 'payment_rejected', 'rental_expiry', 'daily_checkout_today'].includes(n.type)).length;
 
     return (
         <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex font-sans print:bg-white print:block">
@@ -1503,7 +1511,7 @@ export default function Dashboard() {
                                             <div key={idx} className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors text-xs">
                                                 <div className="flex gap-3">
                                                     <div className={`w-2 h-2 mt-1 rounded-full shrink-0 ${
-                                                        ['unpaid_bill', 'canteen_debt'].includes(notif.type) ? 'bg-red-500' :
+                                                        ['unpaid_bill', 'payment_rejected', 'canteen_debt'].includes(notif.type) ? 'bg-red-500' :
                                                         ['rental_expiry', 'canteen_admin'].includes(notif.type) ? 'bg-amber-500' :
                                                         ['payment_unverified'].includes(notif.type) ? 'bg-blue-500' :
                                                         'bg-emerald-500'

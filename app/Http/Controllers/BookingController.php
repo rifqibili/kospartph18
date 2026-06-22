@@ -368,6 +368,7 @@ class BookingController extends Controller
         }
 
         $booking->update([
+            'payment_status' => $booking->payment_status === 'rejected' ? 'unpaid' : $booking->payment_status,
             'unverified_proof' => $proofUrl,
             'unverified_amount' => $request->paid_amount,
         ]);
@@ -405,6 +406,7 @@ class BookingController extends Controller
         $path = $request->file('payment_proof')->store('payments', 'public');
 
         $booking->update([
+            'payment_status'    => $booking->payment_status === 'rejected' ? 'unpaid' : $booking->payment_status,
             'unverified_proof'  => $path,
             'unverified_amount' => $request->paid_amount,
         ]);
@@ -482,6 +484,7 @@ class BookingController extends Controller
         }
 
         $booking->update([
+            'payment_status' => 'rejected',
             'unverified_amount' => 0,
             'unverified_proof' => null,
         ]);
