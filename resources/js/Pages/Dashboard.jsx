@@ -1101,6 +1101,18 @@ export default function Dashboard() {
         
         return true;
     }).sort((a, b) => {
+        const aNeedsPaymentVerif = a.unverified_amount > 0;
+        const bNeedsPaymentVerif = b.unverified_amount > 0;
+        const aNeedsApprove = a.status === 'pending';
+        const bNeedsApprove = b.status === 'pending';
+        
+        const aPriority = aNeedsPaymentVerif ? 2 : (aNeedsApprove ? 1 : 0);
+        const bPriority = bNeedsPaymentVerif ? 2 : (bNeedsApprove ? 1 : 0);
+
+        if (aPriority !== bPriority) {
+            return bPriority - aPriority;
+        }
+        
         if (a.status === 'active' && b.status !== 'active') return -1;
         if (a.status !== 'active' && b.status === 'active') return 1;
         return new Date(a.end_date) - new Date(b.end_date);
