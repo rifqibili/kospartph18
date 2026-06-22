@@ -1064,27 +1064,34 @@ export default function CanteenTab({
             <div className="grid lg:grid-cols-12 gap-8">
                 {/* Storefront Grid */}
                 <div className="lg:col-span-8 space-y-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <h3 className="font-extrabold text-2xl text-slate-800">Menu Kantin Kos</h3>
-                        <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex flex-col gap-4 mb-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <h3 className="font-extrabold text-2xl text-slate-800">Menu Kantin Kos</h3>
                             <input
                                 type="text"
                                 placeholder="Cari menu..."
                                 value={tenantSearch}
                                 onChange={(e) => setTenantSearch(e.target.value)}
-                                className="glass-input rounded-xl px-4 py-2 text-sm w-full sm:w-48 border border-slate-200"
+                                className="glass-input rounded-xl px-4 py-2 text-sm w-full sm:w-64 border border-slate-200 shadow-sm focus:ring-2 focus:ring-emerald-500/20"
                             />
-                            <select
-                                value={tenantCategoryFilter}
-                                onChange={(e) => setTenantCategoryFilter(e.target.value)}
-                                className="glass-input rounded-xl px-4 py-2 text-sm font-semibold w-full sm:w-48 text-slate-700 border border-slate-200 bg-white"
-                            >
-                                <option value="">Semua Kategori</option>
-                                <option value="food">Makanan</option>
-                                <option value="drink">Minuman</option>
-                                <option value="snack">Cemilan</option>
-                                <option value="ice_cream">Es Krim</option>
-                            </select>
+                        </div>
+                        <div className="flex overflow-x-auto gap-2 pb-2 show-scrollbar w-full mt-1">
+                            {[
+                                { value: '', label: 'Semua Menu', icon: '🍽️' },
+                                { value: 'food', label: 'Makanan', icon: '🍱' },
+                                { value: 'drink', label: 'Minuman', icon: '🥤' },
+                                { value: 'snack', label: 'Cemilan', icon: '🍿' },
+                                { value: 'ice_cream', label: 'Es Krim', icon: '🍦' }
+                            ].map(cat => (
+                                <button
+                                    key={cat.value}
+                                    onClick={() => setTenantCategoryFilter(cat.value)}
+                                    className={`flex items-center gap-2 px-5 py-2 rounded-full whitespace-nowrap text-xs font-bold transition-all border ${tenantCategoryFilter === cat.value ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/20' : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 shadow-sm'}`}
+                                >
+                                    <span className="text-sm">{cat.icon}</span>
+                                    {cat.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                     
