@@ -896,16 +896,42 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                         )}
 
                         {bookingStep === 'otp' && (
-                            <div className="p-6 space-y-6">
-                                <form onSubmit={handleVerifyOtp} className="space-y-4">
-                                    <div className="space-y-1.5 text-center">
-                                        <p className="text-sm text-slate-500">Masukkan 6 digit OTP yang dikirim ke email Anda</p>
-                                        <input type="text" maxLength="6" required value={otpCodeInput} onChange={(e) => setOtpCodeInput(e.target.value)} className="lux-input px-4 py-3 text-center text-xl font-bold tracking-widest w-48 mx-auto block" placeholder="——————" />
-                                        {otpError && <p className="text-red-500 text-xs mt-1">{otpError}</p>}
+                            <div className="p-8 flex flex-col items-center justify-center animate-[modalIn_0.3s_ease]">
+                                <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center border border-emerald-100 shadow-sm mb-6">
+                                    <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                </div>
+                                <div className="text-center space-y-2 mb-8">
+                                    <h3 className="font-extrabold text-2xl text-slate-800 tracking-tight">Verifikasi OTP</h3>
+                                    <p className="text-sm text-slate-500 max-w-[280px] mx-auto leading-relaxed">
+                                        Kami telah mengirimkan 6 digit kode OTP ke nomor WhatsApp <strong className="text-slate-700">{bookingForm.phone}</strong>.
+                                    </p>
+                                </div>
+                                
+                                <form onSubmit={handleVerifyOtp} className="w-full max-w-sm space-y-8">
+                                    <div className="space-y-2 text-center">
+                                        <input 
+                                            type="text" 
+                                            maxLength="6" 
+                                            required 
+                                            value={otpCodeInput} 
+                                            onChange={(e) => setOtpCodeInput(e.target.value.replace(/\D/g, ''))} 
+                                            className="w-full text-center text-3xl font-mono font-bold tracking-[0.5em] px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all outline-none text-emerald-800 placeholder:text-slate-300" 
+                                            placeholder="------" 
+                                        />
+                                        {otpError && (
+                                            <div className="text-rose-500 text-xs font-bold mt-2 flex items-center justify-center gap-1.5 animate-[modalIn_0.2s_ease]">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                {otpError}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex gap-3">
-                                        <button aria-label="Action Button"  type="button" onClick={() => setBookingStep('booking')} className="flex-1 py-3 lux-btn-outline text-sm font-bold">Kembali</button>
-                                        <button aria-label="Action Button"  type="submit" className="flex-1 py-3 lux-btn-primary text-sm font-bold">Verifikasi OTP</button>
+                                        <button aria-label="Action Button" type="button" onClick={() => setBookingStep('booking')} className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 rounded-xl text-sm font-bold transition-all shadow-sm">
+                                            Kembali
+                                        </button>
+                                        <button aria-label="Action Button" type="submit" className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-emerald-500/20">
+                                            Verifikasi OTP
+                                        </button>
                                     </div>
                                 </form>
                             </div>
