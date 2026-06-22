@@ -45,8 +45,10 @@ class BookingController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'phone' => ['required', 'string', 'min:9', 'max:20', 'regex:/^[0-9\-\+\s]+$/'],
-            'nik' => 'required|string|min:16|max:16',
+            'nik' => ['required', 'string', 'min:16', 'max:16', \Illuminate\Validation\Rule::unique('users', 'nik')->ignore(Auth::id())],
             'ktp_photo' => 'required|image|max:5120',
+        ], [
+            'nik.unique' => 'NIK ini sudah terdaftar di sistem kami.'
         ]);
 
         $room = Room::findOrFail($request->room_id);
@@ -177,6 +179,9 @@ class BookingController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
+        $tenant = User::where('phone', $request->phone)->orWhere('email', $request->email)->first();
+        $ignoreId = $tenant ? $tenant->id : null;
+
         $request->validate([
             'room_id' => 'required|exists:rooms,id',
             'rental_type' => 'required|in:daily,weekly,monthly,yearly',
@@ -185,9 +190,11 @@ class BookingController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'phone' => ['required', 'string', 'min:9', 'max:20', 'regex:/^[0-9\-\+\s]+$/'],
-            'nik' => 'required|string|min:16|max:16',
+            'nik' => ['required', 'string', 'min:16', 'max:16', \Illuminate\Validation\Rule::unique('users', 'nik')->ignore($ignoreId)],
             'ktp_photo' => 'required|image|max:5120',
             'payment_status' => 'required|in:paid,unpaid'
+        ], [
+            'nik.unique' => 'NIK ini sudah terdaftar di sistem kami.'
         ]);
 
         $room = Room::findOrFail($request->room_id);
