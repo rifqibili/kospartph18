@@ -894,6 +894,25 @@ export default function CanteenTab({
     }
 
     // === TENANT VIEW ===
+    const activeTenantBookings = bookings?.filter(b => b.status === 'active') || [];
+    const hasActiveBooking = activeTenantBookings.length > 0;
+
+    if (!hasActiveBooking) {
+        return (
+            <div className="glass-panel p-8 rounded-2xl border border-slate-200 text-center max-w-2xl mx-auto mt-10 shadow-sm">
+                <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                    <span className="text-4xl">🍽️</span>
+                </div>
+                <h3 className="font-extrabold text-2xl text-slate-800 mb-2 font-outfit tracking-tight">Akses Kantin Belum Tersedia</h3>
+                <p className="text-slate-500 mb-6 leading-relaxed">Anda harus memiliki pesanan kamar yang aktif untuk dapat memesan makanan dan minuman dari kantin Kospart PH 18.</p>
+                <a href="/kamar" className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg">
+                    Cari Kamar Sekarang
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                </a>
+            </div>
+        );
+    }
+
     const sidebarContent = (
         <>
             <div className="glass-panel p-6 rounded-2xl border border-slate-200 sticky top-6 shadow-sm">
