@@ -1077,7 +1077,7 @@ export default function CanteenTab({
                             <select
                                 value={tenantCategoryFilter}
                                 onChange={(e) => setTenantCategoryFilter(e.target.value)}
-                                className="glass-input rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 border border-slate-200 bg-white"
+                                className="glass-input rounded-xl px-4 py-2 text-sm font-semibold w-full sm:w-48 text-slate-700 border border-slate-200 bg-white"
                             >
                                 <option value="">Semua Kategori</option>
                                 <option value="food">Makanan</option>
