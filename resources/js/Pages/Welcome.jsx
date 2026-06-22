@@ -845,7 +845,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                                         <input type="checkbox" required checked={bookingForm.agree_tnc} onChange={(e) => setBookingForm({...bookingForm, agree_tnc: e.target.checked})} className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:bg-[#2d6a4f] checked:border-[#2d6a4f] transition-all cursor-pointer" />
                                         <svg className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
                                     </div>
-                                    <span className="text-xs text-slate-500 leading-relaxed">Saya setuju dengan <a href="#" className="text-[#2d6a4f] font-bold">Syarat & Ketentuan</a> dan peraturan Kospart PH 18.</span>
+                                    <span className="text-xs text-slate-500 leading-relaxed">Saya setuju dengan <a href="/Syarat_dan_Ketentuan_Kospart_PH_18.pdf" target="_blank" rel="noopener noreferrer" className="text-[#2d6a4f] font-bold underline hover:text-emerald-700">Syarat & Ketentuan</a> dan peraturan Kospart PH 18.</span>
                                 </label>
                                 <div className="p-4 rounded-xl bg-[rgba(201,168,76,0.06)] border border-[rgba(201,168,76,0.15)] flex justify-between items-center">
                                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Harga</span>
