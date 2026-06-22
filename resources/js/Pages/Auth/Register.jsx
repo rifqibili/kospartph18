@@ -128,7 +128,7 @@ export default function Register() {
                             type={showPassword ? 'text' : 'password'}
                             name="password"
                             value={data.password}
-                            autoComplete="new-password"
+                            autoComplete="off"
                             onChange={(e) => setData('password', e.target.value)}
                             className="pl-11 pr-10 py-3 rounded-2xl border border-gold/30 bg-white/50 backdrop-blur-sm w-full focus:border-gold focus:ring-4 focus:ring-gold/20 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-gold"
                             placeholder="Minimal 8 karakter"
@@ -170,7 +170,7 @@ export default function Register() {
                             type={showConfirmPassword ? 'text' : 'password'}
                             name="password_confirmation"
                             value={data.password_confirmation}
-                            autoComplete="new-password"
+                            autoComplete="off"
                             onChange={(e) => setData('password_confirmation', e.target.value)}
                             className="pl-11 pr-10 py-3 rounded-2xl border border-gold/30 bg-white/50 backdrop-blur-sm w-full focus:border-gold focus:ring-4 focus:ring-gold/20 transition-all duration-300 text-sm text-slate-800 placeholder-slate-400 font-medium hover:border-gold"
                             placeholder="Ulangi password"
