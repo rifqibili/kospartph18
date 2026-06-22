@@ -1063,8 +1063,8 @@ export default function CanteenTab({
 
             <div className="grid lg:grid-cols-12 gap-8">
                 {/* Storefront Grid */}
-                <div className="lg:col-span-8 space-y-6">
-                    <div className="flex flex-col gap-4 mb-2">
+                <div className="lg:col-span-8 space-y-6 min-w-0">
+                    <div className="flex flex-col gap-4 mb-2 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <h3 className="font-extrabold text-2xl text-slate-800">Menu Kantin Kos</h3>
                             <input
