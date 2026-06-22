@@ -1256,7 +1256,7 @@ export default function Dashboard() {
         return true;
     });
 
-    const pendingComplaintsBadgeCount = visibleComplaints.filter(c => c.status === 'pending').length;
+    const pendingComplaintsBadgeCount = visibleComplaints.filter(c => !['completed', 'ready'].includes(c.status)).length;
 
     // Menghitung jumlah alert untuk Penyewaan/Sewa (semua notifikasi kecuali komplain)
     const urgentSewaCount = visibleNotifications.filter(n => n.type !== 'new_complaint').length;
@@ -1636,7 +1636,7 @@ export default function Dashboard() {
                                             <div>
                                                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider block">Aduan Aktif</span>
                                                 <span className="text-slate-900 font-extrabold text-3xl block mt-1">
-                                                    {visibleComplaints.filter(c => c.status !== 'completed').length}
+                                                    {visibleComplaints.filter(c => !['completed', 'ready'].includes(c.status)).length}
                                                 </span>
                                                 <span className="text-xs text-slate-500 block mt-1">Aduan dalam proses</span>
                                             </div>
@@ -1876,9 +1876,9 @@ export default function Dashboard() {
                                         <div className="lg:col-span-3 min-w-0 glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm">
                                             <div className="flex items-center justify-between mb-4">
                                                 <h3 className="font-extrabold text-base text-slate-800">🔧 Komplain</h3>
-                                                {myComplaints.filter(c => c.status !== 'completed').length > 0 && (
+                                                {myComplaints.filter(c => !['completed', 'ready'].includes(c.status)).length > 0 && (
                                                     <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
-                                                        {myComplaints.filter(c => c.status !== 'completed').length}
+                                                        {myComplaints.filter(c => !['completed', 'ready'].includes(c.status)).length}
                                                     </span>
                                                 )}
                                             </div>
@@ -1893,7 +1893,7 @@ export default function Dashboard() {
                                                         <div key={c.id} className="border border-slate-200 rounded-xl p-3 bg-white">
                                                             <div className="flex items-start justify-between gap-1 mb-1">
                                                                 <p className="text-xs font-bold text-slate-800 leading-tight truncate flex-1">{c.title}</p>
-                                                                <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
+                                                                 <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
                                                                     c.status === 'pending'    ? 'bg-red-100 text-red-700' :
                                                                     c.status === 'confirmed'  ? 'bg-amber-100 text-amber-700' :
                                                                     c.status === 'processing' ? 'bg-blue-100 text-blue-700' :
@@ -3849,7 +3849,14 @@ export default function Dashboard() {
                         {/* Control Buttons */}
                         <div className="flex justify-end gap-4 border-t border-slate-200 pt-6 mt-6 print:hidden">
                             <button aria-label="Action Button"  onClick={() => setShowInvoiceModal(null)} className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition-all">Tutup Invoice</button>
-                            <button aria-label="Action Button"  onClick={() => window.print()} className="px-8 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white flex items-center justify-center gap-2">
+                            <button aria-label="Action Button"  onClick={() => {
+                                const originalTitle = document.title;
+                                const safeName = showInvoiceModal.tenant.name.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');
+                                const safeRoom = showInvoiceModal.room.room_number.replace(/[^a-zA-Z0-9]/g, '_');
+                                document.title = `Invoice_${safeName}_Kamar_${safeRoom}`;
+                                window.print();
+                                setTimeout(() => { document.title = originalTitle; }, 1000);
+                            }} className="px-8 py-2.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/30 hover:-translate-y-0.5 text-white flex items-center justify-center gap-2">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                 Cetak / Simpan PDF
                             </button>
