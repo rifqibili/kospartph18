@@ -63,6 +63,8 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
     const [otpCodeInput, setOtpCodeInput] = useState('');
     const [otpError, setOtpError] = useState('');
     const [paidAmountInput, setPaidAmountInput] = useState('');
+    const [paymentProofInput, setPaymentProofInput] = useState(null);
+    const [paymentError, setPaymentError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [showRoomDetail, setShowRoomDetail] = useState(null);
     const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
@@ -190,16 +192,24 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
 
     const handleUploadPayment = async (e) => {
         e.preventDefault();
+        if (!paymentProofInput) {
+            setPaymentError('Wajib mengunggah bukti pembayaran berupa gambar terlebih dahulu.');
+            return;
+        }
+        setPaymentError('');
         try {
+            const payload = new FormData();
+            payload.append('payment_proof', paymentProofInput);
+            payload.append('paid_amount', paidAmountInput);
             const res = await fetch(`/api/guest/bookings/${bookingResponse.booking_id}/payment-proof`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ payment_proof: 'proof_uploaded_simulation.png', paid_amount: paidAmountInput })
+                headers: { 'Accept': 'application/json' },
+                body: payload
             });
             const data = await res.json();
             if (res.ok) { setSuccessMessage(data.message); setBookingStep('success'); }
-            else { alert(data.message || 'Gagal mengunggah bukti'); }
-        } catch (err) { console.error(err); alert('Gagal mengunggah pembayaran.'); }
+            else { setPaymentError(data.message || 'Gagal mengunggah bukti pembayaran.'); }
+        } catch (err) { console.error(err); setPaymentError('Gagal mengunggah pembayaran. Silakan coba lagi.'); }
     };
 
     const resetBookingModal = () => {
@@ -993,8 +1003,16 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                                     <span className="text-[10px] text-slate-400 block text-center mt-1.5 font-medium">Format: JPG, PNG, PDF (Maks. 2MB)</span>
                                 </div>
                                 <div className="flex gap-3">
-                                    <button aria-label="Action Button"  type="button" onClick={() => setBookingStep('otp')} className="flex-1 py-3 lux-btn-outline text-xs font-bold">Kembali</button>
-                                    <button aria-label="Action Button"  type="submit" className="flex-1 py-3 lux-btn-primary text-xs font-bold">Kirim Pembayaran</button>
+                                    {paymentError && (
+                                        <div className="w-full bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-xl text-xs font-semibold flex items-start gap-2 mb-1 col-span-2">
+                                            <svg className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                            <span className="leading-relaxed">{paymentError}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex gap-3">
+                                    <button aria-label="Action Button" type="button" onClick={() => setBookingStep('otp')} className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 rounded-xl text-sm font-bold transition-all shadow-sm">Kembali</button>
+                                    <button aria-label="Action Button" type="submit" className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-emerald-500/20">Kirim Pembayaran</button>
                                 </div>
                             </form>
                         )}
