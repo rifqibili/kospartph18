@@ -909,15 +909,38 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                                 
                                 <form onSubmit={handleVerifyOtp} className="w-full max-w-sm space-y-8">
                                     <div className="space-y-2 text-center">
-                                        <input 
-                                            type="text" 
-                                            maxLength="6" 
-                                            required 
-                                            value={otpCodeInput} 
-                                            onChange={(e) => setOtpCodeInput(e.target.value.replace(/\D/g, ''))} 
-                                            className="w-full text-center text-3xl font-mono font-bold tracking-[0.5em] px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all outline-none text-emerald-800 placeholder:text-slate-300" 
-                                            placeholder="------" 
-                                        />
+                                        <div className="flex justify-center gap-2" onPaste={(e) => {
+                                            e.preventDefault();
+                                            const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                                            setOtpCodeInput(pastedData);
+                                            if (pastedData.length === 6) {
+                                                document.getElementById('otp-welcome-5')?.focus();
+                                            }
+                                        }}>
+                                            {[0, 1, 2, 3, 4, 5].map((index) => (
+                                                <input
+                                                    key={index}
+                                                    id={`otp-welcome-${index}`}
+                                                    type="text"
+                                                    maxLength="1"
+                                                    required={index === 0 && otpCodeInput.length < 6}
+                                                    value={otpCodeInput[index] || ''}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value.replace(/\D/g, '');
+                                                        let newOtp = otpCodeInput.split('');
+                                                        newOtp[index] = val;
+                                                        setOtpCodeInput(newOtp.join(''));
+                                                        if (val && index < 5) document.getElementById(`otp-welcome-${index + 1}`)?.focus();
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Backspace' && !otpCodeInput[index] && index > 0) {
+                                                            document.getElementById(`otp-welcome-${index - 1}`)?.focus();
+                                                        }
+                                                    }}
+                                                    className="w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 border-slate-200 bg-slate-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all outline-none text-emerald-800"
+                                                />
+                                            ))}
+                                        </div>
                                         {otpError && (
                                             <div className="text-rose-500 text-xs font-bold mt-2 flex items-center justify-center gap-1.5 animate-[modalIn_0.2s_ease]">
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
