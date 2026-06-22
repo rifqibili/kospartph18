@@ -3161,26 +3161,34 @@ export default function Dashboard() {
                         <div className="space-y-8">
                             {/* Resident view: Submit Complaint */}
                             {currentRole === 'resident' && (
-                                <div className="glass-panel p-6 rounded-2xl max-w-xl border border-slate-200 shadow-sm">
-                                    <h3 className="font-extrabold text-lg text-slate-800 dark:text-slate-200 mb-4">Laporkan Komplain / Kerusakan</h3>
-                                    <form onSubmit={handleAddComplaint} className="space-y-4">
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500 block mb-2">Pilih Kamar Anda</label>
-                                            {(() => {
-                                                const resId = auth.user.id;
-                                                const residentOccupiedRooms = rooms.filter(r => 
-                                                    bookings.some(b => b.room_id === r.id && b.tenant_id === resId && b.status === 'active')
-                                                );
+                                (() => {
+                                    const resId = auth.user.id;
+                                    const residentOccupiedRooms = rooms.filter(r => 
+                                        bookings.some(b => b.room_id === r.id && b.tenant_id === resId && b.status === 'active')
+                                    );
 
-                                                if (residentOccupiedRooms.length === 0) {
-                                                    return (
-                                                        <div className="text-xs text-red-500 bg-red-50 p-2.5 rounded-lg border border-red-200 font-semibold mt-1">
-                                                            Anda belum menempati kamar aktif. Hubungi pengelola untuk proses check-in.
-                                                        </div>
-                                                    );
-                                                }
+                                    if (residentOccupiedRooms.length === 0) {
+                                        return (
+                                            <div className="glass-panel p-8 rounded-2xl border border-slate-200 text-center max-w-2xl mx-auto shadow-sm">
+                                                <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-100">
+                                                    <span className="text-4xl">🔧</span>
+                                                </div>
+                                                <h3 className="font-extrabold text-2xl text-slate-800 mb-2 font-outfit tracking-tight">Fitur Komplain Belum Tersedia</h3>
+                                                <p className="text-slate-500 mb-6 leading-relaxed">Anda harus memiliki pesanan kamar yang aktif untuk dapat menggunakan layanan pengaduan dan perbaikan Kospart PH 18.</p>
+                                                <a href="/kamar" className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg">
+                                                    Cari Kamar Sekarang
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                                                </a>
+                                            </div>
+                                        );
+                                    }
 
-                                                return (
+                                    return (
+                                        <div className="glass-panel p-6 rounded-2xl max-w-xl border border-slate-200 shadow-sm">
+                                            <h3 className="font-extrabold text-lg text-slate-800 dark:text-slate-200 mb-4">Laporkan Komplain / Kerusakan</h3>
+                                            <form onSubmit={handleAddComplaint} className="space-y-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-xs font-semibold text-slate-500 block mb-2">Pilih Kamar Anda</label>
                                                     <select 
                                                         required
                                                         value={newComplaint.room_id}
@@ -3192,35 +3200,35 @@ export default function Dashboard() {
                                                             <option key={r.id} value={r.id}>Kamar {r.room_number} ({r.branch?.name?.replace('Kospart PH 18 - ', '') || ''})</option>
                                                         ))}
                                                     </select>
-                                                );
-                                            })()}
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-xs font-semibold text-slate-500 block mb-2">Judul Aduan</label>
+                                                    <input 
+                                                        type="text" 
+                                                        required
+                                                        value={newComplaint.title}
+                                                        onChange={(e) => setNewComplaint({...newComplaint, title: e.target.value})}
+                                                        className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
+                                                        placeholder="Contoh: Lampu Kamar Mandi Mati"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-xs font-semibold text-slate-500 block mb-2">Deskripsi Lengkap Kendala</label>
+                                                    <textarea 
+                                                        required
+                                                        value={newComplaint.description}
+                                                        onChange={(e) => setNewComplaint({...newComplaint, description: e.target.value})}
+                                                        className="glass-input rounded-xl px-4 py-2.5 text-sm w-full h-24"
+                                                        placeholder="Detail kendala yang dialami secara lengkap..."
+                                                    />
+                                                </div>
+                                                <button aria-label="Action Button"  type="submit" className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all">
+                                                    Ajukan Pengaduan
+                                                </button>
+                                            </form>
                                         </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500 block mb-2">Judul Aduan</label>
-                                            <input 
-                                                type="text" 
-                                                required
-                                                value={newComplaint.title}
-                                                onChange={(e) => setNewComplaint({...newComplaint, title: e.target.value})}
-                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full"
-                                                placeholder="Contoh: Lampu Kamar Mandi Mati"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-slate-500 block mb-2">Deskripsi Lengkap Kendala</label>
-                                            <textarea 
-                                                required
-                                                value={newComplaint.description}
-                                                onChange={(e) => setNewComplaint({...newComplaint, description: e.target.value})}
-                                                className="glass-input rounded-xl px-4 py-2.5 text-sm w-full h-24"
-                                                placeholder="Detail kendala yang dialami secara lengkap..."
-                                            />
-                                        </div>
-                                        <button aria-label="Action Button"  type="submit" className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all">
-                                            Ajukan Pengaduan
-                                        </button>
-                                    </form>
-                                </div>
+                                    );
+                                })()
                             )}
 
                             {/* List Komplain (Admin & Resident view) */}
