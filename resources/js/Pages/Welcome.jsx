@@ -57,6 +57,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
         name: '', email: '', phone: '', start_date: '', end_date: '', rental_type: 'monthly', nik: '', ktp_photo: null, agree_tnc: false
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [bookingError, setBookingError] = useState('');
     const [bookingStep, setBookingStep] = useState('browse');
     const [bookingResponse, setBookingResponse] = useState(null);
     const [otpCodeInput, setOtpCodeInput] = useState('');
@@ -147,6 +148,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
     const handleBookingSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setBookingError('');
         try {
             const formData = new FormData();
             formData.append('room_id', selectedRoom.id);
@@ -161,8 +163,14 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             const res = await fetch('/api/bookings/store', { method: 'POST', headers: { 'Accept': 'application/json' }, body: formData });
             const data = await res.json();
             if (res.ok) { setBookingResponse(data); setBookingStep('otp'); }
-            else { alert(data.message || 'Terjadi kesalahan'); }
-        } catch (err) { console.error(err); alert('Gagal mengajukan pemesanan.'); }
+            else {
+                if (data.errors && data.errors.nik) {
+                    setBookingError(data.errors.nik[0]);
+                } else {
+                    setBookingError(data.message || 'Terjadi kesalahan saat memproses pesanan Anda.');
+                }
+            }
+        } catch (err) { console.error(err); setBookingError('Gagal mengajukan pemesanan. Silakan coba lagi.'); }
         finally { setIsSubmitting(false); }
     };
 
@@ -768,6 +776,12 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
 
                         {bookingStep === 'booking' && (
                             <form onSubmit={handleBookingSubmit} className="p-6 space-y-4">
+                                {bookingError && (
+                                    <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-xl text-xs font-semibold flex items-start gap-3 mb-2 animate-[modalIn_0.3s_ease]">
+                                        <svg className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                        <span className="leading-relaxed">{bookingError}</span>
+                                    </div>
+                                )}
                                 {[
                                     { label: 'Nama Lengkap', key: 'name', type: 'text', placeholder: 'Dani Trisna' },
                                     { label: 'Email', key: 'email', type: 'email', placeholder: 'dani@gmail.com' },
