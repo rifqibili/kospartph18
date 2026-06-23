@@ -39,7 +39,7 @@ export default function Login({ status, canResetPassword }) {
 
     return (
         <GuestLayout>
-            <Head title="Masuk Akun - Kospart PH 18" />
+            <Head title="Kospart PH 18" />
 
             {/* Header Form */}
             <div className="mb-10 text-center">

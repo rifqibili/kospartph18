@@ -24,7 +24,7 @@ export default function Register() {
 
     return (
         <GuestLayout>
-            <Head title="Pendaftaran Akun - Kospart PH 18" />
+            <Head title="Kospart PH 18" />
 
             {/* Header Form */}
             <div className="mb-8 text-center">

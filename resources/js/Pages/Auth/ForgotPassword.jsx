@@ -17,7 +17,7 @@ export default function ForgotPassword({ status }) {
 
     return (
         <GuestLayout>
-            <Head title="Forgot Password" />
+            <Head title="Kospart PH 18" />
 
             <div className="mb-4 text-sm text-forest/70 dark:text-gray-500">
                 Forgot your password? No problem. Just let us know your email
