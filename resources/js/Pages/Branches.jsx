@@ -190,7 +190,7 @@ export default function Branches({ branches, auth }) {
                                 {/* Image */}
                                 <div className="relative h-64 overflow-hidden rounded-t-[20px]">
                                     <img
-                                        src={branch.name.includes('Utama') ? '/images/tampak depan.jpg' : '/images/ruang tamu.jpeg'}
+                                        src={branch.image_path || (branch.name.includes('Utama') ? '/images/tampak depan.png' : '/images/ruang tamu.jpeg')}
                                         alt={branch.name}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                                     />
