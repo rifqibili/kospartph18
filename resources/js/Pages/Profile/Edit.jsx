@@ -13,7 +13,7 @@ export default function Edit({ mustVerifyEmail, status }) {
                 </h2>
             }
         >
-            <Head title="Pengaturan Profil" />
+            <Head title="Kospart PH 18" />
 
             <div className="py-12 bg-slate-50/50 min-h-screen">
                 <div className="mx-auto max-w-5xl space-y-8 sm:px-6 lg:px-8">
