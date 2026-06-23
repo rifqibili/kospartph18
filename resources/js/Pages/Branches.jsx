@@ -258,12 +258,27 @@ export default function Branches({ branches, auth }) {
                                     </div>
 
                                     {/* Map Preview */}
-                                    <div className="rounded-xl overflow-hidden bg-slate-50 border border-slate-100 h-32 relative">
+                                    <div className="rounded-xl overflow-hidden bg-slate-50 border border-slate-100 h-40 sm:h-48 relative group/map cursor-pointer shadow-inner">
+                                        {/* Invisible overlay that makes the entire map clickable and prevents scroll trapping on mobile */}
+                                        <a 
+                                            href={branch.maps_link} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="absolute inset-0 z-20 flex items-center justify-center bg-black/0 group-hover/map:bg-black/10 transition-colors"
+                                            aria-label="Buka di Google Maps"
+                                            title="Buka di Google Maps"
+                                        >
+                                            <div className="bg-white/90 backdrop-blur-sm text-forest font-bold text-xs px-4 py-2 rounded-full shadow-lg opacity-0 group-hover/map:opacity-100 transition-opacity transform translate-y-2 group-hover/map:translate-y-0 flex items-center gap-2">
+                                                <svg className="w-4 h-4 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                                Buka Maps
+                                            </div>
+                                        </a>
+                                        
                                         <iframe 
                                             src={`https://maps.google.com/maps?q=${encodeURIComponent(branch.name + ' ' + branch.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                                             width="100%" 
                                             height="100%" 
-                                            style={{ border: 0, position: 'absolute', top: 0, left: 0 }} 
+                                            style={{ border: 0, position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }} 
                                             allowFullScreen="" 
                                             loading="lazy" 
                                             referrerPolicy="no-referrer-when-downgrade"
