@@ -164,20 +164,18 @@ export default function Branches({ branches, auth }) {
                     </p>
 
                     {/* Stats bar */}
-                    <div className="mt-10 inline-flex items-center gap-8 bg-black/20 backdrop-blur-md rounded-2xl border border-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.3)] px-8 py-5 mx-auto">
-                        <div className="text-center">
-                            <div className="text-2xl font-extrabold text-white">{branches.length}</div>
-                            <div className="text-xs text-white/80 font-semibold uppercase tracking-wider mt-1">Cabang Aktif</div>
+                    <div className="mt-8 sm:mt-10 inline-grid grid-cols-3 divide-x divide-white/30 bg-black/20 backdrop-blur-md rounded-2xl border border-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.3)] px-2 sm:px-8 py-4 sm:py-5 mx-auto w-full max-w-lg sm:w-auto text-center">
+                        <div className="px-1 sm:px-6">
+                            <div className="text-xl sm:text-3xl font-extrabold text-white">{branches.length}</div>
+                            <div className="text-[9px] sm:text-xs text-white/80 font-semibold uppercase tracking-wider mt-1 leading-tight">Cabang Aktif</div>
                         </div>
-                        <div className="w-px h-10 bg-white/30"></div>
-                        <div className="text-center">
-                            <div className="text-2xl font-extrabold text-white">{branches.reduce((a, b) => a + (b.total_rooms || 0), 0)}</div>
-                            <div className="text-xs text-white/80 font-semibold uppercase tracking-wider mt-1">Total Kamar</div>
+                        <div className="px-1 sm:px-6">
+                            <div className="text-xl sm:text-3xl font-extrabold text-white">{branches.reduce((a, b) => a + (b.total_rooms || 0), 0)}</div>
+                            <div className="text-[9px] sm:text-xs text-white/80 font-semibold uppercase tracking-wider mt-1 leading-tight">Total Kamar</div>
                         </div>
-                        <div className="w-px h-10 bg-white/30"></div>
-                        <div className="text-center">
-                            <div className="text-2xl font-extrabold text-gold">{branches.reduce((a, b) => a + (b.available_rooms || 0), 0)}</div>
-                            <div className="text-xs text-white/80 font-semibold uppercase tracking-wider mt-1">Kamar Kosong</div>
+                        <div className="px-1 sm:px-6">
+                            <div className="text-xl sm:text-3xl font-extrabold text-gold">{branches.reduce((a, b) => a + (b.available_rooms || 0), 0)}</div>
+                            <div className="text-[9px] sm:text-xs text-white/80 font-semibold uppercase tracking-wider mt-1 leading-tight">Kamar Kosong</div>
                         </div>
                     </div>
                 </div>
@@ -215,26 +213,26 @@ export default function Branches({ branches, auth }) {
                                 </div>
 
                                 {/* Content */}
-                                <div className="p-7 space-y-5">
+                                <div className="p-5 sm:p-7 space-y-4 sm:space-y-5">
                                     {/* Room stats */}
-                                    <div className="flex items-center gap-5">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-lg bg-[rgba(45,106,79,0.1)] flex items-center justify-center">
-                                                <svg className="w-4 h-4 text-[#2d6a4f]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-5">
+                                        <div className="flex items-center gap-2 sm:gap-3">
+                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[rgba(45,106,79,0.1)] flex items-center justify-center shrink-0">
+                                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#2d6a4f]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                             </div>
                                             <div>
-                                                <div className="text-xs text-slate-500 font-medium">Tersedia</div>
-                                                <div className="font-bold text-forest text-sm">{branch.available_rooms} Unit</div>
+                                                <div className="text-[10px] sm:text-xs text-slate-500 font-medium">Tersedia</div>
+                                                <div className="font-bold text-forest text-xs sm:text-sm">{branch.available_rooms} Unit</div>
                                             </div>
                                         </div>
                                         <div className="w-px h-8 bg-[rgba(201,168,76,0.2)]"></div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-lg bg-[rgba(201,168,76,0.1)] flex items-center justify-center">
-                                                <svg className="w-4 h-4 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                                        <div className="flex items-center gap-2 sm:gap-3">
+                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[rgba(201,168,76,0.1)] flex items-center justify-center shrink-0">
+                                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                                             </div>
                                             <div>
-                                                <div className="text-xs text-slate-500 font-medium">Total</div>
-                                                <div className="font-bold text-forest text-sm">{branch.total_rooms} Unit</div>
+                                                <div className="text-[10px] sm:text-xs text-slate-500 font-medium">Total</div>
+                                                <div className="font-bold text-forest text-xs sm:text-sm">{branch.total_rooms} Unit</div>
                                             </div>
                                         </div>
                                     </div>
@@ -282,7 +280,7 @@ export default function Branches({ branches, auth }) {
                                     </div>
 
                                     {/* Action buttons */}
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                                         <a
                                             href={branch.maps_link}
                                             target="_blank"
