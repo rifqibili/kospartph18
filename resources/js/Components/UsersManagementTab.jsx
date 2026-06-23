@@ -317,7 +317,7 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
                                             </div>
                                         </td>
                                     </tr>
-                                )})};
+                                )})}
                             </tbody>
                         </table>
                     </div>
