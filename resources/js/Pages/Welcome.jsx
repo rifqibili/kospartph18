@@ -293,7 +293,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                 <circle cx="280" cy="280" r="60" stroke="rgba(45,106,79,0.05)" strokeWidth="1" />
             </svg>
 
-            <Head title="Beranda – Kospart PH 18 | Hunian Eksklusif Lampung" />
+            <Head title="Kospart PH 18" />
 
 
             {/* ── HEADER ── */}
