@@ -397,7 +397,6 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             <section id="tentang" className="lux-section">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <Reveal className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-                        <span className="lux-section-label">Tentang Kospart PH 18</span>
                         <h2 className="text-3xl sm:text-4xl font-extrabold text-forest leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
                             Selamat Datang di <span className="italic text-gold">Kospart PH 18</span>
                         </h2>
@@ -473,7 +472,6 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                 </div>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                     <Reveal className="text-center max-w-2xl mx-auto mb-12 space-y-4">
-                        <span className="lux-section-label">Unit Kamar Pilihan</span>
                         <h2 className="text-3xl sm:text-4xl font-extrabold text-forest" style={{ fontFamily: "'Playfair Display', serif" }}>
                             Kamar Tersedia Untuk Anda
                         </h2>
@@ -642,7 +640,6 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                 <ElegantPatternBg id="video-tour" className="lux-section border-y border-[#F5F5DC]">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
                         <Reveal className="text-center max-w-2xl mx-auto space-y-4">
-                            <span className="lux-section-label">Video Virtual Tour</span>
                             <h2 className="text-3xl sm:text-4xl font-extrabold text-forest" style={{ fontFamily: "'Playfair Display', serif" }}>Tur Virtual Kos & Fasilitas</h2>
                             <p className="text-slate-500 font-medium">Saksikan suasana fasilitas kami secara langsung dengan tampilan yang elegan.</p>
                         </Reveal>
@@ -683,7 +680,6 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                     />
                     <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 z-10">
                         <Reveal className="text-center mb-12 space-y-4">
-                            <span className="lux-section-label">Pertanyaan Umum</span>
                             <h2 className="text-3xl sm:text-4xl font-extrabold text-forest" style={{ fontFamily: "'Playfair Display', serif" }}>
                                 Ada yang Ingin Anda Tanyakan?
                             </h2>

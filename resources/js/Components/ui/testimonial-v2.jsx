@@ -104,9 +104,6 @@ export const TestimonialsSection = ({ testimonials = [] }) => {
         >
           <div className="flex flex-col items-center justify-center max-w-[540px] mx-auto mb-16">
             <div className="flex justify-center">
-              <div className="border border-[#c9a84c]/30 py-1 px-4 rounded-full text-[10px] font-bold tracking-wider uppercase text-[#c9a84c] bg-[#c9a84c]/10 transition-colors">
-                Kata Mereka
-              </div>
             </div>
   
             <h2 id="testimonials-heading" className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mt-6 text-center text-[#1a3d2b] transition-colors" style={{ fontFamily: "'Playfair Display', serif" }}>
