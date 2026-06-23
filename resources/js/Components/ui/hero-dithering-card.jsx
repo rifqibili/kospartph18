@@ -69,10 +69,25 @@ export function CTASection() {
               </a>
             </div>
 
-            <div className="w-full h-full min-h-[300px] md:min-h-full rounded-3xl overflow-hidden border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
+            <div className="w-full h-full min-h-[300px] md:min-h-[350px] rounded-3xl overflow-hidden border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.3)] relative group/map cursor-pointer">
+              {/* Invisible overlay that makes the entire map clickable and prevents scroll trapping on mobile */}
+              <a 
+                  href="https://maps.google.com/maps?q=-5.416147,105.2535747" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="absolute inset-0 z-20 flex items-center justify-center bg-black/0 group-hover/map:bg-white/10 transition-colors"
+                  aria-label="Buka di Google Maps"
+                  title="Buka di Google Maps"
+              >
+                  <div className="bg-white/95 backdrop-blur-sm text-[#132c1f] font-bold text-sm px-6 py-3 rounded-full shadow-2xl opacity-0 group-hover/map:opacity-100 transition-all transform translate-y-4 group-hover/map:translate-y-0 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-[#c9a84c]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                      Buka Google Maps
+                  </div>
+              </a>
               <iframe
                   src="https://maps.google.com/maps?q=-5.416147,105.2535747&z=17&output=embed"
                   className="w-full h-full border-0 min-h-[350px]"
+                  style={{ pointerEvents: 'none' }}
                   allowFullScreen=""
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
