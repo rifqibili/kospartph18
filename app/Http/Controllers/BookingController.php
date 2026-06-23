@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 class BookingController extends Controller
 {
@@ -330,9 +331,18 @@ class BookingController extends Controller
             'otp_code' => 'required|string|size:6',
         ]);
 
+        $key = 'verify-otp:' . $request->ip() . ':' . $request->booking_id;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terlalu banyak percobaan. Silakan coba lagi setelah 5 menit.'
+            ], 429);
+        }
+
         $booking = Booking::findOrFail($request->booking_id);
 
         if ($booking->otp_code === $request->otp_code) {
+            RateLimiter::clear($key);
             $booking->update([
                 'otp_verified' => true,
                 'status' => 'pending', // approved but waiting for deposit / payment proof
@@ -344,21 +354,30 @@ class BookingController extends Controller
             ]);
         }
 
+        RateLimiter::hit($key, 300); // 300 seconds = 5 minutes timeout
         return response()->json([
             'success' => false,
-            'message' => 'Kode OTP salah atau kedaluwarsa.'
+            'message' => 'Kode OTP salah atau kedaluwarsa. Percobaan tersisa: ' . (5 - RateLimiter::attempts($key))
         ], 422);
     }
 
     // Upload payment proof
     public function uploadPaymentProof(Request $request, $id)
     {
+        $user = Auth::user();
         $request->validate([
             'payment_proof' => 'required|file|image|mimes:jpeg,png,jpg,pdf|max:2048',
             'paid_amount' => 'required|numeric|min:0'
         ]);
 
-        $booking = Booking::findOrFail($id);
+        $booking = Booking::with('room')->findOrFail($id);
+
+        if ($user->role === 'resident' && $booking->tenant_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized: Bukan booking Anda.'], 403);
+        }
+        if ($user->role === 'operator' && !in_array($booking->room->branch_id, $user->assigned_branches ?? [])) {
+            return response()->json(['message' => 'Unauthorized: Booking di luar cabang Anda.'], 403);
+        }
 
         if ($request->hasFile('payment_proof')) {
             $path = $request->file('payment_proof')->store('payment_proofs', 'public');
@@ -1090,7 +1109,11 @@ class BookingController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $booking = Booking::findOrFail($id);
+        $booking = Booking::with('room')->findOrFail($id);
+
+        if ($user->role === 'operator' && !in_array($booking->room->branch_id, $user->assigned_branches ?? [])) {
+            return response()->json(['error' => 'Unauthorized: Anda tidak berhak menghapus booking dari cabang ini.'], 403);
+        }
         
         if ($booking->status === 'active' || $booking->status === 'pending') {
             return response()->json(['error' => 'Hanya booking dengan status checkout yang dapat dihapus.'], 400);
