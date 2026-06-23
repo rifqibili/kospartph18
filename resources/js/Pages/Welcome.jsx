@@ -382,18 +382,17 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                         </div>
                     </Reveal>
                 </div>
-            </section>
-
-            {/* ── MARQUEE ── */}
-            <div className="bg-forest border-y border-[rgba(201,168,76,0.3)] overflow-hidden h-14 sm:h-16 flex items-center">
-                <div className="flex whitespace-nowrap lux-marquee-inner">
-                    {[...Array(40)].map((_, i) => (
-                        <span key={i} className="text-sm sm:text-base font-extrabold text-[rgba(201,168,76,0.9)] tracking-[0.25em] uppercase px-10">
-                            KOSPART PH 18 &nbsp;✦&nbsp;
-                        </span>
-                    ))}
+                {/* ── MARQUEE ── */}
+                <div className="absolute bottom-0 left-0 w-full z-20 bg-forest border-t border-[rgba(201,168,76,0.3)] overflow-hidden h-14 sm:h-16 flex items-center">
+                    <div className="flex whitespace-nowrap lux-marquee-inner">
+                        {[...Array(40)].map((_, i) => (
+                            <span key={i} className="text-sm sm:text-base font-extrabold text-[rgba(201,168,76,0.9)] tracking-[0.25em] uppercase px-10">
+                                KOSPART PH 18 &nbsp;✦&nbsp;
+                            </span>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            </section>
 
             {/* ── TENTANG ── */}
             <section id="tentang" className="lux-section">
