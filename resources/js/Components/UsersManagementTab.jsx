@@ -10,6 +10,10 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
     const [modalMode, setModalMode] = useState('create');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('all');
+
+    // Delete confirm modal state
+    const [deleteConfirm, setDeleteConfirm] = useState({ show: false, userId: null, userName: '' });
+    const [deleteLoading, setDeleteLoading] = useState(false);
     
     const [formData, setFormData] = useState({
         id: null,
@@ -111,22 +115,27 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!confirm('Apakah Anda yakin ingin menghapus akun ini? Tindakan ini tidak dapat dibatalkan.')) return;
-        
+    const handleDeleteClick = (user) => {
+        setDeleteConfirm({ show: true, userId: user.id, userName: user.name });
+    };
+
+    const handleDeleteConfirm = async () => {
+        setDeleteLoading(true);
         try {
-            const res = await authFetch(`/api/users/${id}`, { method: 'DELETE' });
+            const res = await authFetch(`/api/users/${deleteConfirm.userId}`, { method: 'DELETE' });
             const data = await res.json();
             
             if (res.ok) {
                 showToast(data.message);
                 fetchUsers();
+                setDeleteConfirm({ show: false, userId: null, userName: '' });
             } else {
                 showToast(data.message || 'Gagal menghapus pengguna', 'error');
             }
         } catch (e) {
             showToast('Kesalahan jaringan', 'error');
         }
+        setDeleteLoading(false);
     };
 
     const filteredUsers = useMemo(() => {
@@ -302,13 +311,13 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
                                                 <button onClick={() => handleOpenModal(user)} className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors tooltip" title="Edit Akun">
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                                 </button>
-                                                <button onClick={() => handleDelete(user.id)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg transition-colors tooltip" title="Hapus Akun">
+                                                <button onClick={() => handleDeleteClick(user)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg transition-colors tooltip" title="Hapus Akun">
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
-                                )})}
+                                )})};
                             </tbody>
                         </table>
                     </div>
@@ -335,6 +344,68 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* ── DELETE CONFIRM MODAL ── */}
+            {deleteConfirm.show && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm"
+                        onClick={() => !deleteLoading && setDeleteConfirm({ show: false, userId: null, userName: '' })}
+                    />
+                    {/* Modal Card */}
+                    <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden" style={{ animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+                        {/* Red top accent bar */}
+                        <div className="h-1.5 w-full bg-gradient-to-r from-red-400 via-red-500 to-rose-600" />
+
+                        <div className="p-7 text-center">
+                            {/* Animated danger icon */}
+                            <div className="mx-auto mb-5 w-20 h-20 rounded-full bg-red-50 border-4 border-red-100 flex items-center justify-center" style={{ animation: 'pulseRed 2s ease-in-out infinite' }}>
+                                <svg className="w-9 h-9 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                </svg>
+                            </div>
+
+                            <h3 className="text-xl font-extrabold text-slate-800 mb-1">Hapus Akun Pengguna?</h3>
+                            <p className="text-sm text-slate-500 mb-2">Anda akan menghapus akun milik:</p>
+                            <div className="inline-block bg-red-50 border border-red-100 text-red-700 font-bold text-sm px-4 py-1.5 rounded-full mb-4">
+                                {deleteConfirm.userName}
+                            </div>
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                                Tindakan ini <span className="font-bold text-slate-600">tidak dapat dibatalkan</span>. Seluruh data akun akan dihapus secara permanen dari sistem.
+                            </p>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="px-6 pb-6 flex gap-3">
+                            <button
+                                onClick={() => setDeleteConfirm({ show: false, userId: null, userName: '' })}
+                                disabled={deleteLoading}
+                                className="flex-1 py-3 px-4 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                Batalkan
+                            </button>
+                            <button
+                                onClick={handleDeleteConfirm}
+                                disabled={deleteLoading}
+                                className="flex-1 py-3 px-4 text-sm font-bold text-white bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 rounded-2xl shadow-lg shadow-red-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {deleteLoading ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Menghapus...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        Ya, Hapus Sekarang
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -439,6 +510,11 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
                 .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes scaleIn { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+                @keyframes pulseRed {
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+                    50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+                }
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -447,5 +523,4 @@ export default function UsersManagementTab({ branches, authFetch, showToast }) {
         </div>
     );
 }
-
-
+
