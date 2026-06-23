@@ -296,21 +296,20 @@ export default function Rooms({ branches, rooms, auth }) {
 
             <Head title="Kospart PH 18" />
 
-            {/* ── HEADER ── */}
-            <header ref={headerRef} className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl transition-all duration-300">
-                <div className="absolute inset-0 bg-white/60 backdrop-blur-md rounded-full border border-white/40 shadow-[0_8px_30px_rgba(0,0,0,0.1)] pointer-events-none -z-10"></div>
-                <div className="px-5 sm:px-8 h-16 sm:h-20 flex items-center justify-between relative z-10">
+            <header ref={headerRef} className="fixed top-4 sm:top-8 left-1/2 -translate-x-1/2 z-50 w-max max-w-[95%] transition-all duration-300">
+                <div className="absolute inset-0 bg-white/75 backdrop-blur-xl rounded-full border border-white/50 shadow-[0_8px_30px_rgba(0,0,0,0.12)] pointer-events-none -z-10"></div>
+                <div className="px-6 sm:px-10 h-16 sm:h-[76px] flex items-center justify-between relative z-10 gap-8 md:gap-16">
                     <Link href="/" className="flex items-center gap-3">
                         <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden border border-white/50 shadow-sm">
                             <img loading="lazy" src="/images/logo 2.jpeg" alt="Logo Kospart" className="w-full h-full object-cover" />
                         </div>
                         <div>
-                            <span className="font-extrabold text-lg sm:text-xl tracking-tight text-forest block leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>KOSPART</span>
-                            <span className="text-gold text-[8px] sm:text-[10px] font-bold tracking-[0.2em] uppercase block mt-0.5">PH 18 LAMPUNG</span>
+                            <span className="font-extrabold text-xl tracking-tight text-forest block leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>KOSPART</span>
+                            <span className="text-gold text-[10px] font-bold tracking-[0.2em] uppercase block mt-0.5">PH 18 LAMPUNG</span>
                         </div>
                     </Link>
 
-                    <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+                    <nav className="hidden md:flex items-center gap-8">
                         <Link href="/" className="lux-nav-link">Beranda</Link>
                         <Link href="/kamar" className="lux-nav-link active">Cari Kamar</Link>
                         <Link href="/cabang" className="lux-nav-link">Cabang Kos</Link>
@@ -319,20 +318,21 @@ export default function Rooms({ branches, rooms, auth }) {
 
                     <div className="flex items-center gap-3">
                         {auth.user ? (
-                            <Link href="/dashboard" className="hidden sm:inline-flex lux-btn-primary px-5 py-2.5 text-sm">Dashboard</Link>
+                            <Link href="/dashboard" className="hidden sm:inline-flex lux-btn-primary px-6 py-2.5 text-sm !rounded-full">Dashboard</Link>
                         ) : (
-                            <div className="hidden md:flex items-center gap-3">
-                                <Link href="/login" className="lux-nav-link text-sm">Masuk</Link>
-                                <Link href="/register" className="lux-btn-primary px-5 py-2.5 text-sm">Daftar</Link>
+                            <div className="hidden md:flex items-center gap-4">
+                                <Link href="/login" className="lux-nav-link text-sm font-bold">Masuk</Link>
+                                <Link href="/register" className="lux-btn-primary px-6 py-2.5 text-sm !rounded-full">Daftar</Link>
                             </div>
                         )}
-                        <button aria-label="Toggle Menu" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden relative w-10 h-10 flex flex-col justify-center items-center gap-[5px] p-2 rounded-xl border border-[#2d6a4f] hover:bg-[#2d6a4f]/10 transition-colors duration-300 focus:outline-none">
+                        <button aria-label="Toggle Menu" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden relative w-10 h-10 flex flex-col justify-center items-center gap-[5px] p-2 rounded-xl border border-[#2d6a4f] hover:bg-[#2d6a4f]/10 transition-colors duration-300 focus:outline-none ml-4">
                             <span className={`block h-[2px] w-5 bg-[#2d6a4f] rounded-full transition-all duration-300 ease-in-out ${isMobileMenuOpen ? 'rotate-45 translate-y-[7px] bg-gold' : ''}`} />
                             <span className={`block h-[2px] w-5 bg-[#2d6a4f] rounded-full transition-all duration-300 ease-in-out ${isMobileMenuOpen ? 'opacity-0 translate-x-3' : ''}`} />
                             <span className={`block h-[2px] w-5 bg-[#2d6a4f] rounded-full transition-all duration-300 ease-in-out ${isMobileMenuOpen ? '-rotate-45 -translate-y-[7px] bg-gold' : ''}`} />
                         </button>
                     </div>
                 </div>
+
                 {isMobileMenuOpen && (
                     <div className="md:hidden absolute left-0 right-0 top-[110%] mx-auto w-full px-2 z-50">
                         <div className="bg-white/60 backdrop-blur-2xl border border-white/40 shadow-[0_8px_30px_rgba(0,0,0,0.1)] rounded-3xl p-5 flex flex-col gap-1">
