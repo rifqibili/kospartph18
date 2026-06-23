@@ -6,6 +6,7 @@ import { CardStack } from '@/Components/ui/card-stack';
 import { CTASection } from '@/Components/ui/hero-dithering-card';
 import { ElegantPatternBg } from '@/Components/ui/elegant-dark-pattern';
 import { TestimonialsSection } from '@/Components/ui/testimonial-v2';
+import imageCompression from 'browser-image-compression';
 function useReveal() {
     const ref = useRef(null);
     const [visible, setVisible] = useState(false);
@@ -145,6 +146,26 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             end_date: endDate.toISOString().split('T')[0]
         });
         setBookingStep('booking');
+        setBookingStep('booking');
+    };
+
+    const handleImageUpload = async (e, field) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.type.startsWith('image/')) {
+            try {
+                const compressedFile = await imageCompression(file, { maxSizeMB: 0.5, maxWidthOrHeight: 1200, useWebWorker: true });
+                if (field === 'payment_proof') setPaymentProofInput(compressedFile);
+                else setBookingForm(prev => ({...prev, [field]: compressedFile}));
+            } catch (error) {
+                console.error(error);
+                if (field === 'payment_proof') setPaymentProofInput(file);
+                else setBookingForm(prev => ({...prev, [field]: file}));
+            }
+        } else {
+            if (field === 'payment_proof') setPaymentProofInput(file);
+            else setBookingForm(prev => ({...prev, [field]: file}));
+        }
     };
 
     const handleBookingSubmit = async (e) => {
@@ -810,14 +831,14 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Foto KTP</label>
                                     <div className="flex gap-2">
                                         <div className="relative flex-1">
-                                            <input type="file" required accept="image/*" onChange={(e) => setBookingForm({...bookingForm, ktp_photo: e.target.files[0]})} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                            <input type="file" required accept="image/*" onChange={(e) => handleImageUpload(e, 'ktp_photo')} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                                             <div className="lux-input px-4 py-2.5 text-xs w-full flex items-center justify-center gap-2 font-semibold cursor-pointer">
                                                 <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                                                 <span className="truncate">{bookingForm.ktp_photo ? bookingForm.ktp_photo.name : 'Pilih dari Galeri'}</span>
                                             </div>
                                         </div>
                                         <div className="relative flex-1">
-                                            <input type="file" accept="image/*" capture="camera" onChange={(e) => setBookingForm({...bookingForm, ktp_photo: e.target.files[0]})} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                            <input type="file" accept="image/*" capture="camera" onChange={(e) => handleImageUpload(e, 'ktp_photo')} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                                             <div className="bg-[rgba(45,106,79,0.08)] border-[1.5px] border-[rgba(45,106,79,0.2)] rounded-xl px-4 py-2.5 text-xs w-full flex items-center justify-center gap-2 font-semibold text-[#2d6a4f] cursor-pointer">
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                                 Kamera
@@ -986,14 +1007,14 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bukti Pembayaran</label>
                                     <div className="flex gap-2">
                                         <div className="relative flex-1">
-                                            <input type="file" required accept="image/*,application/pdf" onChange={(e) => setPaymentProofInput(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                            <input type="file" required accept="image/*,application/pdf" onChange={(e) => handleImageUpload(e, 'payment_proof')} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                                             <div className="bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-xs w-full flex flex-col items-center justify-center gap-1.5 font-semibold text-slate-600 cursor-pointer hover:border-slate-300 hover:bg-slate-50 transition-all text-center h-full">
                                                 <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                                                 <span className="truncate w-full block px-1 leading-snug">{paymentProofInput ? paymentProofInput.name : 'Pilih File / Galeri'}</span>
                                             </div>
                                         </div>
                                         <div className="relative flex-1">
-                                            <input type="file" accept="image/*" capture="camera" onChange={(e) => setPaymentProofInput(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                            <input type="file" accept="image/*" capture="camera" onChange={(e) => handleImageUpload(e, 'payment_proof')} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                                             <div className="bg-emerald-50 border-2 border-emerald-100 rounded-xl px-4 py-3 text-xs w-full flex flex-col items-center justify-center gap-1.5 font-semibold text-emerald-700 cursor-pointer hover:bg-emerald-100 transition-all text-center h-full">
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                                 <span>Ambil Foto</span>
