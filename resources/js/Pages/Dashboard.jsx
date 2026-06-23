@@ -1284,7 +1284,7 @@ export default function Dashboard() {
 
     return (
         <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex font-sans print:bg-white print:block">
-            <Head title="Admin Dashboard - Kospart PH 18" />
+            <Head title="Admin Dashboard" />
 
             {/* Sidebar */}
             <aside className={`hidden lg:flex inset-y-0 left-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col shrink-0 z-50 print:hidden`}>

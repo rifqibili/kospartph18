@@ -125,7 +125,7 @@
     radial-gradient(circle at 85% 30%, rgba(20, 184, 166, 0.12), transparent 25%),
     radial-gradient(circle at 50% 80%, rgba(5, 150, 105, 0.08), transparent 30%),
     linear-gradient(to bottom, rgba(2, 6, 23, 0.85), rgba(2, 6, 23, 0.95)),
-    url('/images/tampak depan.jpeg');
+    url('/images/tampak depan.png');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;

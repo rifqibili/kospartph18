@@ -294,7 +294,7 @@ export default function Rooms({ branches, rooms, auth }) {
                 <circle cx="280" cy="280" r="60" stroke="rgba(45,106,79,0.05)" strokeWidth="1" />
             </svg>
 
-            <Head title="Cari Kamar – Kospart PH 18 | Hunian Premium Lampung" />
+            <Head title="Cari Kamar" />
 
             {/* ── HEADER ── */}
             <header ref={headerRef} className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl transition-all duration-300">
