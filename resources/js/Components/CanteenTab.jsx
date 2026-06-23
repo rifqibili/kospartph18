@@ -648,7 +648,7 @@ export default function CanteenTab({
                                 {newItem.form_type === 'menu' && (
                                     <div>
                                         <label className="text-xs font-semibold text-slate-500">Foto Menu (Opsional)</label>
-                                        <input type="file" accept="image/*" capture="environment" onChange={e => setImageFile(e.target.files[0])} className="glass-input rounded-xl px-4 py-2 text-sm w-full bg-white file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
+                                        <input type="file" accept="image/*" capture="camera" onChange={e => setImageFile(e.target.files[0])} className="glass-input rounded-xl px-4 py-2 text-sm w-full bg-white file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
                                     </div>
                                 )}
                                 <div className="grid grid-cols-2 gap-4">
