@@ -297,7 +297,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
 
 
             {/* ── HEADER ── */}
-            <header ref={headerRef} className="fixed top-4 sm:top-8 left-1/2 -translate-x-1/2 z-50 w-max max-w-[95%] transition-all duration-300">
+            <header ref={headerRef} className="fixed top-[calc(env(safe-area-inset-top,0px)+1rem)] sm:top-[calc(env(safe-area-inset-top,0px)+2rem)] left-1/2 -translate-x-1/2 z-50 w-max max-w-[95%] transition-all duration-300">
                 <div className="absolute inset-0 bg-white/75 backdrop-blur-xl rounded-full border border-white/50 shadow-[0_8px_30px_rgba(0,0,0,0.12)] pointer-events-none -z-10"></div>
                 <div className="px-6 sm:px-10 h-16 sm:h-[76px] flex items-center justify-between relative z-10 gap-8 md:gap-16">
                     <Link href="/" className="flex items-center gap-3">

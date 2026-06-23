@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <meta name="description" content="Kospart PH 18 - Hunian kos eksklusif dan nyaman di Bandar Lampung dengan fasilitas premium setara apartemen.">
         <meta name="theme-color" content="#1a3d2b">
         
