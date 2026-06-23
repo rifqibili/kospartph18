@@ -357,16 +357,16 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             </header>
 
             {/* ── HERO ── */}
-            <section className="relative overflow-hidden border-b border-[rgba(201,168,76,0.1)] bg-cover bg-center min-h-screen flex items-center" style={{ backgroundImage: "url('/images/ruang tamu.png')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>
+            <section className="relative overflow-hidden border-b border-[rgba(201,168,76,0.1)] bg-cover bg-center min-h-screen flex items-center" style={{ backgroundImage: "url('/images/ruang tamu.jpg')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full pt-20">
                     <Reveal className="max-w-2xl space-y-6">
                         
-                        <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white leading-tight drop-shadow-xl uppercase" style={{ fontFamily: "'Playfair Display', serif", textShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
+                        <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white leading-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] uppercase" style={{ fontFamily: "'Playfair Display', serif" }}>
                             KOST NYAMAN, <br />
-                            <span className="text-gold italic drop-shadow-xl">RASA APARTEMEN.</span>
+                            <span className="text-gold italic drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]">RASA APARTEMEN.</span>
                         </h1>
                         
-                        <p className="text-white/95 text-lg sm:text-xl font-medium leading-relaxed max-w-xl drop-shadow-lg" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.6)" }}>
+                        <p className="text-white/95 text-lg sm:text-xl font-medium leading-relaxed max-w-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                             Lebih dari sekadar tempat singgah. Temukan standar baru kos-kosan elit dengan fasilitas premium, privasi maksimal, dan pelayanan bintang lima.
                         </p>
                         

@@ -9,7 +9,7 @@
         <!-- Open Graph / WhatsApp Preview Meta Tags -->
         <meta property="og:title" content="Kospart PH 18 - Hunian Kos Premium & Eksklusif">
         <meta property="og:description" content="Kos premium setara apartemen di Bandar Lampung dengan fasilitas lengkap, keamanan 24 jam, dan kenyamanan terbaik.">
-        <meta property="og:image" content="{{ asset('images/hero section.png') }}">
+        <meta property="og:image" content="{{ asset('images/hero section.jpg') }}">
         <meta property="og:url" content="{{ url('/') }}">
         <meta property="og:type" content="website">
         
@@ -21,7 +21,7 @@
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         <!-- Preload Hero Image to improve LCP -->
-        <link rel="preload" as="image" href="/images/ruang tamu.png">
+        <link rel="preload" as="image" href="/images/ruang tamu.jpg">
 
         <!-- Scripts -->
         @routes

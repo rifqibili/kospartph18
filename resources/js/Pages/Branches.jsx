@@ -157,7 +157,7 @@ export default function Branches({ branches, auth }) {
             <section className="relative border-b border-[rgba(201,168,76,0.1)] pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
                 {/* Background Image */}
                 <div className="absolute inset-0 z-0">
-                    <img loading="lazy" src="/images/ruang%20tamu.png" alt="Hero Background" className="w-full h-full object-cover object-center" />
+                    <img loading="lazy" src="/images/ruang%20tamu.jpg" alt="Hero Background" className="w-full h-full object-cover object-center" />
                 </div>
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
@@ -197,7 +197,7 @@ export default function Branches({ branches, auth }) {
                                 {/* Image */}
                                 <div className="relative h-64 overflow-hidden rounded-t-[20px]">
                                     <img
-                                        src={branch.name.includes('Utama') ? '/images/tampak depan.png' : '/images/ruang tamu.jpeg'}
+                                        src={branch.name.includes('Utama') ? '/images/tampak depan.jpg' : '/images/ruang tamu.jpeg'}
                                         alt={branch.name}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                                     />

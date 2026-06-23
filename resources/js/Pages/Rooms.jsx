@@ -359,7 +359,7 @@ export default function Rooms({ branches, rooms, auth }) {
             <section className="relative border-b border-[rgba(201,168,76,0.1)] pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
                 {/* Background Image */}
                 <div className="absolute inset-0 z-0">
-                    <img loading="lazy" src="/images/ruang%20tamu.png" alt="Hero Background" className="w-full h-full object-cover object-center" />
+                    <img loading="lazy" src="/images/ruang%20tamu.jpg" alt="Hero Background" className="w-full h-full object-cover object-center" />
                 </div>
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
