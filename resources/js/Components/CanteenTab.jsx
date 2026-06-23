@@ -443,7 +443,7 @@ export default function CanteenTab({
                                             <button onClick={() => handleVerifyPayment(order.id, 'paid')} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg border border-emerald-700">Terima Uang Cash</button>
                                         )}
                                         {order.payment_proof && (
-                                            <a href={`/storage/${order.payment_proof}`} target="_blank" rel="noreferrer" className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg">Lihat Bukti QRIS</a>
+                                            <a href={`/storage/${order.payment_proof}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg">Lihat Bukti QRIS</a>
                                         )}
                                         <button onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')} className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-lg">Batal</button>
                                     </div>
@@ -606,7 +606,7 @@ export default function CanteenTab({
                                                         <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">Menunggu Verifikasi</span>
                                                         <div className="flex gap-2 justify-end mt-1">
                                                             {order.payment_proof && (
-                                                                <a href={`/storage/${order.payment_proof}`} target="_blank" rel="noreferrer" className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg whitespace-nowrap hover:bg-blue-200">Lihat Bukti</a>
+                                                                <a href={`/storage/${order.payment_proof}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg whitespace-nowrap hover:bg-blue-200">Lihat Bukti</a>
                                                             )}
                                                             <button onClick={() => handleVerifyPayment(order.id, 'debt_unpaid')} className="px-3 py-1 bg-red-100 text-red-600 text-xs font-bold rounded-lg whitespace-nowrap hover:bg-red-200">
                                                                 Batal / Tolak
