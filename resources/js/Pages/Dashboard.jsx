@@ -987,7 +987,20 @@ export default function Dashboard() {
     };
 
     const handleCheckoutBooking = (id) => {
-        showConfirm('Apakah penghuni akan checkout dan mengosongkan kamar?', async () => {
+        const booking = bookings.find(b => b.id === id);
+        if (!booking) return;
+
+        const tenantCanteenDebt = canteenOrders.filter(o => o.payment_status === 'debt_unpaid' && o.tenant_id === booking.tenant_id).reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+        
+        const bookingDebt = (parseFloat(booking.total_amount) || 0) - (parseFloat(booking.paid_amount) || 0);
+        const totalDebt = tenantCanteenDebt + bookingDebt;
+
+        let message = 'Apakah penghuni akan checkout dan mengosongkan kamar?';
+        if (totalDebt > 0) {
+            message = `PERHATIAN! Penghuni ini masih memiliki total tunggakan sebesar Rp ${totalDebt.toLocaleString('id-ID')}.\n\n(Kasbon Kantin: Rp ${tenantCanteenDebt.toLocaleString('id-ID')}, Tunggakan Sewa: Rp ${bookingDebt.toLocaleString('id-ID')}).\n\nBiasanya barang penghuni akan disita sebagai jaminan jika terdapat tunggakan. Tetap lanjutkan proses Check-out?`;
+        }
+
+        showConfirm(message, async () => {
             const res = await authFetch(`/api/bookings/${id}/checkout`, { method: 'POST' });
             if (res.ok) { loadAllData(); showToast('Proses checkout selesai. Kamar kembali tersedia.'); }
             else { const d = await res.json(); showToast(d.message || 'Gagal checkout.', 'error'); }
@@ -1499,7 +1512,9 @@ export default function Dashboard() {
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                             {visibleNotifications.length > 0 && (
-                                <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>
+                                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold min-w-[20px] h-[20px] flex items-center justify-center rounded-full px-1 border-2 border-white shadow-sm">
+                                    {visibleNotifications.length > 99 ? '99+' : visibleNotifications.length}
+                                </span>
                             )}
                         </button>
                         
@@ -3359,7 +3374,7 @@ export default function Dashboard() {
                                                 </td>
                                                 {['super_admin', 'operator'].includes(currentRole) && (
                                                     <td className="p-4 pr-6 text-right">
-                                                        {!['completed', 'ready'].includes(c.status) ? (
+                                                        {c.status !== 'ready' ? (
                                                             <button aria-label="Action Button"  
                                                                 onClick={() => setComplaintResponse({ id: c.id, status: c.status, admin_response: c.admin_response || '' })}
                                                                 className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-md transition-colors"
@@ -4682,8 +4697,15 @@ export default function Dashboard() {
                         </button>
                     )}
 
-                    <button aria-label="Action Button" onClick={() => setActiveTab('bookings')} className={`flex-1 snap-center flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'bookings' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
-                        <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <button aria-label="Action Button" onClick={() => setActiveTab('bookings')} className={`flex-1 snap-center flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all relative ${activeTab === 'bookings' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                        <div className="relative">
+                            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            {urgentSewaCount > 0 && (
+                                <span className="absolute -top-1 -right-2 bg-rose-500 text-white text-[9px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full px-1 border border-white animate-pulse shadow-sm">
+                                    {urgentSewaCount > 99 ? '99+' : urgentSewaCount}
+                                </span>
+                            )}
+                        </div>
                         <span className="text-[10px] font-bold tracking-tight">Transaksi</span>
                     </button>
 
@@ -4692,8 +4714,15 @@ export default function Dashboard() {
                         <span className="text-[10px] font-bold tracking-tight">Kantin</span>
                     </button>
 
-                    <button aria-label="Action Button" onClick={() => setActiveTab('complaints')} className={`flex-1 snap-center flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'complaints' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
-                        <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    <button aria-label="Action Button" onClick={() => setActiveTab('complaints')} className={`flex-1 snap-center flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all relative ${activeTab === 'complaints' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                        <div className="relative">
+                            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                            {pendingComplaintsBadgeCount > 0 && (
+                                <span className="absolute -top-1 -right-2 bg-rose-500 text-white text-[9px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full px-1 border border-white animate-pulse shadow-sm">
+                                    {pendingComplaintsBadgeCount > 99 ? '99+' : pendingComplaintsBadgeCount}
+                                </span>
+                            )}
+                        </div>
                         <span className="text-[10px] font-bold tracking-tight">Komplain</span>
                     </button>
 

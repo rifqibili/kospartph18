@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [LandingController::class, 'index'])->name('home');
 Route::get('/kamar', [LandingController::class, 'rooms'])->name('rooms.index');
 Route::get('/cabang', [LandingController::class, 'branches'])->name('branches.index');
+Route::get('/invoice/{booking_code}', [BookingController::class, 'showInvoice'])->name('invoice.show');
 
 // Authenticated Routes
 Route::middleware(['auth'])->group(function () {

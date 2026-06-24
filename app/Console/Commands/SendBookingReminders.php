@@ -62,20 +62,26 @@ class SendBookingReminders extends Command
             $roomPriceFormatted = 'Rp ' . number_format($booking->total_amount, 0, ',', '.');
             $dueDate = Carbon::parse($booking->end_date)->format('d M Y');
 
-            $message = "*REMINDER OTOMATIS KOSPART PH 18*\n\n"
-                . "Halo {$booking->tenant->name},\n\n"
-                . "Mengingatkan kembali bahwa tagihan sewa kamar Anda belum lunas.\n\n"
-                . "Detail Tagihan:\n"
-                . "- Kamar: {$booking->room->room_number}\n"
-                . "- Cabang: {$booking->room->branch->name}\n"
-                . "- Harga Kamar / Biaya Sewa: *{$roomPriceFormatted}*\n"
-                . "- Sisa Tagihan: *{$amountFormatted}*\n"
-                . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
-                . "Silakan selesaikan pembayaran ke salah satu rekening berikut:\n"
-                . "- *BCA: 8447060951*\n"
-                . "- *A/N PRAYOGA HERIYANTO*\n\n"
-                . "Mohon segera melakukan pembayaran dan *kirimkan bukti bayarnya langsung di chat ini*, atau hubungi operator kami jika ada kendala.\n\n"
-                . "Abaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih!";
+            $endDate = Carbon::parse($booking->end_date);
+            $isToday = $endDate->isSameDay($now);
+
+            if ($isToday) {
+                $message = "🏢 *KOSPART PH 18 - JATUH TEMPO HARI INI*\n\n"
+                    . "Halo *{$booking->tenant->name}*,\n"
+                    . "Masa sewa *Kamar {$booking->room->room_number}* Anda telah jatuh tempo pada hari ini (*{$dueDate}*).\n\n"
+                    . "Untuk menghindari kendala, mohon segera menyelesaikan sisa tagihan sewa sebesar *{$amountFormatted}*.\n\n"
+                    . "Silakan selesaikan pembayaran ke rekening berikut:\n"
+                    . "- *BCA: 8447060951 a.n PRAYOGA HERIYANTO*\n\n"
+                    . "Mohon *kirimkan bukti bayarnya langsung di chat ini*, atau hubungi admin kami jika ada kendala. Terima kasih atas kerja samanya! 🙏";
+            } else {
+                $message = "🏢 *KOSPART PH 18 - PENGINGAT TAGIHAN*\n\n"
+                    . "Halo *{$booking->tenant->name}*,\n"
+                    . "Mengingatkan kembali bahwa masa sewa *Kamar {$booking->room->room_number}* akan berakhir pada *{$dueDate}* (3 hari lagi).\n\n"
+                    . "Jika Anda berencana memperpanjang, mohon siapkan pembayaran sebesar *{$amountFormatted}*.\n\n"
+                    . "Silakan selesaikan pembayaran ke rekening berikut:\n"
+                    . "- *BCA: 8447060951 a.n PRAYOGA HERIYANTO*\n\n"
+                    . "Mohon *kirimkan bukti bayarnya langsung di chat ini*. Abaikan pesan ini jika Anda sudah bayar. Terima kasih! 🙏";
+            }
 
             $response = Http::withHeaders([
                 'Authorization' => $token,

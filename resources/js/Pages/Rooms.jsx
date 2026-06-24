@@ -220,7 +220,7 @@ export default function Rooms({ branches, rooms, auth }) {
                 body: JSON.stringify({ booking_id: bookingResponse.booking_id, otp_code: otpCodeInput })
             });
             const data = await res.json();
-            if (res.ok) { setBookingResponse(prev => ({...prev, booking: data.booking})); setPaidAmountInput(data.booking.total_amount); setBookingStep('payment_proof'); }
+            if (res.ok) { setBookingResponse(prev => ({...prev, booking: data.booking})); setPaidAmountInput(''); setBookingStep('payment_proof'); }
             else setOtpError(data.message || 'OTP salah');
         } catch (err) { console.error(err); setOtpError('Gagal memverifikasi OTP.'); }
     };
@@ -921,7 +921,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Jumlah yang Ditransfer (Rp)</label>
-                                    <input type="number" required value={paidAmountInput} onChange={(e) => setPaidAmountInput(e.target.value)} className="lux-input px-4 py-2.5 w-full" />
+                                    <input type="number" required placeholder="0000" value={paidAmountInput} onChange={(e) => setPaidAmountInput(e.target.value)} className="lux-input px-4 py-2.5 w-full" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bukti Pembayaran</label>

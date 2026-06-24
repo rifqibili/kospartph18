@@ -153,8 +153,9 @@ class BookingController extends Controller
                 'invoice_items' => $initialItems,
             ]);
 
-            // Simulation: reserve room status as booked temporarily
-            $room->update(['status' => 'booked']);
+            // Room status is intentionally left as 'available' here.
+            // We only lock the room as 'booked' AFTER the tenant successfully verifies the OTP.
+            // This prevents the room from disappearing if the user accidentally closes the OTP modal.
 
             // Send OTP via Fonnte WA API
             try {
@@ -373,6 +374,18 @@ class BookingController extends Controller
 
         if ($booking->otp_code === $request->otp_code) {
             RateLimiter::clear($key);
+
+            // Periksa ketersediaan kamar secara realtime saat OTP dimasukkan
+            if ($booking->room->status !== 'available') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Maaf, kamar ini baru saja disewa oleh orang lain. Silakan pilih kamar lain.'
+                ], 400);
+            }
+
+            // Lock the room now
+            $booking->room->update(['status' => 'booked']);
+
             $booking->update([
                 'otp_verified' => true,
                 'status' => 'pending', // approved but waiting for deposit / payment proof
@@ -511,6 +524,34 @@ class BookingController extends Controller
             'payment_method'   => 'transfer',
         ]);
 
+        try {
+            $token = env('FONNTE_TOKEN');
+            if ($token && $booking->tenant && $booking->tenant->phone) {
+                $tenantPhone = preg_replace('/[^0-9]/', '', $booking->tenant->phone);
+                $invoiceUrl = route('invoice.show', $booking->booking_code);
+                $message = "🏢 *KOSPART PH 18 - KUITANSI PEMBAYARAN*\n\n"
+                    . "Halo *{$booking->tenant->name}*,\n"
+                    . "Pembayaran Anda telah kami terima dan berhasil diverifikasi.\n\n"
+                    . "📝 *Detail Transaksi:*\n"
+                    . "- Kamar: {$booking->room->room_number}\n"
+                    . "- Nominal Dibayar: Rp " . number_format($amountToVerify, 0, ',', '.') . "\n"
+                    . "- Status Tagihan: " . ($isFullyPaid ? "LUNAS" : "UANG MUKA (DP)") . "\n\n"
+                    . "📄 *Unduh Invoice Digital Anda di sini:*\n"
+                    . "{$invoiceUrl}\n\n"
+                    . "Terima kasih!";
+
+                \Illuminate\Support\Facades\Http::withHeaders([
+                    'Authorization' => $token,
+                ])->post('https://api.fonnte.com/send', [
+                    'target' => $tenantPhone,
+                    'message' => $message,
+                    'countryCode' => '62',
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Fonnte WA Error: ' . $e->getMessage());
+        }
+
         return response()->json([
             'message' => 'Pembayaran berhasil diverifikasi.',
             'booking' => $booking->fresh(['room.branch', 'tenant'])
@@ -600,6 +641,34 @@ class BookingController extends Controller
             'branch_id'        => $booking->room->branch_id,
             'payment_method'   => $request->payment_method,
         ]);
+
+        try {
+            $token = env('FONNTE_TOKEN');
+            if ($token && $booking->tenant && $booking->tenant->phone) {
+                $tenantPhone = preg_replace('/[^0-9]/', '', $booking->tenant->phone);
+                $invoiceUrl = route('invoice.show', $booking->booking_code);
+                $message = "🏢 *KOSPART PH 18 - KUITANSI PEMBAYARAN*\n\n"
+                    . "Halo *{$booking->tenant->name}*,\n"
+                    . "Pembayaran " . $methodText . " Anda telah kami catat.\n\n"
+                    . "📝 *Detail Transaksi:*\n"
+                    . "- Kamar: {$booking->room->room_number}\n"
+                    . "- Nominal Dibayar: Rp " . number_format($amountToVerify, 0, ',', '.') . "\n"
+                    . "- Status Tagihan: " . ($isFullyPaid ? "LUNAS" : "UANG MUKA (DP)") . "\n\n"
+                    . "📄 *Unduh Invoice Digital Anda di sini:*\n"
+                    . "{$invoiceUrl}\n\n"
+                    . "Terima kasih!";
+
+                \Illuminate\Support\Facades\Http::withHeaders([
+                    'Authorization' => $token,
+                ])->post('https://api.fonnte.com/send', [
+                    'target' => $tenantPhone,
+                    'message' => $message,
+                    'countryCode' => '62',
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Fonnte WA Error: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Pembayaran manual berhasil dicatat.',
@@ -1366,5 +1435,14 @@ class BookingController extends Controller
         }
 
         return $items;
+    }
+
+    public function showInvoice($bookingCode)
+    {
+        $booking = Booking::with(['tenant', 'room.branch'])->where('booking_code', $bookingCode)->firstOrFail();
+        
+        return \Inertia\Inertia::render('Invoice', [
+            'booking' => $booking
+        ]);
     }
 }
