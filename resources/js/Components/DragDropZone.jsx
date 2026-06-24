@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 
-const DragDropZone = ({ onFileDrop, accept, label, selectedFile, multiple = false, error = false }) => {
+const DragDropZone = ({ onFileDrop, accept, label, selectedFile, multiple = false, error = false, capture }) => {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef(null);
 
@@ -33,7 +33,7 @@ const DragDropZone = ({ onFileDrop, accept, label, selectedFile, multiple = fals
             onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
         >
-            <input type="file" className="hidden" ref={fileInputRef} accept={accept} multiple={multiple} onChange={(e) => {
+            <input type="file" className="hidden" ref={fileInputRef} accept={accept} multiple={multiple} capture={capture} onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
                     if (multiple) {
                         onFileDrop(Array.from(e.target.files));

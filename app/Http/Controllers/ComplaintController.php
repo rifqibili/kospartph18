@@ -33,7 +33,7 @@ class ComplaintController extends Controller
             'room_id' => 'required|exists:rooms,id',
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'photo' => 'nullable|string', // base64 or string url simulation
+            'photo' => 'nullable|file|mimes:jpeg,png,jpg,gif,mp4,mov,avi,heic,heif|max:10240', // 10MB max
         ]);
 
         $activeBooking = \App\Models\Booking::where('room_id', $request->room_id)
@@ -49,13 +49,18 @@ class ComplaintController extends Controller
         // Gunakan tenant_id dari booking aktif agar simulasi super_admin/operator bekerja dengan benar
         $tenant_id = $activeBooking ? $activeBooking->tenant_id : $user->id;
 
+        $photoPath = null;
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('complaints', 'public');
+        }
+
         $complaint = Complaint::create([
             'tenant_id' => $tenant_id,
             'room_id' => $request->room_id,
             'title' => $request->title,
             'description' => $request->description,
             'status' => 'pending',
-            'photo' => $request->photo,
+            'photo' => $photoPath,
         ]);
 
         return response()->json([

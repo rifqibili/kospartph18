@@ -26,6 +26,7 @@ export default function CanteenTab({
     const [editItem, setEditItem] = useState(null);
     const [imageFile, setImageFile] = useState(null);
     const [selectedBranchFilter, setSelectedBranchFilter] = useState(currentRole === 'operator' && operatorBranches && operatorBranches.length > 0 ? String(operatorBranches[0]) : '');
+    const [adminSearch, setAdminSearch] = useState('');
 
     // Tenant States
     const [checkoutModal, setCheckoutModal] = useState(false);
@@ -344,7 +345,11 @@ export default function CanteenTab({
     );
 
     if (['super_admin', 'operator'].includes(currentRole)) {
-        const filteredItems = canteenItems.filter(item => selectedBranchFilter === '' || Number(item.branch_id) === Number(selectedBranchFilter));
+        const filteredItems = canteenItems.filter(item => {
+            const matchBranch = selectedBranchFilter === '' || Number(item.branch_id) === Number(selectedBranchFilter);
+            const matchSearch = item.name.toLowerCase().includes(adminSearch.toLowerCase());
+            return matchBranch && matchSearch;
+        });
         const filteredOrders = canteenOrders.filter(order => selectedBranchFilter === '' || Number(order.branch_id) === Number(selectedBranchFilter));
 
         return (
@@ -457,7 +462,18 @@ export default function CanteenTab({
 
                     {/* Menu Items */}
                     <div className="glass-panel p-4 md:p-6 rounded-2xl border border-slate-200 lg:col-span-2 min-w-0">
-                        <h4 className="font-bold text-lg text-slate-800 mb-4">Daftar Menu Kantin</h4>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                            <h4 className="font-bold text-lg text-slate-800">Daftar Menu Kantin</h4>
+                            <div className="relative w-full sm:w-64">
+                                <input 
+                                    type="text" 
+                                    placeholder="Cari menu / barang..." 
+                                    value={adminSearch}
+                                    onChange={(e) => setAdminSearch(e.target.value)}
+                                    className="glass-input rounded-xl px-4 py-2 text-sm w-full border border-slate-200"
+                                />
+                            </div>
+                        </div>
                         <div className="overflow-x-auto w-full pb-2 relative">
                             <table className="w-full whitespace-nowrap min-w-[600px] text-left text-sm">
                                 <thead>
