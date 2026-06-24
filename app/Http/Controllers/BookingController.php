@@ -118,6 +118,20 @@ class BookingController extends Controller
                 $otp = '166345'; // Debug OTP, hanya aktif di environment local
             }
 
+            $initialItems = $this->buildInvoiceItems(
+                $request->rental_type,
+                $request->start_date,
+                $request->end_date,
+                [
+                    'daily' => $room->price_daily,
+                    'weekly' => $room->price_weekly,
+                    'monthly' => $room->price_monthly,
+                    'yearly' => $room->price_yearly,
+                    'weekend' => $room->price_weekend,
+                ],
+                $totalAmount
+            );
+
             $booking = Booking::create([
                 'booking_code' => 'KP-' . strtoupper(uniqid()),
                 'room_id' => $room->id,
@@ -136,6 +150,7 @@ class BookingController extends Controller
                 'otp_code' => $otp,
                 'otp_verified' => false,
                 'otp_sent_at' => now(),
+                'invoice_items' => $initialItems,
             ]);
 
             // Simulation: reserve room status as booked temporarily
@@ -279,6 +294,20 @@ class BookingController extends Controller
             $bookingStatus = $request->payment_status === 'paid' ? 'active' : 'pending';
             $roomStatus = $request->payment_status === 'paid' ? 'occupied' : 'booked';
 
+            $initialItems = $this->buildInvoiceItems(
+                $request->rental_type,
+                $request->start_date,
+                $request->end_date,
+                [
+                    'daily' => $room->price_daily,
+                    'weekly' => $room->price_weekly,
+                    'monthly' => $room->price_monthly,
+                    'yearly' => $room->price_yearly,
+                    'weekend' => $room->price_weekend,
+                ],
+                $totalAmount
+            );
+
             $booking = Booking::create([
                 'booking_code' => 'KP-M-' . strtoupper(uniqid()),
                 'room_id' => $room->id,
@@ -298,6 +327,7 @@ class BookingController extends Controller
                 'otp_code' => '000000', // Bypass OTP
                 'otp_verified' => true,
                 'otp_sent_at' => now(),
+                'invoice_items' => $initialItems,
             ]);
 
             $room->update(['status' => $roomStatus]);
@@ -802,11 +832,26 @@ class BookingController extends Controller
             $paymentStatus = 'paid';
         }
 
+        $newItems = $this->buildInvoiceItems(
+            $booking->rental_type,
+            $request->start_date,
+            $request->end_date,
+            [
+                'daily' => $lockedPriceDaily,
+                'weekly' => $lockedPriceWeekly,
+                'monthly' => $lockedPriceMonthly,
+                'yearly' => $lockedPriceYearly,
+                'weekend' => $lockedPriceWeekend,
+            ],
+            $totalAmount
+        );
+
         $booking->update([
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'total_amount' => $totalAmount,
             'payment_status' => $paymentStatus,
+            'invoice_items' => $newItems,
         ]);
 
         return response()->json([
@@ -894,10 +939,60 @@ class BookingController extends Controller
             $paymentStatus = floatval($booking->paid_amount) > 0 ? 'dp' : 'unpaid';
         }
 
+        $existingItems = $booking->invoice_items;
+        if (!is_array($existingItems)) {
+            $existingItems = $this->buildInvoiceItems(
+                $booking->rental_type,
+                $booking->start_date,
+                $booking->end_date,
+                [
+                    'daily' => $lockedPriceDaily,
+                    'weekly' => $lockedPriceWeekly,
+                    'monthly' => $lockedPriceMonthly,
+                    'yearly' => $lockedPriceYearly,
+                    'weekend' => $lockedPriceWeekend,
+                ],
+                $booking->total_amount
+            );
+        }
+
+        $newItems = $this->buildInvoiceItems(
+            $extendType,
+            $currentEndDate->toDateString(),
+            $newEndDate->toDateString(),
+            [
+                'daily' => $lockedPriceDaily,
+                'weekly' => $lockedPriceWeekly,
+                'monthly' => $lockedPriceMonthly,
+                'yearly' => $lockedPriceYearly,
+                'weekend' => $lockedPriceWeekend,
+            ],
+            $additionalAmount
+        );
+
+        foreach ($newItems as &$item) {
+            $baseLabel = preg_replace('/ ke-\d+.*$/', '', $item['label']);
+            $count = 0;
+            foreach ($existingItems as $ex) {
+                if (str_starts_with($ex['label'], $baseLabel)) {
+                    $count++;
+                }
+            }
+            $newLabel = $baseLabel . ' ke-' . ($count + 1);
+            if (!str_contains($newLabel, '(Tambahan)')) {
+                $newLabel .= ' (Tambahan)';
+            }
+            $item['label'] = $newLabel;
+        }
+
+        $mergedItems = array_merge($existingItems, $newItems);
+
         $booking->update([
             'end_date' => $newEndDate->toDateString(),
             'total_amount' => $newTotalAmount,
             'payment_status' => $paymentStatus,
+            'rental_type' => $extendType,
+            'invoice_items' => $mergedItems,
         ]);
 
         return response()->json([
@@ -992,8 +1087,56 @@ class BookingController extends Controller
             return response()->json(['message' => 'Gagal: Kamar ini sudah dipesan oleh orang lain pada rentang waktu perpanjangan tersebut.'], 400);
         }
 
+        $existingItems = $booking->invoice_items;
+        if (!is_array($existingItems)) {
+            $existingItems = $this->buildInvoiceItems(
+                $booking->rental_type,
+                $booking->start_date,
+                $booking->end_date,
+                [
+                    'daily' => $lockedPriceDaily,
+                    'weekly' => $lockedPriceWeekly,
+                    'monthly' => $lockedPriceMonthly,
+                    'yearly' => $lockedPriceYearly,
+                    'weekend' => $lockedPriceWeekend,
+                ],
+                $booking->total_amount
+            );
+        }
+
+        $newItems = $this->buildInvoiceItems(
+            $extendType,
+            $currentEndDate->toDateString(),
+            $newEndDate->toDateString(),
+            [
+                'daily' => $lockedPriceDaily,
+                'weekly' => $lockedPriceWeekly,
+                'monthly' => $lockedPriceMonthly,
+                'yearly' => $lockedPriceYearly,
+                'weekend' => $lockedPriceWeekend,
+            ],
+            $additionalAmount
+        );
+
+        foreach ($newItems as &$item) {
+            $baseLabel = preg_replace('/ ke-\d+.*$/', '', $item['label']);
+            $count = 0;
+            foreach ($existingItems as $ex) {
+                if (str_starts_with($ex['label'], $baseLabel)) {
+                    $count++;
+                }
+            }
+            $newLabel = $baseLabel . ' ke-' . ($count + 1);
+            if (!str_contains($newLabel, '(Tambahan)')) {
+                $newLabel .= ' (Tambahan)';
+            }
+            $item['label'] = $newLabel;
+        }
+
+        $mergedItems = array_merge($existingItems, $newItems);
+
         try {
-            DB::transaction(function () use ($booking, $request, $additionalAmount, $newTotalAmount, $newEndDate, $extendType, &$paymentStatus, &$paidAmount) {
+            DB::transaction(function () use ($booking, $request, $additionalAmount, $newTotalAmount, $newEndDate, $extendType, &$paymentStatus, &$paidAmount, $mergedItems) {
                 if (in_array($request->payment_status, ['paid', 'dp'])) {
                     $actualPaid = $request->payment_status === 'dp' ? floatval($request->paid_amount) : $additionalAmount;
                     $paidAmount += $actualPaid;
@@ -1027,7 +1170,9 @@ class BookingController extends Controller
                     'total_amount'   => $newTotalAmount,
                     'paid_amount'    => $paidAmount,
                     'payment_status' => $paymentStatus,
-                    'status'         => 'active'
+                    'rental_type'    => $extendType,
+                    'status'         => 'active',
+                    'invoice_items'  => $mergedItems
                 ]);
             });
         } catch (\Exception $e) {
@@ -1137,5 +1282,89 @@ class BookingController extends Controller
         }
 
         return response()->json(['message' => 'Log transaksi penyewaan beserta akun penghuni berhasil dihapus.']);
+    }
+    private function buildInvoiceItems($baseRentalType, $startDate, $endDate, $prices, $actualTotal)
+    {
+        $start = new \DateTime($startDate);
+        $end = new \DateTime($endDate);
+        $diffDays = max(1, $start->diff($end)->days);
+        $remainingDays = $diffDays;
+        
+        $items = [];
+        $currentStart = clone $start;
+
+        $addExactPeriod = function($nextDate, $label, $unitPrice) use (&$currentStart, &$items, $end, &$remainingDays) {
+            $itemStart = clone $currentStart;
+            $currentStart = clone $nextDate;
+            $itemEnd = clone $currentStart;
+            if ($itemEnd > $end) $itemEnd = clone $end;
+            
+            $daysSpanned = max(1, $itemStart->diff($itemEnd)->days);
+            
+            $items[] = [
+                'label' => $label,
+                'start' => $itemStart->format('Y-m-d\TH:i:s.000\Z'),
+                'end' => $itemEnd->format('Y-m-d\TH:i:s.000\Z'),
+                'price' => $unitPrice
+            ];
+            $remainingDays -= $daysSpanned;
+        };
+
+        if ($baseRentalType === 'yearly') {
+            $i = 0;
+            while (true) {
+                $nextDate = clone $currentStart;
+                $nextDate->modify('+1 year');
+                if ($nextDate > $end) break;
+                $addExactPeriod($nextDate, "Tahun ke-" . ($i+1), $prices['yearly']);
+                $i++;
+            }
+        }
+        if ($baseRentalType === 'monthly' || ($baseRentalType === 'yearly' && $remainingDays >= 28)) {
+            $i = 0;
+            while (true) {
+                $nextDate = clone $currentStart;
+                $nextDate->modify('+1 month');
+                if ($currentStart->format('d') > 28 && $nextDate->format('d') < $currentStart->format('d')) {
+                    $nextDate->modify('last day of previous month');
+                }
+                if ($nextDate > $end) break;
+                $addExactPeriod($nextDate, "Bulan ke-" . ($i+1), $prices['monthly']);
+                $i++;
+            }
+        }
+        if ($baseRentalType === 'weekly' || (in_array($baseRentalType, ['yearly', 'monthly']) && $remainingDays >= 7)) {
+            $count = floor($remainingDays / 7);
+            for ($i = 0; $i < $count; $i++) {
+                $nextDate = clone $currentStart;
+                $nextDate->modify('+7 days');
+                $addExactPeriod($nextDate, "Minggu ke-" . ($i+1), $prices['weekly']);
+            }
+        }
+        if ($remainingDays > 0) {
+            $count = $remainingDays;
+            $isExtension = count($items) > 0;
+            for ($i = 0; $i < $count; $i++) {
+                $dayOfWeek = $currentStart->format('w');
+                $isWeekend = ($dayOfWeek == 0 || $dayOfWeek == 5 || $dayOfWeek == 6);
+                $priceToUse = ($isWeekend && $prices['weekend'] > 0) ? $prices['weekend'] : $prices['daily'];
+                
+                $nextDate = clone $currentStart;
+                $nextDate->modify('+1 day');
+                $label = $isExtension ? "Hari ke-" . ($i+1) . " (Tambahan)" : "Hari ke-" . ($i+1);
+                $addExactPeriod($nextDate, $label, $priceToUse);
+            }
+        }
+
+        // Apply ratio
+        $calculatedTotal = array_sum(array_column($items, 'price'));
+        if ($calculatedTotal > 0 && abs($calculatedTotal - $actualTotal) > 1) {
+            $ratio = $actualTotal / $calculatedTotal;
+            foreach ($items as &$item) {
+                $item['price'] = $item['price'] * $ratio;
+            }
+        }
+
+        return $items;
     }
 }

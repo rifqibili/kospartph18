@@ -2937,7 +2937,7 @@ export default function Dashboard() {
                                                             }
 
                                                             let text = '';
-                                                            if (isDaily) {
+                                                            if (isDaily && diffMs <= (3 * 24 * 60 * 60 * 1000)) {
                                                                 if (diffMs < 0) text = 'WAKTU HABIS';
                                                                 else {
                                                                     const h = Math.floor(diffMs / (1000 * 60 * 60));
@@ -3649,142 +3649,151 @@ export default function Dashboard() {
                                 </thead>
                                 <tbody>
                                     {(() => {
-                                        const start = new Date(showInvoiceModal.start_date);
-                                        const end = new Date(showInvoiceModal.end_date);
-                                        const diffDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
-                                        
                                         let items = [];
-                                        let remainingDays = diffDays;
-                                        let currentStart = new Date(start);
                                         
-                                        const addPeriod = (days, label, unitPrice) => {
-                                            const itemStart = new Date(currentStart);
-                                            currentStart.setDate(currentStart.getDate() + days);
-                                            let itemEnd = new Date(currentStart);
-                                            if (itemEnd > end) itemEnd = new Date(end);
+                                        if (showInvoiceModal.invoice_items && showInvoiceModal.invoice_items.length > 0) {
+                                            items = showInvoiceModal.invoice_items.map(it => ({
+                                                ...it,
+                                                start: new Date(it.start),
+                                                end: new Date(it.end),
+                                                price: parseFloat(it.price)
+                                            }));
+                                        } else {
+                                            const start = new Date(showInvoiceModal.start_date);
+                                            const end = new Date(showInvoiceModal.end_date);
+                                            const diffDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
                                             
-                                            items.push({
-                                                label: label,
-                                                start: itemStart,
-                                                end: itemEnd,
-                                                price: unitPrice
-                                            });
-                                            remainingDays -= days;
-                                        };
-
-                                        let priceDaily = parseFloat(showInvoiceModal.price_daily) || parseFloat(showInvoiceModal.room?.price_daily) || 0;
-                                        let priceWeekly = parseFloat(showInvoiceModal.price_weekly) || parseFloat(showInvoiceModal.room?.price_weekly) || 0;
-                                        let priceMonthly = parseFloat(showInvoiceModal.price_monthly) || parseFloat(showInvoiceModal.room?.price_monthly) || 0;
-                                        let priceYearly = parseFloat(showInvoiceModal.price_yearly) || parseFloat(showInvoiceModal.room?.price_yearly) || 0;
-                                        let priceWeekend = parseFloat(showInvoiceModal.price_weekend) || parseFloat(showInvoiceModal.room?.price_weekend) || 0;
-
-                                        let baseRentalType = showInvoiceModal.rental_type;
-                                        let actualTotal = parseFloat(showInvoiceModal.total_amount);
-                                        
-                                        // Auto-detect correct base rental type for old bookings that were overwritten to 'daily'
-                                        if (baseRentalType === 'daily' && remainingDays >= 7) {
-                                            let wCount = Math.floor(remainingDays / 7);
-                                            let dCount = remainingDays % 7;
+                                            let remainingDays = diffDays;
+                                            let currentStart = new Date(start);
                                             
-                                            let pWeekly = priceWeekly > 0 ? priceWeekly : ((actualTotal - (dCount * priceDaily)) / wCount);
-                                            // Prevent negative inferred prices
-                                            if (pWeekly < 0) pWeekly = priceDaily * 7;
-                                            
-                                            let expWeekly = wCount * pWeekly + dCount * priceDaily;
-                                            let expDaily = remainingDays * priceDaily;
-                                            
-                                            if (Math.abs(expWeekly - actualTotal) < Math.abs(expDaily - actualTotal) || (priceWeekly === 0 && actualTotal < expDaily)) {
-                                                baseRentalType = 'weekly';
-                                                priceWeekly = pWeekly;
-                                            } else if (remainingDays >= 30) {
-                                                let mCount = Math.floor(remainingDays / 30);
-                                                let left = remainingDays % 30;
-                                                let ewCount = Math.floor(left / 7);
-                                                let edCount = left % 7;
+                                            const addPeriod = (days, label, unitPrice) => {
+                                                const itemStart = new Date(currentStart);
+                                                currentStart.setDate(currentStart.getDate() + days);
+                                                let itemEnd = new Date(currentStart);
+                                                if (itemEnd > end) itemEnd = new Date(end);
                                                 
-                                                let pMonthly = priceMonthly > 0 ? priceMonthly : ((actualTotal - (ewCount * pWeekly) - (edCount * priceDaily)) / mCount);
-                                                if (pMonthly < 0) pMonthly = priceDaily * 30;
+                                                items.push({
+                                                    label: label,
+                                                    start: itemStart,
+                                                    end: itemEnd,
+                                                    price: unitPrice
+                                                });
+                                                remainingDays -= days;
+                                            };
+
+                                            let priceDaily = parseFloat(showInvoiceModal.price_daily) || parseFloat(showInvoiceModal.room?.price_daily) || 0;
+                                            let priceWeekly = parseFloat(showInvoiceModal.price_weekly) || parseFloat(showInvoiceModal.room?.price_weekly) || 0;
+                                            let priceMonthly = parseFloat(showInvoiceModal.price_monthly) || parseFloat(showInvoiceModal.room?.price_monthly) || 0;
+                                            let priceYearly = parseFloat(showInvoiceModal.price_yearly) || parseFloat(showInvoiceModal.room?.price_yearly) || 0;
+                                            let priceWeekend = parseFloat(showInvoiceModal.price_weekend) || parseFloat(showInvoiceModal.room?.price_weekend) || 0;
+
+                                            let baseRentalType = showInvoiceModal.rental_type;
+                                            let actualTotal = parseFloat(showInvoiceModal.total_amount);
+                                            
+                                            // Auto-detect correct base rental type for old bookings that were overwritten to 'daily'
+                                            if (baseRentalType === 'daily' && remainingDays >= 7) {
+                                                let wCount = Math.floor(remainingDays / 7);
+                                                let dCount = remainingDays % 7;
                                                 
-                                                let expMonthly = mCount * pMonthly + ewCount * pWeekly + edCount * priceDaily;
-                                                if (Math.abs(expMonthly - actualTotal) < Math.abs(expDaily - actualTotal) || (priceMonthly === 0 && actualTotal < expDaily)) {
-                                                    baseRentalType = 'monthly';
-                                                    priceMonthly = pMonthly;
+                                                let pWeekly = priceWeekly > 0 ? priceWeekly : ((actualTotal - (dCount * priceDaily)) / wCount);
+                                                if (pWeekly < 0) pWeekly = priceDaily * 7;
+                                                
+                                                let expWeekly = wCount * pWeekly + dCount * priceDaily;
+                                                let expDaily = remainingDays * priceDaily;
+                                                
+                                                if (Math.abs(expWeekly - actualTotal) < Math.abs(expDaily - actualTotal) || (priceWeekly === 0 && actualTotal < expDaily)) {
+                                                    baseRentalType = 'weekly';
+                                                    priceWeekly = pWeekly;
+                                                } else if (remainingDays >= 30) {
+                                                    let mCount = Math.floor(remainingDays / 30);
+                                                    let left = remainingDays % 30;
+                                                    let ewCount = Math.floor(left / 7);
+                                                    let edCount = left % 7;
+                                                    
+                                                    let pMonthly = priceMonthly > 0 ? priceMonthly : ((actualTotal - (ewCount * pWeekly) - (edCount * priceDaily)) / mCount);
+                                                    if (pMonthly < 0) pMonthly = priceDaily * 30;
+                                                    
+                                                    let expMonthly = mCount * pMonthly + ewCount * pWeekly + edCount * priceDaily;
+                                                    if (Math.abs(expMonthly - actualTotal) < Math.abs(expDaily - actualTotal) || (priceMonthly === 0 && actualTotal < expDaily)) {
+                                                        baseRentalType = 'monthly';
+                                                        priceMonthly = pMonthly;
+                                                    }
                                                 }
                                             }
-                                        }
 
-                                        const addExactPeriod = (nextDate, label, unitPrice) => {
-                                            const itemStart = new Date(currentStart);
-                                            currentStart = new Date(nextDate);
-                                            let itemEnd = new Date(currentStart);
-                                            if (itemEnd > end) itemEnd = new Date(end);
-                                            
-                                            const daysSpanned = Math.round((itemEnd - itemStart) / (1000 * 60 * 60 * 24));
-                                            if (daysSpanned <= 0) return;
-                                            
-                                            items.push({
-                                                label: label,
-                                                start: itemStart,
-                                                end: itemEnd,
-                                                price: unitPrice
-                                            });
-                                            remainingDays -= daysSpanned;
-                                        };
-
-                                        if (baseRentalType === 'yearly') {
-                                            let i = 0;
-                                            while (true) {
-                                                let nextDate = new Date(currentStart);
-                                                nextDate.setFullYear(nextDate.getFullYear() + 1);
-                                                if (nextDate.getTime() > end.getTime()) break;
-                                                addExactPeriod(nextDate, `Tahun ke-${i+1}`, priceYearly);
-                                                i++;
-                                            }
-                                        }
-                                        if (baseRentalType === 'monthly' || (baseRentalType === 'yearly' && remainingDays >= 28)) {
-                                            let i = 0;
-                                            while (true) {
-                                                let nextDate = new Date(currentStart);
-                                                nextDate.setMonth(nextDate.getMonth() + 1);
-                                                if (currentStart.getDate() > 28 && nextDate.getDate() < currentStart.getDate()) {
-                                                    nextDate.setDate(0);
-                                                }
-                                                if (nextDate.getTime() > end.getTime()) break;
-                                                addExactPeriod(nextDate, `Bulan ke-${i+1}`, priceMonthly);
-                                                i++;
-                                            }
-                                        }
-                                        if (baseRentalType === 'weekly' || (['yearly', 'monthly'].includes(baseRentalType) && remainingDays >= 7)) {
-                                            let count = Math.floor(remainingDays / 7);
-                                            for(let i=0; i<count; i++) {
-                                                let nextDate = new Date(currentStart);
-                                                nextDate.setDate(nextDate.getDate() + 7);
-                                                addExactPeriod(nextDate, `Minggu ke-${i+1}`, priceWeekly);
-                                            }
-                                        }
-                                        
-                                        if (remainingDays > 0) {
-                                            let count = remainingDays;
-                                            let isExtension = items.length > 0;
-                                            for(let i=0; i<count; i++) {
-                                                let dayOfWeek = currentStart.getDay();
-                                                let isWeekend = (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6);
-                                                let priceToUse = (isWeekend && priceWeekend > 0) ? priceWeekend : priceDaily;
+                                            const addExactPeriod = (nextDate, label, unitPrice) => {
+                                                const itemStart = new Date(currentStart);
+                                                currentStart = new Date(nextDate);
+                                                let itemEnd = new Date(currentStart);
+                                                if (itemEnd > end) itemEnd = new Date(end);
                                                 
-                                                let nextDate = new Date(currentStart);
-                                                nextDate.setDate(nextDate.getDate() + 1);
-                                                let label = isExtension ? `Hari ke-${i+1} (Tambahan)` : `Hari ke-${i+1}`;
-                                                addExactPeriod(nextDate, label, priceToUse);
+                                                const daysSpanned = Math.round((itemEnd - itemStart) / (1000 * 60 * 60 * 24));
+                                                if (daysSpanned <= 0) return;
+                                                
+                                                items.push({
+                                                    label: label,
+                                                    start: itemStart,
+                                                    end: itemEnd,
+                                                    price: unitPrice
+                                                });
+                                                remainingDays -= daysSpanned;
+                                            };
+
+                                            if (baseRentalType === 'yearly') {
+                                                let i = 0;
+                                                while (true) {
+                                                    let nextDate = new Date(currentStart);
+                                                    nextDate.setFullYear(nextDate.getFullYear() + 1);
+                                                    if (nextDate.getTime() > end.getTime()) break;
+                                                    addExactPeriod(nextDate, `Tahun ke-${i+1}`, priceYearly);
+                                                    i++;
+                                                }
                                             }
-                                        }
-                                        
-                                        let calculatedTotal = items.reduce((sum, item) => sum + item.price, 0);
-                                        
-                                        if (calculatedTotal > 0 && Math.abs(calculatedTotal - actualTotal) > 1) {
-                                            let ratio = actualTotal / calculatedTotal;
-                                            items.forEach(item => {
-                                                item.price = item.price * ratio;
-                                            });
+                                            if (baseRentalType === 'monthly' || (baseRentalType === 'yearly' && remainingDays >= 28)) {
+                                                let i = 0;
+                                                while (true) {
+                                                    let nextDate = new Date(currentStart);
+                                                    nextDate.setMonth(nextDate.getMonth() + 1);
+                                                    if (currentStart.getDate() > 28 && nextDate.getDate() < currentStart.getDate()) {
+                                                        nextDate.setDate(0);
+                                                    }
+                                                    if (nextDate.getTime() > end.getTime()) break;
+                                                    addExactPeriod(nextDate, `Bulan ke-${i+1}`, priceMonthly);
+                                                    i++;
+                                                }
+                                            }
+                                            if (baseRentalType === 'weekly' || (['yearly', 'monthly'].includes(baseRentalType) && remainingDays >= 7)) {
+                                                let count = Math.floor(remainingDays / 7);
+                                                for(let i=0; i<count; i++) {
+                                                    let nextDate = new Date(currentStart);
+                                                    nextDate.setDate(nextDate.getDate() + 7);
+                                                    addExactPeriod(nextDate, `Minggu ke-${i+1}`, priceWeekly);
+                                                }
+                                            }
+                                            
+                                            if (remainingDays > 0) {
+                                                let count = remainingDays;
+                                                let isExtension = items.length > 0;
+                                                for(let i=0; i<count; i++) {
+                                                    let dayOfWeek = currentStart.getDay();
+                                                    let isWeekend = (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6);
+                                                    let priceToUse = (isWeekend && priceWeekend > 0) ? priceWeekend : priceDaily;
+                                                    
+                                                    let nextDate = new Date(currentStart);
+                                                    nextDate.setDate(nextDate.getDate() + 1);
+                                                    let label = isExtension ? `Hari ke-${i+1} (Tambahan)` : `Hari ke-${i+1}`;
+                                                    addExactPeriod(nextDate, label, priceToUse);
+                                                }
+                                            }
+                                            
+                                            let calculatedTotal = items.reduce((sum, item) => sum + item.price, 0);
+                                            
+                                            if (calculatedTotal > 0 && Math.abs(calculatedTotal - actualTotal) > 1) {
+                                                let ratio = actualTotal / calculatedTotal;
+                                                items.forEach(item => {
+                                                    item.price = item.price * ratio;
+                                                });
+                                            }
                                         }
 
                                         let paidAmount = parseFloat(showInvoiceModal.paid_amount || 0);

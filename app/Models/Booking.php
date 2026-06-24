@@ -29,7 +29,8 @@ class Booking extends Model
         'otp_verified',
         'otp_sent_at',
         'unverified_amount',
-        'unverified_proof'
+        'unverified_proof',
+        'invoice_items'
     ];
 
     protected $casts = [
@@ -44,7 +45,8 @@ class Booking extends Model
         'price_yearly' => 'decimal:2',
         'price_weekend' => 'decimal:2',
         'otp_verified' => 'boolean',
-        'otp_sent_at' => 'datetime'
+        'otp_sent_at' => 'datetime',
+        'invoice_items' => 'array'
     ];
 
     public function room(): BelongsTo
