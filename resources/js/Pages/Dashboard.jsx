@@ -1582,10 +1582,32 @@ export default function Dashboard() {
 
                 {/* Dashboard Workspace */}
                 <main className="flex-grow p-4 md:p-8 overflow-y-auto pb-24 lg:pb-8">
-                    
+
                     {/* Ringkasan Dashboard (Tab: Overview) */}
                     {activeTab === 'overview' && (
                         <div className="space-y-8">
+                            {/* Welcome Banner */}
+                            <div className="relative overflow-hidden rounded-2xl shadow-lg">
+                                {/* Background */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-teal-500 to-cyan-500 dark:from-emerald-900 dark:via-teal-900 dark:to-slate-900" />
+                                {/* Decorative blobs */}
+                                <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
+                                <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full bg-teal-300/20 dark:bg-teal-400/10 blur-2xl" />
+                                <div className="absolute top-2 right-20 w-16 h-16 rounded-full bg-cyan-300/20 blur-xl" />
+                                {/* Dot pattern overlay */}
+                                <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px'}} />
+                                {/* Content */}
+                                <div className="relative flex items-center gap-4 px-5 py-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-white/20 dark:bg-white/10 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white text-xl font-extrabold shadow shrink-0">
+                                        {auth.user.name?.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <p className="text-white/70 text-xs font-medium tracking-wide">Hyy 👋</p>
+                                        <p className="text-white font-extrabold text-lg leading-tight drop-shadow-sm">{auth.user.name}</p>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Summary Stats Cards */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {currentRole === 'resident' ? (
