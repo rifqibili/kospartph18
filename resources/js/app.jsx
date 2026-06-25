@@ -66,7 +66,12 @@ if (typeof window !== 'undefined') {
     let loaderContainer = null;
     let loadTimeout = null;
 
-    router.on('start', () => {
+    router.on('start', (event) => {
+        // Jangan tampilkan loading screen jika menuju ke landing page
+        try {
+            if (event.detail.visit.url.pathname === '/') return;
+        } catch (e) {}
+
         if (loadTimeout) clearTimeout(loadTimeout);
         loadTimeout = setTimeout(() => {
             if (!loaderContainer) {

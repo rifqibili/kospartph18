@@ -1374,6 +1374,18 @@ export default function Dashboard() {
     const urgentSewaCount = visibleNotifications.filter(n => n.type !== 'new_complaint').length;
     const urgentNotifCount = visibleNotifications.filter(n => ['unpaid_bill', 'payment_rejected', 'rental_expiry', 'daily_checkout_today'].includes(n.type)).length;
 
+    if (isPageLoading) {
+        return (
+            <div className="min-h-screen bg-[#f8fafc] dark:bg-slate-900 font-sans">
+                <Head title="Kospart PH 18" />
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="w-full max-w-5xl">
+                        <DashboardSkeleton />
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex font-sans print:bg-white print:block">

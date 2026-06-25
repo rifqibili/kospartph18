@@ -30,6 +30,7 @@
     <body class="font-sans antialiased">
         @inertia
         
+        @if(!request()->is('/'))
         <!-- Global Initial Loading Splash Screen -->
         <div id="global-initial-loader" style="position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, #ffffff 0%, #faf7f2 100%); font-family: sans-serif; transition: opacity 0.4s ease; pointer-events: none;">
             <div style="display: flex; flex-direction: column; align-items: center; gap: 24px;">
@@ -94,5 +95,6 @@
                 }, 200);
             });
         </script>
+        @endif
     </body>
 </html>
