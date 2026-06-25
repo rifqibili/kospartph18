@@ -8,6 +8,68 @@ import WebSettingsTab from '@/Components/WebSettingsTab';
 import UsersManagementTab from '@/Components/UsersManagementTab';
 import ThemeToggle from '@/Components/ThemeToggle';
 import DragDropZone from '@/Components/DragDropZone';
+
+// ─── Skeleton Components ───────────────────────────────────────────────────────
+const SkeletonBox = ({ className = '' }) => (
+    <div className={`animate-pulse bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] rounded-xl ${className}`}
+        style={{ backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+);
+
+const DashboardSkeleton = () => (
+    <div className="space-y-6 p-6">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+            <div className="space-y-2">
+                <SkeletonBox className="h-8 w-56" />
+                <SkeletonBox className="h-4 w-40" />
+            </div>
+            <SkeletonBox className="h-10 w-28" />
+        </div>
+        {/* Stats cards skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <SkeletonBox className="h-4 w-24" />
+                        <SkeletonBox className="h-10 w-10 rounded-xl" />
+                    </div>
+                    <SkeletonBox className="h-9 w-20" />
+                    <SkeletonBox className="h-3 w-32" />
+                </div>
+            ))}
+        </div>
+        {/* Recent activity skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
+                <SkeletonBox className="h-5 w-36" />
+                {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                        <SkeletonBox className="h-10 w-10 rounded-full flex-shrink-0" />
+                        <div className="flex-1 space-y-2">
+                            <SkeletonBox className="h-4 w-3/4" />
+                            <SkeletonBox className="h-3 w-1/2" />
+                        </div>
+                        <SkeletonBox className="h-6 w-16 rounded-full" />
+                    </div>
+                ))}
+            </div>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+                <SkeletonBox className="h-5 w-36" />
+                <SkeletonBox className="h-52 w-full rounded-xl" />
+            </div>
+        </div>
+        {/* Center loading indicator */}
+        <div className="flex flex-col items-center justify-center py-6 gap-3">
+            <svg className="w-10 h-10 text-[#c9a84c] animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            <p className="text-sm text-slate-500 font-semibold">Memuat data dashboard...</p>
+        </div>
+    </div>
+);
+// ──────────────────────────────────────────────────────────────────────────────
+
 // ── CSRF-aware fetch helper ──────────────────────────────────────────────────
 function getCsrfToken() {
     const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
@@ -42,6 +104,7 @@ export default function Dashboard() {
     const [activeTab, setActiveTab] = useState(currentRole === 'karyawan' ? 'canteen' : 'overview');
 
     // Data states
+    const [isPageLoading, setIsPageLoading] = useState(true); // Loading state for initial page load
     const [stats, setStats] = useState({});
     const [notifications, setNotifications] = useState([]);
     const [recentBookings, setRecentBookings] = useState([]);
@@ -367,6 +430,8 @@ export default function Dashboard() {
             prevCanteenOrdersRef.current = Array.isArray(canteenOrdersData) ? canteenOrdersData : [];
         } catch (err) {
             console.error('Error loading data', err);
+        } finally {
+            setIsPageLoading(false); // Always hide skeleton after fetch (success or error)
         }
     };
 
@@ -1308,6 +1373,19 @@ export default function Dashboard() {
     // Menghitung jumlah alert untuk Penyewaan/Sewa (semua notifikasi kecuali komplain)
     const urgentSewaCount = visibleNotifications.filter(n => n.type !== 'new_complaint').length;
     const urgentNotifCount = visibleNotifications.filter(n => ['unpaid_bill', 'payment_rejected', 'rental_expiry', 'daily_checkout_today'].includes(n.type)).length;
+
+    if (isPageLoading) {
+        return (
+            <div className="min-h-screen bg-[#f8fafc] dark:bg-slate-900 font-sans">
+                <Head title="Kospart PH 18" />
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="w-full max-w-5xl">
+                        <DashboardSkeleton />
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex font-sans print:bg-white print:block">

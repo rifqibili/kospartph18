@@ -20,9 +20,11 @@ createInertiaApp({
         root.render(<App {...props} />);
     },
     progress: {
-        color: '#4B5563',
+        color: '#c9a84c',   // Gold brand color — terlihat jelas di semua background
+        showSpinner: true,  // Tampilkan spinner di kanan atas saat navigasi
     },
 });
+
 
 // --- Universal Modal Closer ---
 // Adds Escape key support and backdrop click support to all Modals globally

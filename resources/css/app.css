@@ -1038,4 +1038,15 @@ html.dark #invoice-print-area .bg-red-50 { background-color: #fef2f2 !important;
   }
 }
 
+/* Shimmer animation for skeleton loaders */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+
 

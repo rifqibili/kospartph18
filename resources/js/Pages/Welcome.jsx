@@ -204,7 +204,9 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
     };
 
     const handleVerifyOtp = async (e) => {
-        e.preventDefault(); setOtpError('');
+        e.preventDefault();
+        setOtpError('');
+        setIsSubmitting(true);
         try {
             const res = await fetch('/api/guest/bookings/verify-otp', {
                 method: 'POST',
@@ -215,6 +217,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             if (res.ok) { setBookingResponse(prev => ({...prev, booking: data.booking})); setPaidAmountInput(data.booking.total_amount); setBookingStep('payment_proof'); }
             else { setOtpError(data.message || 'OTP salah'); }
         } catch (err) { console.error(err); setOtpError('Gagal memverifikasi OTP.'); }
+        finally { setIsSubmitting(false); }
     };
 
     const handleUploadPayment = async (e) => {
@@ -224,6 +227,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             return;
         }
         setPaymentError('');
+        setIsSubmitting(true);
         try {
             const payload = new FormData();
             payload.append('payment_proof', paymentProofInput);
@@ -237,6 +241,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             if (res.ok) { setSuccessMessage(data.message); setBookingStep('success'); }
             else { setPaymentError(data.message || 'Gagal mengunggah bukti pembayaran.'); }
         } catch (err) { console.error(err); setPaymentError('Gagal mengunggah pembayaran. Silakan coba lagi.'); }
+        finally { setIsSubmitting(false); }
     };
 
     const resetBookingModal = () => {
@@ -922,7 +927,15 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                                     </span>
                                 </div>
                                 <button aria-label="Action Button"  disabled={isSubmitting} type="submit" className={`w-full py-3 font-bold rounded-xl text-sm transition-all ${isSubmitting ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'lux-btn-primary'}`}>
-                                    {isSubmitting ? 'Memproses...' : 'Kirim & Verifikasi OTP'}
+                                    {isSubmitting ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <svg className="w-4 h-4 text-slate-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                            </svg>
+                                            Memproses...
+                                        </span>
+                                    ) : 'Kirim & Verifikasi OTP'}
                                 </button>
                             </form>
                         )}
@@ -984,8 +997,16 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                                         <button aria-label="Action Button" type="button" onClick={() => setBookingStep('booking')} className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 rounded-xl text-sm font-bold transition-all shadow-sm">
                                             Kembali
                                         </button>
-                                        <button aria-label="Action Button" type="submit" className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-emerald-500/20">
-                                            Verifikasi OTP
+                                        <button aria-label="Action Button" disabled={isSubmitting} type="submit" className={`flex-1 py-3.5 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-emerald-500/20 ${isSubmitting ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                                            {isSubmitting ? (
+                                                <span className="flex items-center justify-center gap-2">
+                                                    <svg className="w-4 h-4 text-slate-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                                    </svg>
+                                                    Memproses...
+                                                </span>
+                                            ) : 'Verifikasi OTP'}
                                         </button>
                                     </div>
                                 </form>
@@ -1034,7 +1055,17 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                                 </div>
                                 <div className="flex gap-3">
                                     <button aria-label="Action Button" type="button" onClick={() => setBookingStep('otp')} className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 rounded-xl text-sm font-bold transition-all shadow-sm">Kembali</button>
-                                    <button aria-label="Action Button" type="submit" className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-emerald-500/20">Kirim Pembayaran</button>
+                                    <button aria-label="Action Button" disabled={isSubmitting} type="submit" className={`flex-1 py-3.5 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-emerald-500/20 ${isSubmitting ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                                        {isSubmitting ? (
+                                            <span className="flex items-center justify-center gap-2">
+                                                <svg className="w-4 h-4 text-slate-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                                </svg>
+                                                Mengirim...
+                                            </span>
+                                        ) : 'Kirim Pembayaran'}
+                                    </button>
                                 </div>
                             </form>
                         )}
