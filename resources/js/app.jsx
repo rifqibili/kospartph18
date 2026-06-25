@@ -67,9 +67,11 @@ if (typeof window !== 'undefined') {
     let loadTimeout = null;
 
     router.on('start', (event) => {
-        // Jangan tampilkan loading screen jika menuju ke landing page
+        // Jangan tampilkan loading screen jika menuju ke landing page ATAU sedang berada di landing page
         try {
-            if (event.detail.visit.url.pathname === '/') return;
+            const targetIsHome = event.detail.visit.url.pathname === '/';
+            const currentIsHome = window.location.pathname === '/';
+            if (targetIsHome || currentIsHome) return;
         } catch (e) {}
 
         if (loadTimeout) clearTimeout(loadTimeout);
