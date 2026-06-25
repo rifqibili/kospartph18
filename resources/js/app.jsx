@@ -67,13 +67,7 @@ if (typeof window !== 'undefined') {
     let loadTimeout = null;
 
     router.on('start', (event) => {
-        // Jangan tampilkan loading screen jika menuju ke landing page ATAU sedang berada di landing page
-        try {
-            const targetIsHome = event.detail.visit.url.pathname === '/';
-            const currentIsHome = window.location.pathname === '/';
-            if (targetIsHome || currentIsHome) return;
-        } catch (e) {}
-
+        // Loading screen hanya muncul jika loading lebih dari 1 detik (1000ms)
         if (loadTimeout) clearTimeout(loadTimeout);
         loadTimeout = setTimeout(() => {
             if (!loaderContainer) {
@@ -159,7 +153,7 @@ if (typeof window !== 'undefined') {
                     if (loaderContainer) loaderContainer.style.opacity = '1';
                 }, 10);
             }
-        }, 150); // 150ms delay to avoid flashing on super-fast connection
+        }, 1000); // 1000ms delay to only show loader if the request is actually stuck or slow
     });
 
     router.on('finish', () => {
