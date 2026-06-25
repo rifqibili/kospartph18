@@ -75,8 +75,9 @@ if (typeof window !== 'undefined') {
                 loaderContainer.style.cssText = `
                     position: fixed;
                     inset: 0;
-                    background-color: rgba(26, 61, 43, 0.4);
-                    backdrop-filter: blur(4px);
+                    background-color: rgba(15, 33, 23, 0.45);
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
                     z-index: 99999;
                     display: flex;
                     flex-direction: column;
@@ -88,20 +89,61 @@ if (typeof window !== 'undefined') {
                     pointer-events: all;
                 `;
                 loaderContainer.innerHTML = `
-                    <div style="background: white; padding: 24px 32px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); border: 1px solid rgba(201, 168, 76, 0.2); display: flex; flex-direction: column; align-items: center; gap: 16px;">
-                        <svg style="width: 40px; height: 40px; color: #c9a84c; animation: spin-loader-anim 1s linear infinite;" fill="none" viewBox="0 0 24 24">
-                            <circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                        </svg>
-                        <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                            <span style="font-weight: 700; font-size: 14px; color: #1a3d2b;">Menghubungkan...</span>
-                            <span style="font-size: 9px; color: #c9a84c; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase;">Kospart PH 18</span>
+                    <div style="
+                        background: rgba(255, 255, 255, 0.85);
+                        backdrop-filter: blur(16px);
+                        -webkit-backdrop-filter: blur(16px);
+                        padding: 32px 40px;
+                        border-radius: 28px;
+                        box-shadow: 0 25px 50px -12px rgba(15, 33, 23, 0.3), 0 0 0 1px rgba(201, 168, 76, 0.15);
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 24px;
+                        width: 260px;
+                        text-align: center;
+                        animation: loaderCardIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                    ">
+                        <!-- Custom Animated Glowing Gold Spinner with Logo -->
+                        <div style="position: relative; width: 68px; height: 68px; display: flex; align-items: center; justify-content: center;">
+                            <!-- Glowing gradient ring -->
+                            <div style="
+                                position: absolute;
+                                inset: -3px;
+                                border-radius: 50%;
+                                background: conic-gradient(from 0deg, transparent, #c9a84c, #e0cb82, transparent);
+                                animation: spin-loader-anim 1.2s linear infinite;
+                            "></div>
+                            <!-- White inner container masking the center -->
+                            <div style="
+                                position: absolute;
+                                inset: 2px;
+                                border-radius: 50%;
+                                background: #ffffff;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                z-index: 2;
+                                box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+                            ">
+                                <img src="/images/logo 2.jpeg" alt="Logo" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover;" />
+                            </div>
+                        </div>
+
+                        <!-- Elegant status text -->
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                            <span style="font-weight: 800; font-size: 15px; color: #1a3d2b; letter-spacing: -0.01em;">Memuat Halaman...</span>
+                            <span style="font-size: 9px; color: #c9a84c; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase;">Kospart PH 18</span>
                         </div>
                     </div>
                     <style>
                         @keyframes spin-loader-anim {
                             from { transform: rotate(0deg); }
                             to { transform: rotate(360deg); }
+                        }
+                        @keyframes loaderCardIn {
+                            from { opacity: 0; transform: scale(0.9) translateY(12px); }
+                            to { opacity: 1; transform: scale(1) translateY(0); }
                         }
                     </style>
                 `;

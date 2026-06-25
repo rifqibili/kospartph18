@@ -31,24 +31,50 @@
         @inertia
         
         <!-- Global Initial Loading Splash Screen -->
-        <div id="global-initial-loader" style="position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #faf7f2; font-family: sans-serif; transition: opacity 0.4s ease; pointer-events: none;">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 2px solid #c9a84c; box-shadow: 0 4px 12px rgba(0,0,0,0.1); animation: loader-pulse 2s infinite ease-in-out;">
-                    <img src="/images/logo 2.jpeg" alt="Logo" style="width: 100%; height: 100%; object-fit: cover;" />
+        <div id="global-initial-loader" style="position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, #ffffff 0%, #faf7f2 100%); font-family: sans-serif; transition: opacity 0.4s ease; pointer-events: none;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 24px;">
+                <!-- Glowing Circle Container -->
+                <div style="position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center;">
+                    <!-- Rotating glowing gold border ring -->
+                    <div style="
+                        position: absolute;
+                        inset: -4px;
+                        border-radius: 50%;
+                        background: conic-gradient(from 0deg, transparent, #c9a84c, #e0cb82, transparent);
+                        animation: loader-spin 1.4s linear infinite;
+                    "></div>
+                    <!-- Logo mask -->
+                    <div style="
+                        position: absolute;
+                        inset: 2px;
+                        border-radius: 50%;
+                        background: #ffffff;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 2;
+                        box-shadow: 0 4px 15px rgba(26,61,43,0.1), inset 0 2px 4px rgba(0,0,0,0.05);
+                    ">
+                        <img src="/images/logo 2.jpeg" alt="Logo" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;" />
+                    </div>
                 </div>
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                    <span style="font-weight: 800; font-size: 20px; color: #1a3d2b; letter-spacing: 0.05em;">KOSPART</span>
-                    <span style="font-weight: 700; font-size: 10px; color: #c9a84c; letter-spacing: 0.2em; text-transform: uppercase;">PH 18 LAMPUNG</span>
+                
+                <!-- Text elements -->
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;">
+                    <span style="font-weight: 800; font-size: 24px; color: #1a3d2b; letter-spacing: 0.05em; font-family: system-ui, -apple-system, sans-serif;">KOSPART</span>
+                    <span style="font-weight: 700; font-size: 10px; color: #c9a84c; letter-spacing: 0.25em; text-transform: uppercase;">PH 18 LAMPUNG</span>
                 </div>
-                <div style="width: 60px; height: 3px; background: rgba(201, 168, 76, 0.2); border-radius: 9999px; overflow: hidden; position: relative;">
+                
+                <!-- Linear Progress -->
+                <div style="width: 80px; height: 3px; background: rgba(201, 168, 76, 0.15); border-radius: 9999px; overflow: hidden; position: relative;">
                     <div style="width: 40%; height: 100%; background: #c9a84c; position: absolute; left: 0; top: 0; border-radius: 9999px; animation: loader-progress 1.5s infinite ease-in-out;"></div>
                 </div>
             </div>
         </div>
         <style>
-            @keyframes loader-pulse {
-                0%, 100% { transform: scale(1); opacity: 0.9; }
-                50% { transform: scale(1.05); opacity: 1; }
+            @keyframes loader-spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
             }
             @keyframes loader-progress {
                 0% { left: -40%; }
