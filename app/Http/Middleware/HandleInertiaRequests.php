@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -29,6 +30,17 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // Cache settings per request to avoid multiple DB hits
+        static $settings = null;
+        if ($settings === null) {
+            try {
+                $settings = Setting::allAsArray();
+            } catch (\Exception $e) {
+                // Table may not exist yet during initial migrations
+                $settings = [];
+            }
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
@@ -42,6 +54,7 @@ class HandleInertiaRequests extends Middleware
                     'assigned_branches' => $request->user()->assigned_branches,
                 ] : null,
             ],
+            'appSettings' => $settings,
         ];
     }
 }

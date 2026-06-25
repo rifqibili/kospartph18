@@ -65,13 +65,13 @@ export default function GuestLayout({ children }) {
                         <p className="text-slate-300 text-xs italic leading-relaxed">
                             "Pengalaman nge-kos yang sangat berbeda. Fasilitasnya sangat lengkap, serasa tinggal di apartemen pribadi lengkap dengan resto rumahan dan laundry."
                         </p>
-                        <span className="text-[10px] font-bold text-gold block mt-2">— Dani Trisna (Penghuni Kos)</span>
+                        <span className="text-[10px] font-bold text-gold block mt-2">— Penghuni Kospart PH 18 ⭐⭐⭐⭐⭐</span>
                     </div>
                 </div>
 
                 {/* Footer text */}
                 <div className="relative z-10 text-slate-500 text-xs">
-                    © 2026 Kospart PH 18. All rights reserved.
+                    © {new Date().getFullYear()} Kospart PH 18. All rights reserved.
                 </div>
             </div>
 

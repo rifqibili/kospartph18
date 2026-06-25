@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { CTASection } from '@/Components/ui/hero-dithering-card';
 import DragDropZone from '@/Components/DragDropZone';
 import imageCompression from 'browser-image-compression';
@@ -25,6 +25,11 @@ async function authFetch(url, options = {}) {
 // ────────────────────────────────────────────────────────────────────────────
 
 export default function Rooms({ branches, rooms, auth }) {
+    const { appSettings = {} } = usePage().props;
+    const waNumber = appSettings.whatsapp_number || '628980598327';
+    const bankName = appSettings.bank_account_name || 'BCA';
+    const bankNumber = appSettings.bank_account_number || '8447060961';
+    const bankHolder = appSettings.bank_account_holder || 'PRAYOGA HERIYANTO';
     const getQueryBranch = () => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
@@ -916,7 +921,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                     <h4 className="font-bold mb-2 text-sm border-b border-[rgba(45,106,79,0.15)] pb-2">Pembayaran Sewa Kamar (Batas Waktu: 1 Jam)</h4>
                                     <p className="mb-2">Total: <strong className="text-[#2d6a4f]">Rp {bookingResponse?.booking?.total_amount ? parseFloat(bookingResponse.booking.total_amount).toLocaleString('id-ID') : '-'}</strong></p>
                                     <p>Transfer ke rekening:</p>
-                                    <ul className="list-disc pl-5 mt-1 mb-2 space-y-1 font-bold text-slate-800"><li>BCA: 8447060961 a.n PRAYOGA HERIYANTO</li></ul>
+                                    <ul className="list-disc pl-5 mt-1 mb-2 space-y-1 font-bold text-slate-800"><li>{bankName}: {bankNumber} a.n {bankHolder}</li></ul>
                                     <p>Masukkan nominal dan unggah bukti transfer.</p>
                                 </div>
                                 <div className="space-y-1">

@@ -475,7 +475,7 @@ export default function Dashboard() {
     // Initialize Chart.js
     const initChart = async () => {
         try {
-            const chartDataRes = await fetch('/api/finances/chart');
+            const chartDataRes = await authFetch('/api/finances/chart');
             const chartData = await chartDataRes.json();
 
             if (chartInstance.current) {
@@ -804,9 +804,16 @@ export default function Dashboard() {
 
     const handleAddFinance = async (e) => {
         e.preventDefault();
-        const res = await authFetch('/api/finances', { method: 'POST', body: JSON.stringify(newFinance) });
+        // Use FormData so that receipt_file (binary) is transmitted correctly
+        const formData = new FormData();
+        Object.entries(newFinance).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && value !== '') {
+                formData.append(key, value);
+            }
+        });
+        const res = await authFetch('/api/finances', { method: 'POST', body: formData, headers: {} });
         if (res.ok) {
-            setNewFinance({ transaction_type: 'expense', amount: '', category: 'maintenance', transaction_date: new Date().toISOString().split('T')[0], description: '', branch_id: initialFinanceBranchId, payment_method: 'cash' });
+            setNewFinance({ transaction_type: 'expense', amount: '', category: 'maintenance', transaction_date: new Date().toISOString().split('T')[0], description: '', branch_id: initialFinanceBranchId, payment_method: 'cash', receipt_file: null });
             loadAllData();
             showToast('Transaksi kas berhasil dicatat!');
         } else { const d = await res.json(); showToast(d.message || 'Gagal mencatat transaksi.', 'error'); }
@@ -833,7 +840,7 @@ export default function Dashboard() {
         e.preventDefault();
         const res = await authFetch(`/api/complaints/${complaintResponse.id}/status`, {
             method: 'POST',
-            body: JSON.stringify({ status: complaintResponse.status, admin_response: complaintResponse.admin_response, repair_photo: 'repair_done.png' })
+            body: JSON.stringify({ status: complaintResponse.status, admin_response: complaintResponse.admin_response })
         });
         if (res.ok) {
             setComplaintResponse({ id: null, status: 'processing', admin_response: '' });

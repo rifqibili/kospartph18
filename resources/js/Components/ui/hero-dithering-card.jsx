@@ -1,11 +1,15 @@
 import { ArrowRight } from "lucide-react";
 import React, { useState, Suspense, lazy } from "react";
+import { usePage } from "@inertiajs/react";
 
 const Dithering = lazy(() => 
   import("@paper-design/shaders-react").then((mod) => ({ default: mod.Dithering }))
 );
 
 export function CTASection() {
+  const { appSettings = {} } = usePage().props;
+  const waNumber = appSettings.whatsapp_number || '628980598327';
+  const waLink = `https://wa.me/${waNumber}?text=Halo%20Kospart%20PH%2018,%20saya%20ingin%20tanya%20tentang%20kamar%20kos.`;
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -62,7 +66,7 @@ export function CTASection() {
               </div>
 
               {/* Button */}
-              <a href="https://wa.me/628980598327?text=Halo%20Kospart%20PH%2018,%20saya%20ingin%20tanya%20tentang%20kamar%20kos." target="_blank" rel="noopener noreferrer" className="group relative inline-flex h-14 items-center justify-center gap-3 overflow-hidden rounded-full bg-[#c9a84c] px-8 text-sm font-bold text-[#132c1f] transition-all duration-300 hover:bg-[#b08e35] hover:scale-[1.02] active:scale-95 hover:ring-4 hover:ring-[#c9a84c]/20">
+              <a href={waLink} target="_blank" rel="noopener noreferrer" className="group relative inline-flex h-14 items-center justify-center gap-3 overflow-hidden rounded-full bg-[#c9a84c] px-8 text-sm font-bold text-[#132c1f] transition-all duration-300 hover:bg-[#b08e35] hover:scale-[1.02] active:scale-95 hover:ring-4 hover:ring-[#c9a84c]/20">
                 <span className="relative z-10">Chat via WhatsApp</span>
                 <ArrowRight className="h-4 w-4 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
               </a>

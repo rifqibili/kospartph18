@@ -12,6 +12,7 @@ use App\Http\Controllers\FaqController;
 use App\Http\Controllers\VirtualTourController;
 use App\Http\Controllers\TestimonialController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 
 // Guest Landing Page
@@ -19,6 +20,9 @@ Route::get('/', [LandingController::class, 'index'])->name('home');
 Route::get('/kamar', [LandingController::class, 'rooms'])->name('rooms.index');
 Route::get('/cabang', [LandingController::class, 'branches'])->name('branches.index');
 Route::get('/invoice/{booking_code}', [BookingController::class, 'showInvoice'])->name('invoice.show');
+
+// Public Settings (for Landing pages — no auth required)
+Route::get('/api/settings', [SettingController::class, 'index']);
 
 // Authenticated Routes
 Route::middleware(['auth'])->group(function () {
@@ -59,6 +63,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/testimonials', [TestimonialController::class, 'store']);
     Route::put('/api/testimonials/{id}', [TestimonialController::class, 'update']);
     Route::delete('/api/testimonials/{id}', [TestimonialController::class, 'destroy']);
+
+    // App Settings (super_admin write)
+    Route::post('/api/settings', [SettingController::class, 'update']);
 
     // Resident Booking Operations (Authenticated)
     Route::post('/api/bookings/store', [BookingController::class, 'store']);
@@ -107,8 +114,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/canteen-orders/pay-bulk-debt', [App\Http\Controllers\CanteenOrderController::class, 'payBulkDebt']);
     Route::post('/api/canteen-orders/remind-bulk-debt', [App\Http\Controllers\CanteenOrderController::class, 'sendBulkReminders']);
     // Branches & Rooms Management (Master Data)
-    Route::apiResource('/api/branches', BranchController::class);
-    Route::apiResource('/api/rooms', RoomController::class);
+    Route::apiResource('/api/branches', BranchController::class)->names('api.branches');
+    Route::apiResource('/api/rooms', RoomController::class)->names('api.rooms');
     Route::post('/api/rooms/{id}/finish-cleaning', [RoomController::class, 'finishCleaning']);
 });
 

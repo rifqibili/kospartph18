@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { CTASection } from '@/Components/ui/hero-dithering-card';
 
 function useReveal() {
@@ -31,6 +31,9 @@ const Reveal = ({ children, delay = 0, className = '' }) => {
 };
 
 export default function Branches({ branches, auth }) {
+    const { appSettings = {} } = usePage().props;
+    const waNumber = appSettings.whatsapp_number || '628980598327';
+    const waLink = `https://wa.me/${waNumber}`;
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const headerRef = useRef(null);
 
@@ -301,7 +304,7 @@ export default function Branches({ branches, auth }) {
 
                                     {/* WhatsApp link */}
                                     <a
-                                        href="https://wa.me/628980598327"
+                                        href={waLink}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center justify-center gap-2 text-xs text-slate-500 hover:text-[#2d6a4f] font-semibold transition-colors pt-1"
@@ -326,7 +329,7 @@ export default function Branches({ branches, auth }) {
                             <div className="p-7 text-center space-y-3">
                                 <h2 className="text-xl font-extrabold text-slate-500" style={{ fontFamily: "'Playfair Display', serif" }}>Cabang Baru</h2>
                                 <p className="text-sm text-slate-500 leading-relaxed max-w-xs mx-auto">Kami sedang menyiapkan lokasi baru dengan fasilitas lebih modern dan area yang lebih luas.</p>
-                                <a href="https://wa.me/628980598327" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-2 text-xs font-bold text-gold hover:text-[#8a6914] transition-colors">
+                                <a href={waLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-2 text-xs font-bold text-gold hover:text-[#8a6914] transition-colors">
                                     Daftarkan Minat →
                                 </a>
                             </div>
