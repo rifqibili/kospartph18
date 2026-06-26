@@ -36,6 +36,8 @@ Route::middleware(['auth'])->group(function () {
     
     // Fetch Dashboard Stats & Notifications
     Route::get('/api/dashboard/data', [DashboardController::class, 'index']);
+    // Endpoint ringan hanya untuk polling notifikasi (dipakai setiap 30 detik dari frontend)
+    Route::get('/api/dashboard/ping', [DashboardController::class, 'ping']);
     
     // Profile Management
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -15,12 +15,18 @@ class CanteenOrderController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $query = CanteenOrder::with(['items.item', 'tenant.bookings.room', 'branch']);
 
-        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
-            $query->whereIn('branch_id', $user->assigned_branches);
-        } elseif (in_array($user->role, ['resident', 'karyawan'])) {
-            $query->where('tenant_id', $user->id);
+        // Kurangi eager loading berdasarkan role untuk efisiensi query
+        if (in_array($user->role, ['resident', 'karyawan'])) {
+            // Resident tidak perlu data tenant atau bookings kamar (sudah tahu diri sendiri)
+            $query = CanteenOrder::with(['items.item', 'branch'])
+                ->where('tenant_id', $user->id);
+        } else {
+            // Admin/operator perlu data tenant untuk tampilan panel pesanan aktif
+            $query = CanteenOrder::with(['items.item', 'tenant.bookings.room', 'branch']);
+            if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+                $query->whereIn('branch_id', $user->assigned_branches);
+            }
         }
 
         $orders = $query->orderBy('created_at', 'desc')->get();

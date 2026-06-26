@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\CanteenOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -62,26 +63,39 @@ class DashboardController extends Controller
             $complaintsQuery->where('tenant_id', $user->id);
         }
 
-        // Metrik umum
-        $totalRooms = $roomsQuery->count();
-        $occupiedRooms = (clone $roomsQuery)->where('status', 'occupied')->count();
-        $availableRooms = (clone $roomsQuery)->where('status', 'available')->count();
-        $maintenanceRooms = (clone $roomsQuery)->where('status', 'maintenance')->count();
-        $bookedRooms = (clone $roomsQuery)->where('status', 'booked')->count();
-        
-        $totalBranches = $branchesQuery->count();
-        $pendingComplaints = (clone $complaintsQuery)->where('status', 'pending')->count();
+        // Metrik umum — cached 60 detik untuk mengurangi query count
+        $cacheKey = 'dashboard_stats_' . $user->role . '_' . $user->id;
+        $cachedStats = Cache::remember($cacheKey, 60, function () use ($roomsQuery, $branchesQuery, $complaintsQuery, $user) {
+            $totalRooms       = $roomsQuery->count();
+            $occupiedRooms    = (clone $roomsQuery)->where('status', 'occupied')->count();
+            $availableRooms   = (clone $roomsQuery)->where('status', 'available')->count();
+            $maintenanceRooms = (clone $roomsQuery)->where('status', 'maintenance')->count();
+            $bookedRooms      = (clone $roomsQuery)->where('status', 'booked')->count();
+            $totalBranches    = $branchesQuery->count();
+            $pendingComplaints = (clone $complaintsQuery)->where('status', 'pending')->count();
 
-        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
-            $totalTenants = User::where('role', 'resident')
-                ->whereHas('bookings.room', function($q) use ($user) {
-                    $q->whereIn('branch_id', $user->assigned_branches);
-                })->count();
-        } elseif (in_array($user->role, ['resident', 'karyawan'])) {
-            $totalTenants = 0;
-        } else {
-            $totalTenants = User::where('role', 'resident')->count();
-        }
+            if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+                $totalTenants = User::where('role', 'resident')
+                    ->whereHas('bookings.room', function($q) use ($user) {
+                        $q->whereIn('branch_id', $user->assigned_branches);
+                    })->count();
+            } elseif (in_array($user->role, ['resident', 'karyawan'])) {
+                $totalTenants = 0;
+            } else {
+                $totalTenants = User::where('role', 'resident')->count();
+            }
+
+            return compact('totalRooms', 'occupiedRooms', 'availableRooms', 'maintenanceRooms', 'bookedRooms', 'totalBranches', 'pendingComplaints', 'totalTenants');
+        });
+
+        $totalRooms       = $cachedStats['totalRooms'];
+        $occupiedRooms    = $cachedStats['occupiedRooms'];
+        $availableRooms   = $cachedStats['availableRooms'];
+        $maintenanceRooms = $cachedStats['maintenanceRooms'];
+        $bookedRooms      = $cachedStats['bookedRooms'];
+        $totalBranches    = $cachedStats['totalBranches'];
+        $pendingComplaints = $cachedStats['pendingComplaints'];
+        $totalTenants     = $cachedStats['totalTenants'];
 
         // Keuangan bulan ini
         $incomeThisMonth = 0;
@@ -373,6 +387,124 @@ class DashboardController extends Controller
                 'role' => $user->role,
                 'phone' => $user->phone,
             ]
+        ]);
+    }
+
+    /**
+     * Endpoint ringan untuk polling notifikasi saja (dipanggil setiap 30 detik).
+     * Jauh lebih cepat dari /api/dashboard/data karena tidak load semua metrik.
+     */
+    public function ping()
+    {
+        $user = Auth::user();
+
+        // Hanya jalankan query notifikasi, skip query metrik berat
+        $bookingsQuery  = Booking::with(['tenant', 'room.branch'])->where('otp_verified', true);
+        $complaintsQuery = Complaint::with(['tenant', 'room.branch']);
+
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            $bookingsQuery->whereHas('room', function($q) use ($user) {
+                $q->whereIn('branch_id', $user->assigned_branches);
+            });
+            $complaintsQuery->whereHas('room', function($q) use ($user) {
+                $q->whereIn('branch_id', $user->assigned_branches);
+            });
+        } elseif ($user->role === 'resident') {
+            $bookingsQuery->where('tenant_id', $user->id);
+            $complaintsQuery->where('tenant_id', $user->id);
+        }
+
+        // Notifikasi — query sederhana hanya yang diperlukan
+        $notifications = [];
+
+        // Unverified payments
+        $unverifiedPayments = Booking::with(['tenant', 'room.branch'])
+            ->where('otp_verified', true)
+            ->where('unverified_amount', '>', 0)
+            ->when($user->role === 'operator' && is_array($user->assigned_branches), function($q) use ($user) {
+                $q->whereHas('room', fn($r) => $r->whereIn('branch_id', $user->assigned_branches));
+            })
+            ->get();
+
+        foreach ($unverifiedPayments as $b) {
+            $notifications[] = [
+                'id'        => 'payment-' . $b->id,
+                'type'      => 'payment_unverified',
+                'title'     => 'Pembayaran Menunggu Verifikasi',
+                'message'   => $user->role === 'resident'
+                    ? 'Bukti pembayaran Anda untuk Kamar ' . $b->room->room_number . ' sedang menunggu verifikasi.'
+                    : 'Bukti pembayaran dari ' . $b->tenant->name . ' (Kamar ' . $b->room->room_number . ') menunggu verifikasi.',
+                'meta'      => ['booking_id' => $b->id],
+                'timestamp' => $b->updated_at->toIso8601String(),
+            ];
+        }
+
+        // Canteen alerts (admin only)
+        if (in_array($user->role, ['super_admin', 'operator'])) {
+            // Booking kamar baru (online) yang menunggu konfirmasi
+            $newBookings = Booking::with(['tenant', 'room.branch'])
+                ->where('otp_verified', true)
+                ->where('status', 'pending')
+                ->where('unverified_amount', 0)
+                ->when($user->role === 'operator' && is_array($user->assigned_branches), function($q) use ($user) {
+                    $q->whereHas('room', fn($r) => $r->whereIn('branch_id', $user->assigned_branches));
+                })
+                ->get();
+
+            foreach ($newBookings as $b) {
+                $notifications[] = [
+                    'id'        => 'new-booking-' . $b->id,
+                    'type'      => 'new_booking',
+                    'title'     => 'Pemesanan Kamar Baru',
+                    'message'   => 'Pesanan Kamar ' . $b->room->room_number . ' (' . $b->tenant->name . ') baru masuk dan butuh konfirmasi.',
+                    'meta'      => ['booking_id' => $b->id],
+                    'timestamp' => $b->updated_at->toIso8601String(),
+                ];
+            }
+
+            $canteenAlerts = CanteenOrder::with(['tenant', 'branch'])
+                ->where(function($q) {
+                    $q->whereIn('status', ['pending_approval'])
+                      ->orWhere('payment_status', 'pending');
+                })
+                ->when($user->role === 'operator' && is_array($user->assigned_branches), function($q) use ($user) {
+                    $q->whereIn('branch_id', $user->assigned_branches);
+                })
+                ->get();
+
+            foreach ($canteenAlerts as $c) {
+                $notifications[] = [
+                    'id'        => 'canteen-admin-' . $c->id,
+                    'type'      => 'canteen_admin',
+                    'title'     => $c->status === 'pending_approval' ? 'Pesanan Kantin Baru' : 'Verifikasi Pembayaran Kantin',
+                    'message'   => $c->status === 'pending_approval'
+                        ? 'Ada pesanan kantin baru dari ' . ($c->tenant->name ?? 'Penghuni') . ' menunggu diproses.'
+                        : 'Pembayaran kantin dari ' . ($c->tenant->name ?? 'Penghuni') . ' menunggu verifikasi.',
+                    'meta'      => ['order_id' => $c->id],
+                    'timestamp' => $c->updated_at->toIso8601String(),
+                ];
+            }
+        }
+
+        // Canteen ready for resident
+        if (in_array($user->role, ['resident', 'karyawan'])) {
+            $readyOrders = CanteenOrder::where('tenant_id', $user->id)->where('status', 'ready')->get();
+            foreach ($readyOrders as $c) {
+                $notifications[] = [
+                    'id'        => 'canteen-ready-' . $c->id,
+                    'type'      => 'canteen_ready',
+                    'title'     => 'Pesanan Siap! 🍜',
+                    'message'   => 'Pesanan kantin Anda (' . $c->order_code . ') sudah siap.',
+                    'meta'      => ['order_id' => $c->id],
+                    'timestamp' => $c->updated_at->toIso8601String(),
+                ];
+            }
+        }
+
+        usort($notifications, fn($a, $b) => strtotime($b['timestamp']) - strtotime($a['timestamp']));
+
+        return response()->json([
+            'notifications' => $notifications,
         ]);
     }
 }

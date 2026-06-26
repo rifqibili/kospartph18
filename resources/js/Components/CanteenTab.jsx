@@ -417,23 +417,33 @@ export default function CanteenTab({
                         <div className="space-y-4">
                             {filteredOrders.filter(o => !['completed', 'cancelled'].includes(o.status)).map(order => (
                                 <div key={order.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <span className="font-bold text-slate-800">{order.order_code}</span>
-                                            <span className="ml-2 text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">{order.tenant?.name || order.customer_name || 'Pelanggan'}</span>
+                                    <div className="flex justify-between items-start mb-3 gap-2">
+                                        <div className="flex flex-wrap gap-1.5 items-center flex-1">
+                                            <span className="font-bold text-slate-800 text-sm">{order.order_code}</span>
+                                            <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full whitespace-nowrap">{order.tenant?.name || order.customer_name || 'Pelanggan'}</span>
                                             {order.tenant?.bookings?.[0]?.room?.room_number && (
-                                                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">Kamar {order.tenant.bookings[0].room.room_number}</span>
+                                                <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold whitespace-nowrap">Kamar {order.tenant.bookings[0].room.room_number}</span>
                                             )}
                                         </div>
-                                        <div className="text-right">
-                                            <div className="font-bold text-emerald-600">{formatCurrency(order.total_amount)}</div>
-                                            <div className="text-[10px] text-slate-500 font-bold uppercase">{order.payment_method}</div>
+                                        <div className="text-right shrink-0">
+                                            <div className="font-bold text-emerald-600 mb-1">{formatCurrency(order.total_amount)}</div>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <div className="text-[9px] bg-slate-100 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase whitespace-nowrap">{order.payment_method}</div>
+                                                <div className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase whitespace-nowrap ${order.delivery_method === 'delivery' ? 'bg-indigo-50 border border-indigo-200 text-indigo-700' : 'bg-orange-50 border border-orange-200 text-orange-700'}`}>
+                                                    {order.delivery_method === 'delivery' ? 'Diantar Ke Kamar' : 'Ambil Sendiri'}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="text-xs text-slate-600 mb-3 space-y-1">
                                         {order.items.map(oi => (
                                             <div key={oi.id}>- {oi.quantity}x {oi.item?.name}</div>
                                         ))}
+                                        {order.notes && (
+                                            <div className="mt-2 p-2 bg-amber-50 rounded-lg border border-amber-100 text-amber-800 italic">
+                                                Catatan: {order.notes}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-200">
                                         {order.status === 'pending_approval' && (
@@ -1151,7 +1161,7 @@ export default function CanteenTab({
             {/* Checkout Modal */}
             {checkoutModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+                    <div className="bg-white rounded-3xl p-5 sm:p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
                         <h3 className="font-extrabold text-2xl text-slate-800 mb-6">Selesaikan Pesanan</h3>
                         <form onSubmit={handleCheckout} className="space-y-5">
                             <div>
@@ -1170,11 +1180,21 @@ export default function CanteenTab({
                             
                             <div>
                                 <label className="text-xs font-semibold text-slate-500 mb-2 block">Metode Pembayaran</label>
-                                <select required value={checkoutData.payment_method} onChange={e => setCheckoutData({...checkoutData, payment_method: e.target.value})} className="glass-input rounded-xl px-4 py-3 text-sm w-full font-bold">
-                                    <option value="qris">QRIS</option>
-                                    <option value="cash">Bayar Tunai</option>
-                                    <option value="debt">Catat Dulu (Kasbon)</option>
-                                </select>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <label className={`cursor-pointer border p-3 rounded-xl text-center font-bold text-sm transition-all ${checkoutData.payment_method === 'qris' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-200 text-slate-600 hover:border-emerald-200 hover:bg-slate-50'}`}>
+                                        <input type="radio" name="payment_method" value="qris" className="hidden" checked={checkoutData.payment_method === 'qris'} onChange={() => setCheckoutData({...checkoutData, payment_method: 'qris'})} />
+                                        QRIS
+                                    </label>
+                                    <label className={`cursor-pointer border p-3 rounded-xl text-center font-bold text-sm transition-all flex flex-col justify-center ${checkoutData.payment_method === 'cash' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-200 text-slate-600 hover:border-emerald-200 hover:bg-slate-50'}`}>
+                                        <input type="radio" name="payment_method" value="cash" className="hidden" checked={checkoutData.payment_method === 'cash'} onChange={() => setCheckoutData({...checkoutData, payment_method: 'cash'})} />
+                                        <span>Bayar Tunai</span>
+                                    </label>
+                                    <label className={`cursor-pointer border p-3 rounded-xl text-center font-bold text-sm transition-all flex flex-col justify-center ${checkoutData.payment_method === 'debt' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-200 text-slate-600 hover:border-emerald-200 hover:bg-slate-50'}`}>
+                                        <input type="radio" name="payment_method" value="debt" className="hidden" checked={checkoutData.payment_method === 'debt'} onChange={() => setCheckoutData({...checkoutData, payment_method: 'debt'})} />
+                                        <span>Catat Dulu</span>
+                                        <span className="text-[10px] font-semibold opacity-70">(Kasbon)</span>
+                                    </label>
+                                </div>
                             </div>
 
                             {checkoutData.payment_method === 'qris' && (
@@ -1190,12 +1210,7 @@ export default function CanteenTab({
                                             <button aria-label="Action Button" type="button" onClick={() => setPaymentProof(null)} className="absolute top-2 right-2 bg-rose-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-100 transition-opacity shadow-md">&times;</button>
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <label className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-emerald-200 border-dashed rounded-xl bg-emerald-50 hover:bg-emerald-100 cursor-pointer transition-colors text-emerald-700 hover:border-emerald-400">
-                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                                <span className="text-[10px] font-bold text-center leading-tight">Buka Kamera</span>
-                                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { if(e.target.files[0]) setPaymentProof(e.target.files[0]) }} />
-                                            </label>
+                                        <div className="mt-1">
                                             <label className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-emerald-200/50 border-dashed rounded-xl bg-white hover:bg-slate-50 cursor-pointer transition-colors text-slate-500 hover:text-blue-600 hover:border-blue-300">
                                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                                                 <span className="text-[10px] font-bold text-center leading-tight">Pilih Galeri</span>
@@ -1223,7 +1238,7 @@ export default function CanteenTab({
             {/* Pay Debt Modal */}
             {showPayDebtModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+                    <div className="bg-white rounded-3xl p-5 sm:p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
                         <h3 className="font-extrabold text-2xl text-slate-800 mb-2">Lunasi Kasbon Kantin</h3>
                         <p className="text-sm text-slate-500 mb-6">Total Tagihan: <span className="font-bold text-slate-800">{formatCurrency(showPayDebtModal.total_amount)}</span></p>
                         

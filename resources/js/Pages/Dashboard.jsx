@@ -126,6 +126,8 @@ export default function Dashboard() {
     const [canteenItems, setCanteenItems] = useState([]);
     const [canteenOrders, setCanteenOrders] = useState([]);
     const [canteenCart, setCanteenCart] = useState([]);
+    // Track which tabs have already loaded their data (lazy loading per tab)
+    const [tabDataLoaded, setTabDataLoaded] = useState({});
     
     // Modal & Action states
     const [showInvoiceModal, setShowInvoiceModal] = useState(null);
@@ -141,6 +143,25 @@ export default function Dashboard() {
     const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
     const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: '', onConfirm: null });
     const showConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
+
+    // Helper untuk memformat deskripsi bagi penghuni (agar Pendapatan Kantin tidak membingungkan)
+    const formatResidentDescription = (f) => {
+        if (!f) return '';
+        let desc = f.description || '';
+        if (currentRole === 'resident' && desc && desc.startsWith('Pendapatan kantin dari')) {
+            const match = desc.match(/ - (KTN-[a-zA-Z0-9]+)$/);
+            if (match && match[1] && Array.isArray(canteenOrders)) {
+                const orderCode = match[1];
+                const order = canteenOrders.find(o => o.order_code === orderCode);
+                if (order && order.items && order.items.length > 0) {
+                    const itemNames = order.items.map(oi => oi.item?.name || 'Item').join(', ');
+                    return `Pesanan Kantin - ${itemNames}`;
+                }
+            }
+            return desc.replace(/^Pendapatan kantin dari [^-]+ - /, 'Pesanan Kantin - ');
+        }
+        return desc;
+    };
 
     // Payment modal for tenant
     const [showPaymentModal, setShowPaymentModal] = useState(null);
@@ -172,6 +193,15 @@ export default function Dashboard() {
         setFinanceSearch('');
         setTenantPaymentSearch('');
         setRoomStatusFilter('all');
+    }, [activeTab]);
+
+    // Lazy load: muat data tab yang belum pernah dimuat (dipicu setiap kali tab berubah)
+    useEffect(() => {
+        const tabsWithData = ['bookings', 'finances', 'complaints'];
+        if (tabsWithData.includes(activeTab)) {
+            loadTabData(activeTab);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
     const [isMobileNavVisible, setIsMobileNavVisible] = useState(true);
@@ -291,40 +321,32 @@ export default function Dashboard() {
     const chartRef = useRef(null);
     const chartInstance = useRef(null);
 
-    // Custom ringtone for incoming payments (Pembayaran Masuk)
-    const playNotificationSound = () => {
+    // Helper: putar file audio tertentu (loop sampai di-stop)
+    const playAudioFile = (filePath) => {
         if (currentRole === 'resident') return;
-        if (window.canteenAudioObj || window.canteenSoundInterval) return; // Already playing
-
+        if (window.canteenAudioObj || window.canteenSoundInterval) return; // Sudah ada yang berbunyi
         setIsCanteenRingtonePlaying(true);
         try {
-            const audio = new Audio('/audio/pembayaran_masuk.mp3');
-            audio.loop = true; // Terus berdering sampai dihentikan
+            const audio = new Audio(filePath);
+            audio.loop = true;
             audio.play().catch(e => console.error('Autoplay blocked by browser', e));
             window.canteenAudioObj = audio;
         } catch(e) {
-            console.error('Failed to play MP3 notification', e);
+            console.error('Failed to play audio:', filePath, e);
         }
     };
 
-    const [isCanteenRingtonePlaying, setIsCanteenRingtonePlaying] = useState(false);
+    // Suara: Pembayaran sewa kamar (bukti bayar diunggah penghuni)
+    const playSewaSound = () => playAudioFile('/audio/Pembayaran Sewa Kamar.mp3');
 
-    // Specific ringtone for canteen orders (Ting-Ting! bell sound)
-    const playCanteenRingtone = () => {
-        if (currentRole === 'resident') return; // Matikan suara untuk penyewa
-        if (window.canteenAudioObj || window.canteenSoundInterval) return; // Already playing
+    // Suara: Booking kamar baru dari tamu online
+    const playBookingSound = () => playAudioFile('/audio/Pembayaran Booking Kamar Online.mp3');
 
-        setIsCanteenRingtonePlaying(true);
+    // Suara: Pembayaran kantin masuk (QRIS/cash pending)
+    const playCanteenPaymentSound = () => playAudioFile('/audio/pembayaran_masuk.mp3');
 
-        try {
-            const audio = new Audio('/audio/pesanan_masuk_voice.mp3');
-            audio.loop = true; // Terus berdering sampai dihentikan
-            audio.play().catch(e => console.error('Autoplay blocked by browser', e));
-            window.canteenAudioObj = audio;
-        } catch(e) {
-            console.error('Failed to play MP3 audio', e);
-        }
-    };
+    // Suara: Pesanan kantin baru masuk (ting-ting!)
+    const playCanteenRingtone = () => playAudioFile('/audio/pesanan_masuk_voice.mp3');
 
     const stopCanteenRingtone = () => {
         if (window.canteenSoundInterval) {
@@ -394,26 +416,24 @@ export default function Dashboard() {
         prevNotifsRef.current = notifications;
     }, [notifications]);
 
-    // Load DB Data (parallel fetches)
+    // Load DB Data — hanya data yang diperlukan untuk initial load
     const loadAllData = async () => {
         try {
-            const [statsRes, branchesRes, roomsRes, bookingsRes, complaintsRes, financesRes, canteenItemsRes, canteenOrdersRes] = await Promise.all([
+            // Paralel fetch hanya data yang dibutuhkan di awal:
+            // stats/notif, branches, rooms, dan canteen (selalu dibutuhkan)
+            const initialFetches = [
                 authFetch('/api/dashboard/data'),
                 authFetch('/api/branches'),
                 authFetch('/api/rooms'),
-                authFetch('/api/bookings'),
-                authFetch('/api/complaints'),
-                authFetch('/api/finances'),
                 authFetch('/api/canteen-items'),
                 authFetch('/api/canteen-orders'),
-            ]);
-            
-            const statsData      = await statsRes.json();
-            const branchesData   = await branchesRes.json();
-            const roomsData      = await roomsRes.json();
-            const bookingsData   = await bookingsRes.json();
-            const complaintsData = await complaintsRes.json();
-            const financesData   = await financesRes.json();
+            ];
+
+            const [statsRes, branchesRes, roomsRes, canteenItemsRes, canteenOrdersRes] = await Promise.all(initialFetches);
+
+            const statsData        = await statsRes.json();
+            const branchesData     = await branchesRes.json();
+            const roomsData        = await roomsRes.json();
             const canteenItemsData = await canteenItemsRes.json();
             const canteenOrdersData = await canteenOrdersRes.json();
 
@@ -422,27 +442,71 @@ export default function Dashboard() {
             setRecentBookings(statsData.recentBookings || []);
             setBranches(Array.isArray(branchesData) ? branchesData : []);
             setRooms(Array.isArray(roomsData) ? roomsData : []);
-            setBookings(Array.isArray(bookingsData) ? bookingsData : []);
-            setComplaints(Array.isArray(complaintsData) ? complaintsData : []);
-            setFinances(Array.isArray(financesData) ? financesData : []);
             setCanteenItems(Array.isArray(canteenItemsData) ? canteenItemsData : []);
             setCanteenOrders(Array.isArray(canteenOrdersData) ? canteenOrdersData : []);
             prevCanteenOrdersRef.current = Array.isArray(canteenOrdersData) ? canteenOrdersData : [];
+
+            // Tandai tab awal sudah dimuat
+            setTabDataLoaded(prev => ({ ...prev, overview: true, canteen: true }));
+
+            // Untuk resident, langsung pre-load data bookings & finances karena
+            // dibutuhkan di tab "Riwayat Pembayaran" (overview/bookings)
+            if (currentRole === 'resident') {
+                const [bookingsRes, financesRes] = await Promise.all([
+                    authFetch('/api/bookings'),
+                    authFetch('/api/finances'),
+                ]);
+                const bookingsData = await bookingsRes.json();
+                const financesData = await financesRes.json();
+                setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+                setFinances(Array.isArray(financesData) ? financesData : []);
+                setTabDataLoaded(prev => ({ ...prev, bookings: true, finances: true }));
+            }
         } catch (err) {
             console.error('Error loading data', err);
         } finally {
-            setIsPageLoading(false); // Always hide skeleton after fetch (success or error)
+            setIsPageLoading(false);
+        }
+    };
+
+    // Lazy load data untuk tab tertentu (dipanggil saat tab diklik pertama kali)
+    const loadTabData = async (tab) => {
+        if (tabDataLoaded[tab]) return; // Skip jika sudah pernah dimuat
+        try {
+            if (tab === 'bookings') {
+                const [bookingsRes, complaintsRes] = await Promise.all([
+                    authFetch('/api/bookings'),
+                    authFetch('/api/complaints'),
+                ]);
+                const bookingsData   = await bookingsRes.json();
+                const complaintsData = await complaintsRes.json();
+                setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+                setComplaints(Array.isArray(complaintsData) ? complaintsData : []);
+            } else if (tab === 'finances') {
+                const financesRes  = await authFetch('/api/finances');
+                const financesData = await financesRes.json();
+                setFinances(Array.isArray(financesData) ? financesData : []);
+            } else if (tab === 'complaints') {
+                const complaintsRes  = await authFetch('/api/complaints');
+                const complaintsData = await complaintsRes.json();
+                setComplaints(Array.isArray(complaintsData) ? complaintsData : []);
+            } else if (tab === 'rooms') {
+                // rooms sudah dimuat di initial load, tidak perlu fetch ulang
+            }
+            setTabDataLoaded(prev => ({ ...prev, [tab]: true }));
+        } catch (err) {
+            console.error('Error loading tab data for', tab, err);
         }
     };
 
     const prevCanteenOrdersRef = useRef([]);
 
-    // Background polling for notifications every 10s
+    // Background polling untuk notifikasi setiap 30 detik
+    // Menggunakan endpoint /ping yang JAUH lebih ringan daripada /api/dashboard/data
     const loadNotificationsOnly = async () => {
         try {
-            const res  = await authFetch('/api/dashboard/data');
+            const res  = await authFetch('/api/dashboard/ping');
             const data = await res.json();
-            setStats(data.stats || {});
             const freshNotifs = data.notifications || [];
             setNotifications(freshNotifs);
             
@@ -451,13 +515,22 @@ export default function Dashboard() {
                 const newNotifs = freshNotifs.filter(n => !prevNotifsRef.current.find(p => p.id === n.id));
                 
                 if (newNotifs.length > 0) {
-                    const hasNewCanteenOrder = newNotifs.some(n => (n.type === 'canteen_admin' && n.title === 'Pesanan Kantin Baru') || n.type === 'canteen_ready');
-                    const hasNewPayment = newNotifs.some(n => n.type === 'payment_unverified' || n.type === 'new_booking');
+                    const hasNewCanteenOrder   = newNotifs.some(n => (n.type === 'canteen_admin' && n.title === 'Pesanan Kantin Baru') || n.type === 'canteen_ready');
+                    const hasNewCanteenPayment = newNotifs.some(n => n.type === 'canteen_admin' && n.title === 'Verifikasi Pembayaran Kantin');
+                    const hasNewBooking        = newNotifs.some(n => n.type === 'new_booking');
+                    const hasNewPayment        = newNotifs.some(n => n.type === 'payment_unverified');
                     
                     if (hasNewCanteenOrder) {
                         playCanteenRingtone();
-                    } else if (hasNewPayment) {
-                        playNotificationSound();
+                    }
+                    if (hasNewBooking) {
+                        playBookingSound();
+                    }
+                    if (hasNewPayment) {
+                        playSewaSound();
+                    }
+                    if (hasNewCanteenPayment) {
+                        playCanteenPaymentSound();
                     }
                     
                     // Tampilkan toast untuk notifikasi baru
@@ -479,16 +552,14 @@ export default function Dashboard() {
                     });
                 }
             }
-            // Tandai bahwa data awal sudah dimuat
             if (isFirstLoadRef.current) isFirstLoadRef.current = false;
-            
-            // Fetch canteen orders for real-time updates
+
+            // Untuk admin/operator: juga refresh canteen orders setiap polling
             if (['super_admin', 'operator'].includes(currentRole)) {
                 const canteenRes = await authFetch('/api/canteen-orders');
                 const canteenData = await canteenRes.json();
                 
-                // Cek pesanan baru (hanya hitung yang masih aktif, abaikan yang otomatis completed/cancelled)
-                const activeOrdersNow = canteenData.filter(o => !['completed', 'cancelled'].includes(o.status));
+                const activeOrdersNow  = canteenData.filter(o => !['completed', 'cancelled'].includes(o.status));
                 const activeOrdersPrev = prevCanteenOrdersRef.current.filter(o => !['completed', 'cancelled'].includes(o.status));
                 
                 if (prevCanteenOrdersRef.current.length > 0 && activeOrdersNow.length > activeOrdersPrev.length) {
@@ -2002,11 +2073,11 @@ export default function Dashboard() {
                                                                         <div className="flex items-start justify-between gap-2">
                                                                             <div className="min-w-0 flex-1">
                                                                                 <p className="text-xs font-bold text-slate-800">Rp {parseFloat(f.amount).toLocaleString('id-ID')}</p>
-                                                                                <p className="text-[10px] text-slate-500 mt-0.5 truncate">{f.description}</p>
+                                                                                <p className="text-[10px] text-slate-500 mt-0.5 truncate">{formatResidentDescription(f)}</p>
                                                                                 <p className="text-[10px] text-slate-500 mt-0.5 font-mono">{new Date(f.transaction_date).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'})}</p>
                                                                             </div>
                                                                             <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${isIncome ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                                                                {isIncome ? 'Sewa' : 'Pengeluaran'}
+                                                                                {f.category === 'pendapatan_kantin' ? 'Kantin' : (isIncome ? 'Sewa' : 'Pengeluaran')}
                                                                             </span>
                                                                         </div>
                                                                     </div>
@@ -2902,8 +2973,9 @@ export default function Dashboard() {
                                     const visibleTenantPayments = myFinances.filter(f => {
                                         if (!tenantPaymentSearch) return true;
                                         const q = tenantPaymentSearch.toLowerCase();
+                                        const desc = formatResidentDescription(f) || '';
                                         return (
-                                            (f.description && f.description.toLowerCase().includes(q)) ||
+                                            desc.toLowerCase().includes(q) ||
                                             (f.booking?.room?.room_number && String(f.booking.room.room_number).toLowerCase().includes(q))
                                         );
                                     });
@@ -2919,7 +2991,7 @@ export default function Dashboard() {
                                                             return [
                                                                 new Date(f.transaction_date).toLocaleDateString('id-ID'),
                                                                 `Kamar ${f.booking?.room?.room_number || '-'}`,
-                                                                f.description,
+                                                                formatResidentDescription(f),
                                                                 formattedAmount
                                                             ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(';');
                                                         });
@@ -2969,7 +3041,7 @@ export default function Dashboard() {
                                                         <td className="p-4 font-semibold text-slate-700">
                                                             Kamar {f.booking?.room?.room_number || '-'}
                                                         </td>
-                                                        <td className="p-4 font-semibold text-slate-800">{f.description}</td>
+                                                        <td className="p-4 font-semibold text-slate-800">{formatResidentDescription(f)}</td>
                                                         <td className="p-4 pr-6 text-right font-mono font-bold text-emerald-600">
                                                             Rp {parseFloat(f.amount).toLocaleString('id-ID')}
                                                         </td>
