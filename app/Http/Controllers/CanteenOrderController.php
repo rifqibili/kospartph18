@@ -95,6 +95,7 @@ class CanteenOrderController extends Controller
             if ($request->payment_method === 'debt') {
                 $existingDebt = CanteenOrder::where('tenant_id', $user->id)
                     ->where('payment_status', 'debt_unpaid')
+                    ->where('status', '!=', 'cancelled')
                     ->sum('total_amount');
                 if ($existingDebt + $totalAmount > 250000) {
                     throw new \Exception("MAAF, TRANSAKSI DITOLAK! Batas maksimal kasbon adalah Rp 250.000. Total kasbon Anda saat ini: Rp " . number_format($existingDebt, 0, ',', '.') . ". Pesanan baru: Rp " . number_format($totalAmount, 0, ',', '.') . ". Silakan lunasi kasbon terlebih dahulu.");
@@ -170,6 +171,26 @@ class CanteenOrderController extends Controller
             'status' => 'required|string|in:pending_approval,processing,ready,completed,cancelled'
         ]);
 
+        if ($request->status === 'completed' && $order->status !== 'completed') {
+            if ($order->payment_status === 'pending') {
+                if ($order->tenant_id) {
+                    $existingDebt = CanteenOrder::where('tenant_id', $order->tenant_id)
+                        ->where('payment_status', 'debt_unpaid')
+                        ->where('status', '!=', 'cancelled')
+                        ->sum('total_amount');
+                        
+                    if ($existingDebt + $order->total_amount > 250000) {
+                        return response()->json(['message' => 'Gagal: Pesanan tidak bisa otomatis dijadikan Kasbon karena melebihi batas Rp 250.000. Total kasbon saat ini: Rp ' . number_format($existingDebt, 0, ',', '.') . '. Total pesanan: Rp ' . number_format($order->total_amount, 0, ',', '.') . '.'], 400);
+                    }
+                    
+                    $order->payment_status = 'debt_unpaid';
+                    $order->payment_method = 'debt';
+                } else {
+                    return response()->json(['message' => 'Gagal: Pembeli BUKAN PENGHUNI tidak diizinkan Kasbon. Pastikan Anda sudah menerima pembayaran tunai lalu ubah status menjadi Lunas.'], 400);
+                }
+            }
+        }
+
         if ($request->status === 'cancelled' && $order->status !== 'cancelled') {
             // Restore stock
             foreach ($order->items as $oi) {
@@ -234,6 +255,7 @@ class CanteenOrderController extends Controller
             
             $existingDebt = CanteenOrder::where('tenant_id', $order->tenant_id)
                 ->where('payment_status', 'debt_unpaid')
+                ->where('status', '!=', 'cancelled')
                 ->sum('total_amount');
                 
             if ($existingDebt + $order->total_amount > 250000) {
@@ -345,6 +367,7 @@ class CanteenOrderController extends Controller
         // Update all unpaid debts for this tenant
         $updated = CanteenOrder::where('tenant_id', $user->id)
             ->where('payment_status', 'debt_unpaid')
+            ->where('status', '!=', 'cancelled')
             ->update([
                 'payment_proof' => $path,
                 'payment_method' => $request->payment_method, // 'qris' or 'cash'
@@ -423,6 +446,7 @@ class CanteenOrderController extends Controller
             if ($request->payment_method === 'debt' && $request->tenant_id) {
                 $existingDebt = CanteenOrder::where('tenant_id', $request->tenant_id)
                     ->where('payment_status', 'debt_unpaid')
+                    ->where('status', '!=', 'cancelled')
                     ->sum('total_amount');
                 if ($existingDebt + $totalAmount > 250000) {
                     throw new \Exception("MAAF, TRANSAKSI DITOLAK! Batas maksimal kasbon penghuni adalah Rp 250.000. Total kasbon saat ini: Rp " . number_format($existingDebt, 0, ',', '.') . ". Pesanan baru: Rp " . number_format($totalAmount, 0, ',', '.') . ". Silakan minta penghuni melunasi kasbon terlebih dahulu.");
@@ -508,7 +532,7 @@ class CanteenOrderController extends Controller
 
         $branchId = $request->branch_id;
         
-        $query = CanteenOrder::with('tenant')->where('payment_status', 'debt_unpaid');
+        $query = CanteenOrder::with('tenant')->where('payment_status', 'debt_unpaid')->where('status', '!=', 'cancelled');
         
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
             $query->whereIn('branch_id', $user->assigned_branches);

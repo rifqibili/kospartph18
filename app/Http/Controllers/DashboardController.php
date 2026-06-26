@@ -171,7 +171,8 @@ class DashboardController extends Controller
             ->where('status', 'ready');
             
         $canteenTenantDebtQuery = CanteenOrder::with(['branch'])
-            ->where('payment_status', 'debt_unpaid');
+            ->where('payment_status', 'debt_unpaid')
+            ->where('status', '!=', 'cancelled');
 
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
             $unpaidPrevMonthBookingsQuery->whereHas('room', function($q) use ($user) {

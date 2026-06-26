@@ -36,6 +36,7 @@ export default function CanteenTab({
     const [tenantSearch, setTenantSearch] = useState('');
     const [paymentProof, setPaymentProof] = useState(null);
     const [showPayDebtModal, setShowPayDebtModal] = useState(null);
+    const [verifyOrderModal, setVerifyOrderModal] = useState(null);
     const [debtPaymentMethod, setDebtPaymentMethod] = useState('qris');
     const [selectedItemInfo, setSelectedItemInfo] = useState(null);
 
@@ -107,6 +108,9 @@ export default function CanteenTab({
         if (res.ok) {
             showToast('Status pesanan diperbarui.');
             loadAllData();
+        } else {
+            const data = await res.json();
+            showToast(data.message || 'Gagal memperbarui status.', 'error');
         }
     };
 
@@ -119,6 +123,10 @@ export default function CanteenTab({
         if (res.ok) {
             showToast('Status pembayaran diperbarui.');
             loadAllData();
+            setVerifyOrderModal(prev => prev?.id === id ? null : prev);
+        } else {
+            const data = await res.json();
+            showToast(data.message || 'Terjadi kesalahan.', 'error');
         }
     };
 
@@ -223,7 +231,7 @@ export default function CanteenTab({
     };
 
     const cartTotal = canteenCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const tenantDebt = canteenOrders.filter(o => o.payment_status === 'debt_unpaid' && o.tenant_id === auth.user.id).reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+    const tenantDebt = canteenOrders.filter(o => o.payment_status === 'debt_unpaid' && o.status !== 'cancelled' && o.tenant_id === auth.user.id).reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
 
     const handleCheckout = async (e) => {
         e.preventDefault();
@@ -348,6 +356,75 @@ export default function CanteenTab({
         </div>
     );
 
+    const verifyOrderModalUI = verifyOrderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-md" style={{ animation: 'fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 dark:border-slate-800 transform transition-all animate-in zoom-in-95 duration-200 flex flex-col max-h-full">
+                
+                {/* Header */}
+                <div className="px-6 pt-6 pb-4 flex justify-between items-start">
+                    <div>
+                        <h3 className="font-extrabold text-2xl text-slate-900 dark:text-white tracking-tight">Verifikasi Kasbon</h3>
+                        <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Order ID:</span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">{verifyOrderModal.order_code}</span>
+                        </div>
+                    </div>
+                    <button onClick={() => setVerifyOrderModal(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 p-2.5 rounded-full transition-all">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="px-6 pb-2 overflow-y-auto custom-scrollbar space-y-6">
+                    {/* Amount Card */}
+                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200/50 dark:border-amber-700/30 rounded-2xl p-5 flex flex-col justify-center items-center text-center relative overflow-hidden shadow-inner">
+                        <div className="absolute -right-6 -top-6 w-24 h-24 bg-amber-400/10 dark:bg-amber-500/10 rounded-full blur-xl"></div>
+                        <div className="absolute -left-6 -bottom-6 w-24 h-24 bg-orange-400/10 dark:bg-orange-500/10 rounded-full blur-xl"></div>
+                        <div className="font-bold text-amber-800/70 dark:text-amber-500 mb-1 relative z-10 text-sm">Total Tagihan Kasbon</div>
+                        <div className="font-outfit text-3xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight relative z-10">
+                            {formatCurrency(verifyOrderModal.total_amount)}
+                        </div>
+                    </div>
+                    
+                    {/* Proof Image */}
+                    <div className="space-y-2.5">
+                        <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block pl-1">Bukti Pembayaran</label>
+                        <div className="w-full h-56 bg-slate-50 dark:bg-slate-800/50 rounded-2xl ring-1 ring-slate-200/60 dark:ring-slate-700/50 overflow-hidden relative group flex items-center justify-center">
+                            {verifyOrderModal.payment_proof ? (
+                                <>
+                                    <a href={`/storage/${verifyOrderModal.payment_proof}`} target="_blank" rel="noopener noreferrer" className="w-full h-full flex items-center justify-center bg-slate-100/50 dark:bg-slate-900/50 p-2" title="Klik untuk melihat ukuran penuh">
+                                        <img loading="lazy" src={`/storage/${verifyOrderModal.payment_proof}`} alt="Bukti Kasbon" className="max-w-full max-h-full object-contain rounded-xl drop-shadow-sm group-hover:scale-[1.02] transition-transform duration-300" />
+                                    </a>
+                                    <div className="absolute bottom-3 right-3 bg-slate-900/70 backdrop-blur px-2.5 py-1.5 rounded-lg text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center gap-1.5 shadow-lg">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+                                        Perbesar
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-center text-slate-400 dark:text-slate-500 flex flex-col items-center">
+                                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-3 shadow-inner">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    </div>
+                                    <span className="text-xs font-bold uppercase tracking-wider">Tidak Ada Bukti</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="p-6 pt-4 flex gap-3 mt-auto">
+                    <button onClick={() => handleVerifyPayment(verifyOrderModal.id, 'debt_unpaid')} className="flex-1 py-3.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold rounded-xl text-sm border border-rose-200/50 dark:border-rose-500/20 transition-all active:scale-[0.98]">
+                        Tolak
+                    </button>
+                    <button onClick={() => handleVerifyPayment(verifyOrderModal.id, 'paid')} className="flex-[1.5] py-3.5 font-bold rounded-xl text-sm transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-emerald-500/25 dark:shadow-emerald-900/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] text-white">
+                        Setujui Pembayaran
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
     if (['super_admin', 'operator'].includes(currentRole)) {
         const filteredItems = canteenItems.filter(item => {
             const matchBranch = selectedBranchFilter === '' || Number(item.branch_id) === Number(selectedBranchFilter);
@@ -456,13 +533,10 @@ export default function CanteenTab({
                                             <button onClick={() => handleUpdateOrderStatus(order.id, 'completed')} className="px-3 py-1 bg-slate-800 dark:bg-slate-600 text-white text-xs font-bold rounded-lg">Selesai</button>
                                         )}
                                         {order.payment_status === 'pending' && order.payment_method !== 'cash' && (
-                                            <button onClick={() => handleVerifyPayment(order.id, 'paid')} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg border border-emerald-700">Verifikasi QRIS</button>
+                                            <button onClick={() => setVerifyOrderModal(order)} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg border border-emerald-700">Verifikasi QRIS</button>
                                         )}
                                         {order.payment_status === 'pending' && order.payment_method === 'cash' && (
                                             <button onClick={() => handleVerifyPayment(order.id, 'paid')} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg border border-emerald-700">Terima Uang Cash</button>
-                                        )}
-                                        {order.payment_proof && (
-                                            <a href={`/storage/${order.payment_proof}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg">Lihat Bukti QRIS</a>
                                         )}
                                         <button onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')} className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-lg">Batal</button>
                                     </div>
@@ -586,7 +660,7 @@ export default function CanteenTab({
                 </div>
 
                 {/* Admin Kasbon View */}
-                {filteredOrders.filter(o => o.payment_status === 'debt_unpaid' || (o.payment_status === 'pending' && o.status === 'completed')).length > 0 && (
+                {filteredOrders.filter(o => o.status !== 'cancelled' && (o.payment_status === 'debt_unpaid' || (o.payment_status === 'pending' && o.status === 'completed'))).length > 0 && (
                     <div className="glass-panel p-6 rounded-2xl border border-slate-200 mt-8">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                             <h4 className="font-bold text-lg text-slate-800 flex items-center gap-2">
@@ -595,7 +669,7 @@ export default function CanteenTab({
                             </h4>
                             <div className="flex flex-wrap gap-3 items-center w-full sm:w-auto justify-between sm:justify-end">
                                 <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-red-100 text-red-600">
-                                    Total: {formatCurrency(filteredOrders.filter(o => o.payment_status === 'debt_unpaid').reduce((a, b) => a + Number(b.total_amount), 0))}
+                                    Total: {formatCurrency(filteredOrders.filter(o => o.payment_status === 'debt_unpaid' && o.status !== 'cancelled').reduce((sum, o) => sum + Number(o.total_amount), 0))}
                                 </span>
                                 <button onClick={handleSendBulkReminders} className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold rounded-lg flex items-center gap-2 shadow-sm whitespace-nowrap">
                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -615,7 +689,7 @@ export default function CanteenTab({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredOrders.filter(o => o.payment_status === 'debt_unpaid' || (o.payment_status === 'pending' && o.status === 'completed')).map(order => (
+                                    {filteredOrders.filter(o => o.status !== 'cancelled' && (o.payment_status === 'debt_unpaid' || (o.payment_status === 'pending' && o.status === 'completed'))).map(order => (
                                         <tr key={order.id} className="">
                                             <td className="p-3">
                                                 <div className="font-bold text-slate-800">{order.tenant?.name || 'Unknown'}</div>
@@ -635,14 +709,8 @@ export default function CanteenTab({
                                                     <div className="flex flex-col items-end gap-2">
                                                         <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">Menunggu Verifikasi</span>
                                                         <div className="flex gap-2 justify-end mt-1">
-                                                            {order.payment_proof && (
-                                                                <a href={`/storage/${order.payment_proof}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg whitespace-nowrap hover:bg-blue-200">Lihat Bukti</a>
-                                                            )}
-                                                            <button onClick={() => handleVerifyPayment(order.id, 'debt_unpaid')} className="px-3 py-1 bg-red-100 text-red-600 text-xs font-bold rounded-lg whitespace-nowrap hover:bg-red-200">
-                                                                Batal / Tolak
-                                                            </button>
-                                                            <button onClick={() => handleVerifyPayment(order.id, 'paid')} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg whitespace-nowrap hover:bg-emerald-700">
-                                                                {order.payment_proof ? 'Verifikasi QRIS' : 'Terima Tunai'}
+                                                            <button onClick={() => setVerifyOrderModal(order)} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg whitespace-nowrap hover:bg-emerald-700">
+                                                                Verifikasi Kasbon
                                                             </button>
                                                         </div>
                                                     </div>
@@ -919,6 +987,7 @@ export default function CanteenTab({
                     </div>
                 )}
                 {limitWarningModalUI}
+                {verifyOrderModalUI}
             </div>
         );
     }
@@ -981,7 +1050,7 @@ export default function CanteenTab({
             </div>
 
             {(() => {
-                const activeOrDebtOrders = canteenOrders.filter(o => o.payment_status === 'debt_unpaid' || o.payment_status === 'pending' || (o.status !== 'completed' && o.status !== 'cancelled'));
+                const activeOrDebtOrders = canteenOrders.filter(o => o.status !== 'cancelled' && (o.payment_status === 'debt_unpaid' || o.payment_status === 'pending' || o.status !== 'completed'));
                 if (activeOrDebtOrders.length === 0) return null;
 
                 const debtOrders = activeOrDebtOrders.filter(o => o.payment_status === 'debt_unpaid');
@@ -1076,6 +1145,8 @@ export default function CanteenTab({
                     </div>
                 );
             })()}
+            {/* Verify Canteen Payment Modal */}
+            {verifyOrderModalUI}
         </>
     );
 

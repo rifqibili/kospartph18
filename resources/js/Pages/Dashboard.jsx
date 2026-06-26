@@ -128,6 +128,7 @@ export default function Dashboard() {
     const [canteenCart, setCanteenCart] = useState([]);
     // Track which tabs have already loaded their data (lazy loading per tab)
     const [tabDataLoaded, setTabDataLoaded] = useState({});
+    const [isCanteenRingtonePlaying, setIsCanteenRingtonePlaying] = useState(false);
     
     // Modal & Action states
     const [showInvoiceModal, setShowInvoiceModal] = useState(null);
@@ -1441,9 +1442,22 @@ export default function Dashboard() {
 
     const pendingComplaintsBadgeCount = visibleComplaints.filter(c => !['completed', 'ready'].includes(c.status)).length;
 
-    // Menghitung jumlah alert untuk Penyewaan/Sewa (semua notifikasi kecuali komplain)
-    const urgentSewaCount = visibleNotifications.filter(n => n.type !== 'new_complaint').length;
+    // Menghitung jumlah alert untuk Penyewaan/Sewa (semua notifikasi kecuali komplain dan kantin)
+    const urgentSewaCount = visibleNotifications.filter(n => n.type !== 'new_complaint' && !n.type.includes('canteen')).length;
+    const canteenBadgeCount = visibleNotifications.filter(n => n.type.includes('canteen')).length;
     const urgentNotifCount = visibleNotifications.filter(n => ['unpaid_bill', 'payment_rejected', 'rental_expiry', 'daily_checkout_today'].includes(n.type)).length;
+
+    const handleNotificationClick = (notif) => {
+        setShowNotifications(false);
+        const type = notif.type || '';
+        if (type.includes('canteen')) {
+            setActiveTab('canteen');
+        } else if (type.includes('complaint')) {
+            setActiveTab('complaints');
+        } else if (['unpaid_bill', 'payment_rejected', 'rental_expiry', 'daily_checkout_today', 'payment_unverified', 'new_booking'].includes(type)) {
+            setActiveTab('bookings');
+        }
+    };
 
     if (isPageLoading) {
         return (
@@ -1698,7 +1712,7 @@ export default function Dashboard() {
                                         </div>
                                     ) : (
                                         visibleNotifications.map((notif, idx) => (
-                                            <div key={idx} className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors text-xs">
+                                            <div key={idx} onClick={() => handleNotificationClick(notif)} className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors text-xs cursor-pointer">
                                                 <div className="flex gap-3">
                                                     <div className={`w-2 h-2 mt-1 rounded-full shrink-0 ${
                                                         ['unpaid_bill', 'payment_rejected', 'canteen_debt'].includes(notif.type) ? 'bg-red-500' :
@@ -2989,7 +3003,7 @@ export default function Dashboard() {
                                                         const csvData = visibleTenantPayments.map(f => {
                                                             const formattedAmount = `Rp ${Number(f.amount).toLocaleString('id-ID')}`;
                                                             return [
-                                                                new Date(f.transaction_date).toLocaleDateString('id-ID'),
+                                                                new Date(f.created_at).toLocaleString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}),
                                                                 `Kamar ${f.booking?.room?.room_number || '-'}`,
                                                                 formatResidentDescription(f),
                                                                 formattedAmount
@@ -3036,7 +3050,7 @@ export default function Dashboard() {
                                                         {visibleTenantPayments.map(f => (
                                                     <tr key={f.id} className="hover:bg-slate-50">
                                                         <td className="p-4 pl-6 font-mono text-slate-600 text-xs">
-                                                            {new Date(f.transaction_date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}
+                                                            {new Date(f.created_at).toLocaleString('id-ID', {day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'})}
                                                         </td>
                                                         <td className="p-4 font-semibold text-slate-700">
                                                             Kamar {f.booking?.room?.room_number || '-'}
@@ -4888,8 +4902,15 @@ export default function Dashboard() {
                         <span className="text-[10px] font-bold tracking-tight">Transaksi</span>
                     </button>
 
-                    <button aria-label="Action Button" onClick={() => setActiveTab('canteen')} className={`flex-1 snap-center flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all ${activeTab === 'canteen' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
-                        <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    <button aria-label="Action Button" onClick={() => setActiveTab('canteen')} className={`flex-1 snap-center flex flex-col items-center justify-center min-w-[72px] px-1 py-2 rounded-xl transition-all relative ${activeTab === 'canteen' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+                        <div className="relative">
+                            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            {canteenBadgeCount > 0 && (
+                                <span className="absolute -top-1 -right-2 bg-rose-500 text-white text-[9px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full px-1 border border-white animate-pulse shadow-sm">
+                                    {canteenBadgeCount > 99 ? '99+' : canteenBadgeCount}
+                                </span>
+                            )}
+                        </div>
                         <span className="text-[10px] font-bold tracking-tight">Kantin</span>
                     </button>
 
