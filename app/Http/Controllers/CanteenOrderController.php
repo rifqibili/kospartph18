@@ -211,14 +211,26 @@ class CanteenOrderController extends Controller
             // Batalkan juga status pembayarannya agar tidak dihitung sebagai hutang
             $order->payment_status = 'cancelled';
 
-            // Hapus record finance jika sudah tercatat sebagai pendapatan (baik manual maupun via aplikasi)
+            // Catat Jurnal Pembalik (Reversal Entry) alih-alih melakukan Hard Delete
             $searchName = $order->tenant ? $order->tenant->name : $order->customer_name;
             if ($searchName) {
-                \App\Models\Finance::where('branch_id', $order->branch_id)
+                $existingIncome = \App\Models\Finance::where('branch_id', $order->branch_id)
                     ->where('amount', $order->total_amount)
                     ->where('category', 'pendapatan_kantin')
                     ->where('description', 'LIKE', "%{$searchName}%")
-                    ->delete();
+                    ->first();
+                    
+                if ($existingIncome) {
+                    \App\Models\Finance::create([
+                        'branch_id' => $order->branch_id,
+                        'amount' => $order->total_amount,
+                        'transaction_type' => 'expense',
+                        'category' => 'refund',
+                        'description' => "Jurnal Pembalik: Pembatalan pesanan kantin ({$order->order_code}) a/n {$searchName}",
+                        'transaction_date' => now()->toDateString(),
+                        'canteen_order_id' => $order->id,
+                    ]);
+                }
             }
         }
 
@@ -298,8 +310,19 @@ class CanteenOrderController extends Controller
                 $order->status = 'processing';
             }
         } elseif ($request->payment_status !== 'paid' && $order->payment_status === 'paid') {
-            // Jika status pembayaran dibatalkan dari 'paid', hapus record finance untuk order ini saja
-            Finance::where('canteen_order_id', $order->id)->delete();
+            // Jika status pembayaran dibatalkan dari 'paid', buat Jurnal Pembalik
+            $existingIncome = Finance::where('canteen_order_id', $order->id)->where('transaction_type', 'income')->first();
+            if ($existingIncome) {
+                Finance::create([
+                    'branch_id' => $order->branch_id,
+                    'amount' => $order->total_amount,
+                    'transaction_type' => 'expense',
+                    'category' => 'refund',
+                    'description' => "Jurnal Pembalik: Pembatalan pembayaran pesanan kantin ({$order->order_code})",
+                    'transaction_date' => now()->toDateString(),
+                    'canteen_order_id' => $order->id,
+                ]);
+            }
         }
 
         $order->update(['payment_status' => $request->payment_status, 'status' => $order->status]);

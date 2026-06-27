@@ -375,26 +375,32 @@ class BookingController extends Controller
         if ($booking->otp_code === $request->otp_code) {
             RateLimiter::clear($key);
 
-            // Periksa ketersediaan kamar secara realtime saat OTP dimasukkan
-            if ($booking->room->status !== 'available') {
+            return DB::transaction(function () use ($booking) {
+                // Periksa ketersediaan kamar secara realtime dengan Pessimistic Locking
+                // Mencegah Race Condition (Double Booking) saat traffic tinggi
+                $room = \App\Models\Room::where('id', $booking->room_id)->lockForUpdate()->first();
+
+                if (!$room || $room->status !== 'available') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Maaf, kamar ini baru saja disewa oleh orang lain. Silakan pilih kamar lain.'
+                    ], 400);
+                }
+
+                // Lock the room now
+                $room->update(['status' => 'booked']);
+
+                $booking->update([
+                    'otp_verified' => true,
+                    'status' => 'pending', // approved but waiting for deposit / payment proof
+                ]);
+                
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Maaf, kamar ini baru saja disewa oleh orang lain. Silakan pilih kamar lain.'
-                ], 400);
-            }
-
-            // Lock the room now
-            $booking->room->update(['status' => 'booked']);
-
-            $booking->update([
-                'otp_verified' => true,
-                'status' => 'pending', // approved but waiting for deposit / payment proof
-            ]);
-            return response()->json([
-                'success' => true,
-                'message' => 'Verifikasi OTP WhatsApp Berhasil! Pemesanan Anda telah disetujui. Harap unggah bukti pembayaran dalam waktu 1 jam.',
-                'booking' => $booking
-            ]);
+                    'success' => true,
+                    'message' => 'Verifikasi OTP WhatsApp Berhasil! Pemesanan Anda telah disetujui. Harap unggah bukti pembayaran dalam waktu 1 jam.',
+                    'booking' => $booking
+                ]);
+            });
         }
 
         RateLimiter::hit($key, 300); // 300 seconds = 5 minutes timeout

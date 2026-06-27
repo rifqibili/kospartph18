@@ -1134,7 +1134,7 @@ export default function Dashboard() {
         const booking = bookings.find(b => b.id === id);
         if (!booking) return;
 
-        const tenantCanteenDebt = canteenOrders.filter(o => o.payment_status === 'debt_unpaid' && o.tenant_id === booking.tenant_id).reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+        const tenantCanteenDebt = canteenOrders.filter(o => o.payment_status === 'debt_unpaid' && o.status !== 'cancelled' && o.tenant_id === booking.tenant_id).reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
         
         const bookingDebt = (parseFloat(booking.total_amount) || 0) - (parseFloat(booking.paid_amount) || 0);
         const totalDebt = tenantCanteenDebt + bookingDebt;
