@@ -23,3 +23,35 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# ── Browser Caching (Fix Lighthouse "Use efficient cache lifetimes") ──
+<IfModule mod_expires.c>
+    ExpiresActive On
+    # HTML — jangan dicache agar selalu fresh
+    ExpiresByType text/html                 "access plus 0 seconds"
+    # CSS dan JS build (nama file mengandung hash, jadi aman untuk cache panjang)
+    ExpiresByType text/css                  "access plus 1 year"
+    ExpiresByType application/javascript    "access plus 1 year"
+    ExpiresByType text/javascript           "access plus 1 year"
+    # Gambar
+    ExpiresByType image/jpeg                "access plus 6 months"
+    ExpiresByType image/png                 "access plus 6 months"
+    ExpiresByType image/webp                "access plus 6 months"
+    ExpiresByType image/gif                 "access plus 6 months"
+    ExpiresByType image/svg+xml             "access plus 6 months"
+    ExpiresByType image/x-icon              "access plus 1 year"
+    # Font
+    ExpiresByType font/woff2                "access plus 1 year"
+    ExpiresByType font/woff                 "access plus 1 year"
+    ExpiresByType application/font-woff2    "access plus 1 year"
+    # Video & Audio
+    ExpiresByType video/mp4                 "access plus 6 months"
+    ExpiresByType audio/mpeg                "access plus 6 months"
+</IfModule>
+
+# ── Gzip Compression ──
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
+    AddOutputFilterByType DEFLATE application/javascript application/json
+    AddOutputFilterByType DEFLATE image/svg+xml font/woff2
+</IfModule>

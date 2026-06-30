@@ -16,10 +16,11 @@
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
         <link rel="icon" type="image/png" href="/images/Gemini_Generated_Image_6gwojj6gwojj6gwo-removebg-preview.png">
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
+        <!-- Fonts: Non-blocking preload (fixes render-blocking resource) -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap"></noscript>
 
         <!-- Scripts -->
         @routes
@@ -28,7 +29,9 @@
         @inertiaHead
     </head>
     <body class="font-sans antialiased">
+        <main>
         @inertia
+        </main>
         
         @if(!request()->is('/'))
         <!-- Global Initial Loading Splash Screen -->

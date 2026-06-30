@@ -495,14 +495,14 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
                                 <div className="flex flex-col gap-1.5 w-full sm:w-auto">
                                     <label className="lux-section-label" style={{ fontSize: '10px' }}>Cabang</label>
-                                    <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} className="lux-select px-4 py-2.5 w-full sm:w-48">
+                                    <select aria-label="Pilih Cabang" value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} className="lux-select px-4 py-2.5 w-full sm:w-48">
                                         <option value="all">Semua Cabang</option>
                                         {branches.map(b => <option key={b.id} value={b.id}>{b.name.replace('Kospart PH 18 - ', '')}</option>)}
                                     </select>
                                 </div>
                                 <div className="flex flex-col gap-1.5 w-full sm:w-auto">
                                     <label className="lux-section-label" style={{ fontSize: '10px' }}>Tipe Sewa</label>
-                                    <select value={rentalType} onChange={(e) => setRentalType(e.target.value)} className="lux-select px-4 py-2.5 w-full sm:w-40">
+                                    <select aria-label="Pilih Tipe Sewa" value={rentalType} onChange={(e) => setRentalType(e.target.value)} className="lux-select px-4 py-2.5 w-full sm:w-40">
                                         <option value="all">Semua Tipe</option>
                                         <option value="monthly">Bulanan</option>
                                         <option value="daily">Harian</option>
@@ -855,7 +855,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tipe Sewa</label>
-                                        <select value={bookingForm.rental_type} onChange={(e) => {
+                                        <select aria-label="Tipe Sewa" value={bookingForm.rental_type} onChange={(e) => {
                                             const newType = e.target.value;
                                             const start = new Date(bookingForm.start_date || new Date().toISOString().split('T')[0]);
                                             const end = new Date(start);
