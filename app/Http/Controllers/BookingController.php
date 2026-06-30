@@ -708,6 +708,17 @@ class BookingController extends Controller
         }
 
         $dueDate = \Carbon\Carbon::parse($booking->end_date)->format('d M Y');
+
+        $valDaily = $booking->room->price_daily;
+        $valWeekly = $booking->room->price_weekly;
+        $valMonthly = $booking->price_monthly > 0 ? $booking->price_monthly : $booking->room->price_monthly;
+        $valYearly = $booking->room->price_yearly;
+
+        $priceDaily = $valDaily > 0 ? 'Rp ' . number_format($valDaily, 0, ',', '.') : '-';
+        $priceWeekly = $valWeekly > 0 ? 'Rp ' . number_format($valWeekly, 0, ',', '.') : '-';
+        $priceMonthly = $valMonthly > 0 ? 'Rp ' . number_format($valMonthly, 0, ',', '.') : '-';
+        $priceYearly = $valYearly > 0 ? 'Rp ' . number_format($valYearly, 0, ',', '.') : '-';
+
         $roomPriceFormatted = 'Rp ' . number_format($booking->total_amount, 0, ',', '.');
 
         if ($booking->payment_status === 'paid') {
@@ -718,9 +729,13 @@ class BookingController extends Controller
                 . "Detail Sewa:\n"
                 . "- Kamar: {$booking->room->room_number}\n"
                 . "- Cabang: {$booking->room->branch->name}\n"
-                . "- Biaya Sewa (Perpanjangan): *{$roomPriceFormatted}*\n"
                 . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
-                . "Jika Anda ingin melanjutkan perpanjangan sewa, silakan selesaikan pembayaran ke rekening berikut:\n"
+                . "Daftar Harga Perpanjangan:\n"
+                . "- Harian: *{$priceDaily}*\n"
+                . "- Mingguan: *{$priceWeekly}*\n"
+                . "- Bulanan: *{$priceMonthly}*\n"
+                . "- Tahunan: *{$priceYearly}*\n\n"
+                . "Jika Anda ingin melanjutkan perpanjangan sewa, silakan pilih durasi sewa dan selesaikan pembayaran ke rekening berikut:\n"
                 . "- *BCA: 8447060951*\n"
                 . "- *A/N PRAYOGA HERIYANTO*\n\n"
                 . "Mohon segera melakukan perpanjangan dan *kirimkan bukti bayarnya langsung di chat ini*, atau hubungi kami untuk konfirmasi checkout.\n\n"
@@ -1387,25 +1402,33 @@ class BookingController extends Controller
 
         if ($baseRentalType === 'yearly') {
             $i = 0;
+            $anchorStart = clone $currentStart;
             while (true) {
-                $nextDate = clone $currentStart;
-                $nextDate->modify('+1 year');
-                if ($nextDate > $end) break;
-                $addExactPeriod($nextDate, "Tahun ke-" . ($i+1), $prices['yearly']);
                 $i++;
+                $nextDate = clone $anchorStart;
+                $nextDate->modify("+$i year");
+                if ($nextDate > $end) {
+                    $i--;
+                    break;
+                }
+                $addExactPeriod($nextDate, "Tahun ke-" . $i, $prices['yearly']);
             }
         }
         if ($baseRentalType === 'monthly' || ($baseRentalType === 'yearly' && $remainingDays >= 28)) {
             $i = 0;
+            $anchorStart = clone $currentStart;
             while (true) {
-                $nextDate = clone $currentStart;
-                $nextDate->modify('+1 month');
-                if ($currentStart->format('d') > 28 && $nextDate->format('d') < $currentStart->format('d')) {
+                $i++;
+                $nextDate = clone $anchorStart;
+                $nextDate->modify("+$i month");
+                if ($anchorStart->format('d') > 28 && $nextDate->format('d') < $anchorStart->format('d')) {
                     $nextDate->modify('last day of previous month');
                 }
-                if ($nextDate > $end) break;
-                $addExactPeriod($nextDate, "Bulan ke-" . ($i+1), $prices['monthly']);
-                $i++;
+                if ($nextDate > $end) {
+                    $i--;
+                    break;
+                }
+                $addExactPeriod($nextDate, "Bulan ke-" . $i, $prices['monthly']);
             }
         }
         if ($baseRentalType === 'weekly' || (in_array($baseRentalType, ['yearly', 'monthly']) && $remainingDays >= 7)) {

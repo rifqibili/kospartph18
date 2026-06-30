@@ -368,7 +368,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
             </header>
 
             {/* ── HERO ── */}
-            <section className="relative overflow-hidden border-b border-[rgba(201,168,76,0.1)] bg-cover bg-center min-h-screen flex items-center" style={{ backgroundImage: "url('/images/ruang tamu.jpg')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>
+            <section className="relative overflow-hidden border-b border-[rgba(201,168,76,0.1)] bg-cover bg-center min-h-screen flex items-center" style={{ backgroundImage: "url('/images/ruang tamu.png')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full pt-20">
                     <Reveal className="max-w-2xl space-y-6">
                         

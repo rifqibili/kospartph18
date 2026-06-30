@@ -56,6 +56,15 @@ class SendBookingReminders extends Command
             if (!$booking->tenant || !$booking->tenant->phone) {
                 continue;
             }
+            $valDaily = $booking->room->price_daily;
+            $valWeekly = $booking->room->price_weekly;
+            $valMonthly = $booking->price_monthly > 0 ? $booking->price_monthly : $booking->room->price_monthly;
+            $valYearly = $booking->room->price_yearly;
+
+            $priceDaily = $valDaily > 0 ? 'Rp ' . number_format($valDaily, 0, ',', '.') : '-';
+            $priceWeekly = $valWeekly > 0 ? 'Rp ' . number_format($valWeekly, 0, ',', '.') : '-';
+            $priceMonthly = $valMonthly > 0 ? 'Rp ' . number_format($valMonthly, 0, ',', '.') : '-';
+            $priceYearly = $valYearly > 0 ? 'Rp ' . number_format($valYearly, 0, ',', '.') : '-';
 
             $amountDue = $booking->total_amount - $booking->paid_amount;
             $amountFormatted = 'Rp ' . number_format($amountDue, 0, ',', '.');
@@ -69,7 +78,12 @@ class SendBookingReminders extends Command
                 $message = "🏢 *KOSPART PH 18 - JATUH TEMPO HARI INI*\n\n"
                     . "Halo *{$booking->tenant->name}*,\n"
                     . "Masa sewa *Kamar {$booking->room->room_number}* Anda telah jatuh tempo pada hari ini (*{$dueDate}*).\n\n"
-                    . "Untuk menghindari kendala, mohon segera menyelesaikan sisa tagihan sewa sebesar *{$amountFormatted}*.\n\n"
+                    . "Untuk menghindari kendala, mohon segera menyelesaikan sisa tagihan sewa berjalan sebesar *{$amountFormatted}*.\n\n"
+                    . "Daftar Harga Perpanjangan:\n"
+                    . "- Harian: *{$priceDaily}*\n"
+                    . "- Mingguan: *{$priceWeekly}*\n"
+                    . "- Bulanan: *{$priceMonthly}*\n"
+                    . "- Tahunan: *{$priceYearly}*\n\n"
                     . "Silakan selesaikan pembayaran ke rekening berikut:\n"
                     . "- *BCA: 8447060951 a.n PRAYOGA HERIYANTO*\n\n"
                     . "Mohon *kirimkan bukti bayarnya langsung di chat ini*, atau hubungi admin kami jika ada kendala. Terima kasih atas kerja samanya! 🙏";
@@ -77,7 +91,12 @@ class SendBookingReminders extends Command
                 $message = "🏢 *KOSPART PH 18 - PENGINGAT TAGIHAN*\n\n"
                     . "Halo *{$booking->tenant->name}*,\n"
                     . "Mengingatkan kembali bahwa masa sewa *Kamar {$booking->room->room_number}* akan berakhir pada *{$dueDate}* (3 hari lagi).\n\n"
-                    . "Jika Anda berencana memperpanjang, mohon siapkan pembayaran sebesar *{$amountFormatted}*.\n\n"
+                    . "Anda masih memiliki sisa tagihan berjalan sebesar *{$amountFormatted}* yang harus segera dilunasi.\n\n"
+                    . "Jika Anda juga berencana memperpanjang masa sewa, berikut adalah daftar harga perpanjangan:\n"
+                    . "- Harian: *{$priceDaily}*\n"
+                    . "- Mingguan: *{$priceWeekly}*\n"
+                    . "- Bulanan: *{$priceMonthly}*\n"
+                    . "- Tahunan: *{$priceYearly}*\n\n"
                     . "Silakan selesaikan pembayaran ke rekening berikut:\n"
                     . "- *BCA: 8447060951 a.n PRAYOGA HERIYANTO*\n\n"
                     . "Mohon *kirimkan bukti bayarnya langsung di chat ini*. Abaikan pesan ini jika Anda sudah bayar. Terima kasih! 🙏";

@@ -3388,6 +3388,7 @@ export default function Dashboard() {
                             showToast={showToast}
                             loadAllData={loadAllData}
                             authFetch={authFetch}
+                            showConfirm={showConfirm}
                         />
                     )}
 

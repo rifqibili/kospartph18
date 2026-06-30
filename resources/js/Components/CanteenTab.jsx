@@ -15,7 +15,8 @@ export default function CanteenTab({
                             bookings,
                             showToast, 
                             loadAllData,
-                            authFetch
+                            authFetch,
+                            showConfirm
                         }) {
     // Admin/Operator States
     const [showAddItemModal, setShowAddItemModal] = useState(false);
@@ -130,21 +131,21 @@ export default function CanteenTab({
         }
     };
 
-    const handleSendBulkReminders = async () => {
-        if (!confirm('Kirim reminder WhatsApp ke semua penghuni yang memiliki kasbon belum dibayar?')) return;
-        
-        const res = await authFetch('/api/canteen-orders/remind-bulk-debt', {
-            method: 'POST',
-            body: JSON.stringify({ branch_id: selectedBranchFilter }),
-            headers: { 'Content-Type': 'application/json' }
+    const handleSendBulkReminders = () => {
+        showConfirm('Kirim reminder WhatsApp ke semua penghuni yang memiliki kasbon belum dibayar?', async () => {
+            const res = await authFetch('/api/canteen-orders/remind-bulk-debt', {
+                method: 'POST',
+                body: JSON.stringify({ branch_id: selectedBranchFilter }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.message);
+            } else {
+                showToast(data.message || 'Gagal mengirim reminder.', 'error');
+            }
         });
-        
-        const data = await res.json();
-        if (res.ok) {
-            showToast(data.message);
-        } else {
-            showToast(data.message || 'Gagal mengirim reminder.', 'error');
-        }
     };
 
     const addToManualCart = (item) => {
