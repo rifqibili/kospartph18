@@ -644,7 +644,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                     {getRoomMedia(showRoomDetail)[activeGalleryIndex]?.type === 'image' ? (
                                         <img loading="lazy" src={getRoomMedia(showRoomDetail)[activeGalleryIndex]?.src} alt={`Kamar ${showRoomDetail.room_number}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     ) : (
-                                        <video src={getRoomMedia(showRoomDetail)[activeGalleryIndex]?.src} controls preload="none" className="w-full h-full object-contain"></video>
+                                        <video src={getRoomMedia(showRoomDetail)[activeGalleryIndex]?.src} controls preload="metadata" className="w-full h-full object-contain"></video>
                                     )}
                                     <div className="absolute bottom-3 right-3 bg-white/90 px-2.5 py-1 rounded-lg text-[10px] font-bold text-forest uppercase">
                                         {getRoomMedia(showRoomDetail)[activeGalleryIndex]?.type === 'video' ? 'Video Tour' : 'Foto'}
