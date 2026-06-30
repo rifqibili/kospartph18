@@ -311,7 +311,7 @@ export default function Rooms({ branches, rooms, auth }) {
                 <div className="px-6 sm:px-10 h-16 sm:h-[76px] flex items-center justify-between relative z-10 gap-8 md:gap-16">
                     <Link href="/" className="flex items-center gap-3">
                         <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden border border-white/50 shadow-sm">
-                            <img loading="lazy" src="/images/logo 2.jpeg" alt="Logo Kospart" className="w-full h-full object-cover" />
+                            <img src="/images/logo 2.jpeg" alt="Logo Kospart" className="w-full h-full object-cover" />
                         </div>
                         <div>
                             <span className="font-extrabold text-xl tracking-tight text-forest block leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>KOSPART</span>
@@ -369,7 +369,7 @@ export default function Rooms({ branches, rooms, auth }) {
             <section className="relative border-b border-[rgba(201,168,76,0.1)] pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
                 {/* Background Image */}
                 <div className="absolute inset-0 z-0">
-                    <img loading="lazy" src="/images/ruang%20tamu.jpg" alt="Hero Background" className="w-full h-full object-cover object-center" />
+                    <img src="/images/ruang%20tamu.jpg" alt="Hero Background" className="w-full h-full object-cover object-center" />
                 </div>
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
@@ -644,7 +644,7 @@ export default function Rooms({ branches, rooms, auth }) {
                                     {getRoomMedia(showRoomDetail)[activeGalleryIndex]?.type === 'image' ? (
                                         <img loading="lazy" src={getRoomMedia(showRoomDetail)[activeGalleryIndex]?.src} alt={`Kamar ${showRoomDetail.room_number}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     ) : (
-                                        <video src={getRoomMedia(showRoomDetail)[activeGalleryIndex]?.src} controls className="w-full h-full object-contain"></video>
+                                        <video src={getRoomMedia(showRoomDetail)[activeGalleryIndex]?.src} controls preload="none" className="w-full h-full object-contain"></video>
                                     )}
                                     <div className="absolute bottom-3 right-3 bg-white/90 px-2.5 py-1 rounded-lg text-[10px] font-bold text-forest uppercase">
                                         {getRoomMedia(showRoomDetail)[activeGalleryIndex]?.type === 'video' ? 'Video Tour' : 'Foto'}
