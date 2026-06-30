@@ -1048,5 +1048,9 @@ html.dark #invoice-print-area .bg-red-50 { background-color: #fef2f2 !important;
   }
 }
 
-
-
+/* FIX MOBILE SCROLL LAG */
+@media (max-width: 768px) {
+  .bg-mesh-dark, .bg-lux {
+    background-attachment: scroll !important;
+  }
+}
