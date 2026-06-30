@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\Booking;
-use Illuminate\Support\Facades\Http;
+use App\Services\WhatsAppService;
 use Carbon\Carbon;
 
 class SendBookingReminders extends Command
@@ -21,22 +21,18 @@ class SendBookingReminders extends Command
      *
      * @var string
      */
-    protected $description = 'Kirim reminder otomatis via WhatsApp Fonnte untuk tagihan yang belum lunas (H-3 dan H-0)';
+    protected $description = 'Kirim reminder otomatis via WhatsApp untuk tagihan yang belum lunas (H-3 dan H-0) dengan delay 5 detik antar pesan';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        $token = env('FONNTE_API_KEY');
-        if (!$token) {
-            $this->error('Fonnte API Key belum diset.');
-            return;
-        }
+        $wa = new WhatsAppService();
 
         $now = Carbon::now();
-        
-        // Find unpaid bookings that end today (H-0) or in 3 days (H-3)
+
+        // Cari booking belum lunas yang jatuh tempo hari ini (H-0) atau 3 hari lagi (H-3)
         $bookings = Booking::with(['tenant', 'room.branch'])
             ->where('payment_status', 'unpaid')
             ->where('status', 'active')
@@ -51,73 +47,62 @@ class SendBookingReminders extends Command
             return;
         }
 
-        $count = 0;
+        // Bangun antrian pesan sebelum mengirim
+        $queue = [];
+
         foreach ($bookings as $booking) {
             if (!$booking->tenant || !$booking->tenant->phone) {
+                $this->warn("Booking #{$booking->id} tidak punya nomor WA tenant, dilewati.");
                 continue;
             }
-            $valDaily = $booking->room->price_daily;
-            $valWeekly = $booking->room->price_weekly;
-            $valMonthly = $booking->price_monthly > 0 ? $booking->price_monthly : $booking->room->price_monthly;
-            $valYearly = $booking->room->price_yearly;
-
-            $priceDaily = $valDaily > 0 ? 'Rp ' . number_format($valDaily, 0, ',', '.') : '-';
-            $priceWeekly = $valWeekly > 0 ? 'Rp ' . number_format($valWeekly, 0, ',', '.') : '-';
-            $priceMonthly = $valMonthly > 0 ? 'Rp ' . number_format($valMonthly, 0, ',', '.') : '-';
-            $priceYearly = $valYearly > 0 ? 'Rp ' . number_format($valYearly, 0, ',', '.') : '-';
-
-            $amountDue = $booking->total_amount - $booking->paid_amount;
-            $amountFormatted = 'Rp ' . number_format($amountDue, 0, ',', '.');
-            $roomPriceFormatted = 'Rp ' . number_format($booking->total_amount, 0, ',', '.');
-            $dueDate = Carbon::parse($booking->end_date)->format('d M Y');
 
             $endDate = Carbon::parse($booking->end_date);
             $isToday = $endDate->isSameDay($now);
+            $type    = $isToday ? 'h0' : 'h3';
 
-            if ($isToday) {
-                $message = "🏢 *KOSPART PH 18 - JATUH TEMPO HARI INI*\n\n"
-                    . "Halo *{$booking->tenant->name}*,\n"
-                    . "Masa sewa *Kamar {$booking->room->room_number}* Anda telah jatuh tempo pada hari ini (*{$dueDate}*).\n\n"
-                    . "Untuk menghindari kendala, mohon segera menyelesaikan sisa tagihan sewa berjalan sebesar *{$amountFormatted}*.\n\n"
-                    . "Daftar Harga Perpanjangan:\n"
-                    . "- Harian: *{$priceDaily}*\n"
-                    . "- Mingguan: *{$priceWeekly}*\n"
-                    . "- Bulanan: *{$priceMonthly}*\n"
-                    . "- Tahunan: *{$priceYearly}*\n\n"
-                    . "Silakan selesaikan pembayaran ke rekening berikut:\n"
-                    . "- *BCA: 8447060951 a.n PRAYOGA HERIYANTO*\n\n"
-                    . "Mohon *kirimkan bukti bayarnya langsung di chat ini*, atau hubungi admin kami jika ada kendala. Terima kasih atas kerja samanya! 🙏";
-            } else {
-                $message = "🏢 *KOSPART PH 18 - PENGINGAT TAGIHAN*\n\n"
-                    . "Halo *{$booking->tenant->name}*,\n"
-                    . "Mengingatkan kembali bahwa masa sewa *Kamar {$booking->room->room_number}* akan berakhir pada *{$dueDate}* (3 hari lagi).\n\n"
-                    . "Anda masih memiliki sisa tagihan berjalan sebesar *{$amountFormatted}* yang harus segera dilunasi.\n\n"
-                    . "Jika Anda juga berencana memperpanjang masa sewa, berikut adalah daftar harga perpanjangan:\n"
-                    . "- Harian: *{$priceDaily}*\n"
-                    . "- Mingguan: *{$priceWeekly}*\n"
-                    . "- Bulanan: *{$priceMonthly}*\n"
-                    . "- Tahunan: *{$priceYearly}*\n\n"
-                    . "Silakan selesaikan pembayaran ke rekening berikut:\n"
-                    . "- *BCA: 8447060951 a.n PRAYOGA HERIYANTO*\n\n"
-                    . "Mohon *kirimkan bukti bayarnya langsung di chat ini*. Abaikan pesan ini jika Anda sudah bayar. Terima kasih! 🙏";
+            $queue[] = [
+                'booking' => $booking,
+                'type'    => $type,
+            ];
+        }
+
+        if (empty($queue)) {
+            $this->info('Tidak ada penerima valid yang ditemukan.');
+            return;
+        }
+
+        $total = count($queue);
+        $this->info("Memulai pengiriman {$total} reminder dengan delay 5 detik antar pesan...");
+        $this->newLine();
+
+        $sent   = 0;
+        $failed = 0;
+
+        foreach ($queue as $index => $item) {
+            // Delay 5 detik sebelum setiap pengiriman (kecuali pesan pertama)
+            if ($index > 0) {
+                $this->line("  ⏳ Menunggu 5 detik sebelum pesan berikutnya...");
+                sleep(5);
             }
 
-            $response = Http::withHeaders([
-                'Authorization' => $token,
-            ])->post('https://api.fonnte.com/send', [
-                'target' => $booking->tenant->phone,
-                'message' => $message,
-                'countryCode' => '62',
-            ]);
+            $booking = $item['booking'];
+            $type    = $item['type'];
+            $tenant  = $booking->tenant;
 
-            if ($response->successful()) {
-                $this->info("Reminder terkirim ke {$booking->tenant->name} ({$booking->tenant->phone})");
-                $count++;
+            $this->line("  📤 Mengirim ke {$tenant->name} ({$tenant->phone}) — tipe: {$type}");
+
+            $success = $wa->sendReminderUnpaid($tenant->phone, $booking, $type);
+
+            if ($success) {
+                $this->info("  ✅ Berhasil: {$tenant->name}");
+                $sent++;
             } else {
-                $this->error("Gagal mengirim ke {$booking->tenant->name} ({$booking->tenant->phone})");
+                $this->error("  ❌ Gagal: {$tenant->name} ({$tenant->phone})");
+                $failed++;
             }
         }
 
-        $this->info("Proses selesai. Berhasil mengirim $count pesan.");
+        $this->newLine();
+        $this->info("Proses selesai. ✅ Berhasil: {$sent} | ❌ Gagal: {$failed}");
     }
 }

@@ -6,6 +6,7 @@ use App\Models\Room;
 use App\Models\Booking;
 use App\Models\Finance;
 use App\Models\User;
+use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -157,27 +158,8 @@ class BookingController extends Controller
             // We only lock the room as 'booked' AFTER the tenant successfully verifies the OTP.
             // This prevents the room from disappearing if the user accidentally closes the OTP modal.
 
-            // Send OTP via Fonnte WA API
-            try {
-                $token = env('FONNTE_TOKEN');
-                if ($token) {
-                    // Bersihkan format nomor WA agar hanya berisi angka
-                    $targetPhone = preg_replace('/[^0-9]/', '', $tenant->phone);
-                    
-                    $response = Http::withHeaders([
-                        'Authorization' => $token,
-                    ])->asForm()->post('https://api.fonnte.com/send', [
-                        'target' => $targetPhone,
-                        'message' => "Halo {$tenant->name},\n\nTerima kasih telah melakukan pemesanan kamar No. {$room->room_number} di Kospart PH 18.\n\nKode OTP konfirmasi Anda adalah: *{$otp}*\n\nHarap masukkan kode ini di aplikasi untuk melanjutkan ke tahap pembayaran. Berlaku selama 5 menit.",
-                    ]);
-
-                    if (!$response->successful()) {
-                        \Illuminate\Support\Facades\Log::error('Fonnte API Error: ' . $response->body());
-                    }
-                }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Fonnte API Exception: ' . $e->getMessage());
-            }
+            // Kirim OTP via WhatsAppService
+            (new WhatsAppService())->sendOtp($tenant->phone, $tenant->name, $room->room_number, $otp);
 
             return response()->json([
                 'message' => 'Pemesanan berhasil diajukan. Kode OTP verifikasi dikirim ke nomor WhatsApp Anda.',
@@ -530,32 +512,15 @@ class BookingController extends Controller
             'payment_method'   => 'transfer',
         ]);
 
-        try {
-            $token = env('FONNTE_TOKEN');
-            if ($token && $booking->tenant && $booking->tenant->phone) {
-                $tenantPhone = preg_replace('/[^0-9]/', '', $booking->tenant->phone);
-                $invoiceUrl = route('invoice.show', $booking->booking_code);
-                $message = "🏢 *KOSPART PH 18 - KUITANSI PEMBAYARAN*\n\n"
-                    . "Halo *{$booking->tenant->name}*,\n"
-                    . "Pembayaran Anda telah kami terima dan berhasil diverifikasi.\n\n"
-                    . "📝 *Detail Transaksi:*\n"
-                    . "- Kamar: {$booking->room->room_number}\n"
-                    . "- Nominal Dibayar: Rp " . number_format($amountToVerify, 0, ',', '.') . "\n"
-                    . "- Status Tagihan: " . ($isFullyPaid ? "LUNAS" : "UANG MUKA (DP)") . "\n\n"
-                    . "📄 *Unduh Invoice Digital Anda di sini:*\n"
-                    . "{$invoiceUrl}\n\n"
-                    . "Terima kasih!";
-
-                \Illuminate\Support\Facades\Http::withHeaders([
-                    'Authorization' => $token,
-                ])->post('https://api.fonnte.com/send', [
-                    'target' => $tenantPhone,
-                    'message' => $message,
-                    'countryCode' => '62',
-                ]);
-            }
-        } catch (\Exception $e) {
-            \Log::error('Fonnte WA Error: ' . $e->getMessage());
+        // Kirim invoice via WhatsAppService
+        if ($booking->tenant && $booking->tenant->phone) {
+            (new WhatsAppService())->sendPaymentInvoice(
+                $booking->tenant->phone,
+                $booking,
+                $amountToVerify,
+                $isFullyPaid,
+                'Transfer'
+            );
         }
 
         return response()->json([
@@ -648,32 +613,15 @@ class BookingController extends Controller
             'payment_method'   => $request->payment_method,
         ]);
 
-        try {
-            $token = env('FONNTE_TOKEN');
-            if ($token && $booking->tenant && $booking->tenant->phone) {
-                $tenantPhone = preg_replace('/[^0-9]/', '', $booking->tenant->phone);
-                $invoiceUrl = route('invoice.show', $booking->booking_code);
-                $message = "🏢 *KOSPART PH 18 - KUITANSI PEMBAYARAN*\n\n"
-                    . "Halo *{$booking->tenant->name}*,\n"
-                    . "Pembayaran " . $methodText . " Anda telah kami catat.\n\n"
-                    . "📝 *Detail Transaksi:*\n"
-                    . "- Kamar: {$booking->room->room_number}\n"
-                    . "- Nominal Dibayar: Rp " . number_format($amountToVerify, 0, ',', '.') . "\n"
-                    . "- Status Tagihan: " . ($isFullyPaid ? "LUNAS" : "UANG MUKA (DP)") . "\n\n"
-                    . "📄 *Unduh Invoice Digital Anda di sini:*\n"
-                    . "{$invoiceUrl}\n\n"
-                    . "Terima kasih!";
-
-                \Illuminate\Support\Facades\Http::withHeaders([
-                    'Authorization' => $token,
-                ])->post('https://api.fonnte.com/send', [
-                    'target' => $tenantPhone,
-                    'message' => $message,
-                    'countryCode' => '62',
-                ]);
-            }
-        } catch (\Exception $e) {
-            \Log::error('Fonnte WA Error: ' . $e->getMessage());
+        // Kirim invoice via WhatsAppService
+        if ($booking->tenant && $booking->tenant->phone) {
+            (new WhatsAppService())->sendPaymentInvoice(
+                $booking->tenant->phone,
+                $booking,
+                $amountToVerify,
+                $isFullyPaid,
+                $methodText
+            );
         }
 
         return response()->json([
@@ -702,78 +650,21 @@ class BookingController extends Controller
             return response()->json(['message' => 'Nomor WhatsApp tenant tidak ditemukan.'], 400);
         }
 
-        $token = env('FONNTE_API_KEY') ?: env('FONNTE_TOKEN');
-        if (!$token) {
-            return response()->json(['message' => 'Konfigurasi Fonnte API Key belum diset di .env.'], 500);
-        }
-
-        $dueDate = \Carbon\Carbon::parse($booking->end_date)->format('d M Y');
-
-        $valDaily = $booking->room->price_daily;
-        $valWeekly = $booking->room->price_weekly;
-        $valMonthly = $booking->price_monthly > 0 ? $booking->price_monthly : $booking->room->price_monthly;
-        $valYearly = $booking->room->price_yearly;
-
-        $priceDaily = $valDaily > 0 ? 'Rp ' . number_format($valDaily, 0, ',', '.') : '-';
-        $priceWeekly = $valWeekly > 0 ? 'Rp ' . number_format($valWeekly, 0, ',', '.') : '-';
-        $priceMonthly = $valMonthly > 0 ? 'Rp ' . number_format($valMonthly, 0, ',', '.') : '-';
-        $priceYearly = $valYearly > 0 ? 'Rp ' . number_format($valYearly, 0, ',', '.') : '-';
-
-        $roomPriceFormatted = 'Rp ' . number_format($booking->total_amount, 0, ',', '.');
+        $wa = new WhatsAppService();
 
         if ($booking->payment_status === 'paid') {
-            // Jika sudah lunas, kirim reminder batas waktu sewa
-            $message = "*REMINDER SEWA KOSPART PH 18*\n\n"
-                . "Halo {$booking->tenant->name},\n\n"
-                . "Ini adalah pesan pengingat otomatis dari Admin Kospart PH 18 bahwa masa sewa kamar Anda akan segera berakhir.\n\n"
-                . "Detail Sewa:\n"
-                . "- Kamar: {$booking->room->room_number}\n"
-                . "- Cabang: {$booking->room->branch->name}\n"
-                . "- Batas Waktu Sewa: *{$dueDate}*\n\n"
-                . "Daftar Harga Perpanjangan:\n"
-                . "- Harian: *{$priceDaily}*\n"
-                . "- Mingguan: *{$priceWeekly}*\n"
-                . "- Bulanan: *{$priceMonthly}*\n"
-                . "- Tahunan: *{$priceYearly}*\n\n"
-                . "Jika Anda ingin melanjutkan perpanjangan sewa, silakan pilih durasi sewa dan selesaikan pembayaran ke rekening berikut:\n"
-                . "- *BCA: 8447060951*\n"
-                . "- *A/N PRAYOGA HERIYANTO*\n\n"
-                . "Mohon segera melakukan perpanjangan dan *kirimkan bukti bayarnya langsung di chat ini*, atau hubungi kami untuk konfirmasi checkout.\n\n"
-                . "Terima kasih!";
+            // Sewa sudah lunas — reminder masa sewa akan habis
+            $success = $wa->sendReminderExpiring($tenantPhone, $booking);
         } else {
-            // Jika belum lunas, kirim reminder tagihan
-            $amountDue = $booking->total_amount - $booking->paid_amount;
-            $amountFormatted = 'Rp ' . number_format($amountDue, 0, ',', '.');
-            
-            $message = "*REMINDER TAGIHAN KOSPART PH 18*\n\n"
-                . "Halo {$booking->tenant->name},\n\n"
-                . "Ini adalah pesan pengingat otomatis dari Admin Kospart PH 18 bahwa tagihan sewa kamar Anda belum lunas.\n\n"
-                . "Detail Tagihan:\n"
-                . "- Kamar: {$booking->room->room_number}\n"
-                . "- Cabang: {$booking->room->branch->name}\n"
-                . "- Harga Kamar / Biaya Sewa: *{$roomPriceFormatted}*\n"
-                . "- Sisa Tagihan: *{$amountFormatted}*\n"
-                . "- Batas Waktu Pembayaran: *{$dueDate}*\n\n"
-                . "Silakan selesaikan pembayaran tagihan Anda ke rekening berikut:\n"
-                . "- *BCA: 8447060951*\n"
-                . "- *A/N PRAYOGA HERIYANTO*\n\n"
-                . "Mohon segera melunasi tagihan dan *kirimkan bukti bayarnya langsung di chat ini*.\n\n"
-                . "Abaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih!";
+            // Tagihan belum lunas — reminder tagihan
+            $success = $wa->sendReminderUnpaid($tenantPhone, $booking, 'h3');
         }
 
-        $response = Http::withHeaders([
-            'Authorization' => $token,
-        ])->post('https://api.fonnte.com/send', [
-            'target' => $tenantPhone,
-            'message' => $message,
-            'countryCode' => '62',
-        ]);
-
-        if ($response->successful()) {
+        if ($success) {
             return response()->json(['message' => 'Reminder WhatsApp berhasil dikirim ke ' . $tenantPhone]);
         }
 
-        return response()->json(['message' => 'Gagal mengirim pesan via Fonnte.', 'error' => $response->json()], 500);
+        return response()->json(['message' => 'Gagal mengirim pesan via WhatsApp. Periksa log untuk detail.'], 500);
     }
 
     // Update status / Approve booking manually by admin
@@ -809,6 +700,12 @@ class BookingController extends Controller
             'booking_id' => $booking->id,
             'branch_id' => $booking->room->branch_id,
         ]);
+
+        // Kirim notifikasi WA ke tenant bahwa booking telah disetujui
+        $booking->load(['tenant', 'room.branch']);
+        if ($booking->tenant && $booking->tenant->phone) {
+            (new WhatsAppService())->sendBookingApproved($booking->tenant->phone, $booking);
+        }
 
         return response()->json(['message' => 'Penyewaan berhasil diaktifkan.', 'booking' => $booking]);
     }
