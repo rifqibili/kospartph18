@@ -555,24 +555,45 @@ export default function Dashboard() {
             }
             if (isFirstLoadRef.current) isFirstLoadRef.current = false;
 
-            // Untuk admin/operator: juga refresh canteen orders setiap polling
-            if (['super_admin', 'operator'].includes(currentRole)) {
+            // Refresh canteen orders untuk semua role agar penyewa juga mendapatkan update status tanpa refresh
+            try {
                 const canteenRes = await authFetch('/api/canteen-orders');
                 const canteenData = await canteenRes.json();
                 
-                const activeOrdersNow  = canteenData.filter(o => !['completed', 'cancelled'].includes(o.status));
-                const activeOrdersPrev = prevCanteenOrdersRef.current.filter(o => !['completed', 'cancelled'].includes(o.status));
-                
-                if (prevCanteenOrdersRef.current.length > 0 && activeOrdersNow.length > activeOrdersPrev.length) {
-                    playCanteenRingtone();
-                    addToast({
-                        title: 'Pesanan Kantin Baru! 🍜',
-                        message: 'Ada pesanan makanan/minuman baru dari penyewa.',
-                        color: 'border-fuchsia-200 text-fuchsia-800 bg-fuchsia-50 shadow-lg'
-                    });
+                if (['super_admin', 'operator', 'karyawan'].includes(currentRole)) {
+                    const activeOrdersNow  = canteenData.filter(o => !['completed', 'cancelled'].includes(o.status));
+                    const activeOrdersPrev = prevCanteenOrdersRef.current.filter(o => !['completed', 'cancelled'].includes(o.status));
+                    
+                    if (prevCanteenOrdersRef.current.length > 0 && activeOrdersNow.length > activeOrdersPrev.length) {
+                        playCanteenRingtone();
+                        addToast({
+                            title: 'Pesanan Kantin Baru! 🍜',
+                            message: 'Ada pesanan makanan/minuman baru dari penyewa.',
+                            color: 'border-fuchsia-200 text-fuchsia-800 bg-fuchsia-50 shadow-lg'
+                        });
+                    }
                 }
+                
                 prevCanteenOrdersRef.current = canteenData;
                 setCanteenOrders(canteenData);
+            } catch (err) {
+                console.error('Error refreshing canteen orders', err);
+            }
+
+            // Refresh data bookings dan finances (pembayaran) agar status approval otomatis terupdate tanpa refresh
+            try {
+                if (currentRole === 'resident' || tabDataLoaded['bookings'] || currentRole === 'super_admin' || currentRole === 'operator') {
+                    const bookingsRes = await authFetch('/api/bookings');
+                    const bookingsData = await bookingsRes.json();
+                    setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+                }
+                if (currentRole === 'resident' || tabDataLoaded['finances'] || currentRole === 'super_admin' || currentRole === 'operator') {
+                    const financesRes = await authFetch('/api/finances');
+                    const financesData = await financesRes.json();
+                    setFinances(Array.isArray(financesData) ? financesData : []);
+                }
+            } catch (err) {
+                console.error('Error refreshing bookings or finances', err);
             }
         } catch (e) {
             console.error('Polling error', e);
