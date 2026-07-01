@@ -507,6 +507,10 @@ export default function Dashboard() {
     const loadNotificationsOnly = async () => {
         try {
             const res  = await authFetch('/api/dashboard/ping');
+            if (!res.ok) {
+                if (res.status === 401) window.location.reload();
+                return;
+            }
             const data = await res.json();
             const freshNotifs = data.notifications || [];
             setNotifications(freshNotifs);
