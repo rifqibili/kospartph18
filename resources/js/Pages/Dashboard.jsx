@@ -580,7 +580,7 @@ export default function Dashboard() {
 
             // Refresh data bookings dan finances (pembayaran) agar status approval otomatis terupdate tanpa refresh
             try {
-                if (currentRole === 'resident' || tabDataLoaded['bookings'] || currentRole === 'super_admin' || currentRole === 'operator') {
+                if (currentRole === 'resident' || tabDataLoaded['bookings'] || currentRole === 'super_admin' || currentRole === 'operator' || currentRole === 'karyawan') {
                     const bookingsRes = await authFetch('/api/bookings');
                     const bookingsData = await bookingsRes.json();
                     setBookings(Array.isArray(bookingsData) ? bookingsData : []);

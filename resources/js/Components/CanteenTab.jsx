@@ -920,9 +920,9 @@ export default function CanteenTab({
                                                 <option value="">Pilih Penghuni Aktif...</option>
                                                 {(() => {
                                                     const activeTenants = bookings
-                                                        .filter(b => b.status === 'active' && (manualOrderData.branch_id === '' || Number(b.room?.branch_id) === Number(manualOrderData.branch_id)))
+                                                        .filter(b => !['completed', 'cancelled'].includes(b.status) && (manualOrderData.branch_id === '' || Number(b.room?.branch_id) === Number(manualOrderData.branch_id)))
                                                         .map(b => b.tenant)
-                                                        .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                                                        .filter((v, i, a) => v && a.findIndex(t => t && t.id === v.id) === i);
                                                     return activeTenants.map(t => (
                                                         <option key={t.id} value={t.id}>{t.name}</option>
                                                     ));
@@ -937,9 +937,9 @@ export default function CanteenTab({
                                                     <option value="">Bukan Penghuni</option>
                                                     {(() => {
                                                         const activeTenants = bookings
-                                                            .filter(b => b.status === 'active' && (manualOrderData.branch_id === '' || Number(b.room?.branch_id) === Number(manualOrderData.branch_id)))
+                                                            .filter(b => !['completed', 'cancelled'].includes(b.status) && (manualOrderData.branch_id === '' || Number(b.room?.branch_id) === Number(manualOrderData.branch_id)))
                                                             .map(b => b.tenant)
-                                                            .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                                                            .filter((v, i, a) => v && a.findIndex(t => t && t.id === v.id) === i);
                                                         return activeTenants.map(t => (
                                                             <option key={t.id} value={t.id}>{t.name}</option>
                                                         ));
