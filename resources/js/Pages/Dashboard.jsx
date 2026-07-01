@@ -428,15 +428,17 @@ export default function Dashboard() {
                 authFetch('/api/rooms'),
                 authFetch('/api/canteen-items'),
                 authFetch('/api/canteen-orders'),
+                authFetch('/api/bookings'),
             ];
 
-            const [statsRes, branchesRes, roomsRes, canteenItemsRes, canteenOrdersRes] = await Promise.all(initialFetches);
+            const [statsRes, branchesRes, roomsRes, canteenItemsRes, canteenOrdersRes, bookingsRes] = await Promise.all(initialFetches);
 
             const statsData        = await statsRes.json();
             const branchesData     = await branchesRes.json();
             const roomsData        = await roomsRes.json();
             const canteenItemsData = await canteenItemsRes.json();
             const canteenOrdersData = await canteenOrdersRes.json();
+            const bookingsData     = await bookingsRes.json();
 
             setStats(statsData.stats || {});
             setNotifications(statsData.notifications || []);
@@ -445,21 +447,17 @@ export default function Dashboard() {
             setRooms(Array.isArray(roomsData) ? roomsData : []);
             setCanteenItems(Array.isArray(canteenItemsData) ? canteenItemsData : []);
             setCanteenOrders(Array.isArray(canteenOrdersData) ? canteenOrdersData : []);
+            setBookings(Array.isArray(bookingsData) ? bookingsData : []);
             prevCanteenOrdersRef.current = Array.isArray(canteenOrdersData) ? canteenOrdersData : [];
 
             // Tandai tab awal sudah dimuat
             setTabDataLoaded(prev => ({ ...prev, overview: true, canteen: true }));
 
-            // Untuk resident, langsung pre-load data bookings & finances karena
+            // Untuk resident, langsung pre-load data finances karena
             // dibutuhkan di tab "Riwayat Pembayaran" (overview/bookings)
             if (currentRole === 'resident') {
-                const [bookingsRes, financesRes] = await Promise.all([
-                    authFetch('/api/bookings'),
-                    authFetch('/api/finances'),
-                ]);
-                const bookingsData = await bookingsRes.json();
+                const financesRes = await authFetch('/api/finances');
                 const financesData = await financesRes.json();
-                setBookings(Array.isArray(bookingsData) ? bookingsData : []);
                 setFinances(Array.isArray(financesData) ? financesData : []);
                 setTabDataLoaded(prev => ({ ...prev, bookings: true, finances: true }));
             }
@@ -507,10 +505,6 @@ export default function Dashboard() {
     const loadNotificationsOnly = async () => {
         try {
             const res  = await authFetch('/api/dashboard/ping');
-            if (!res.ok) {
-                if (res.status === 401) window.location.reload();
-                return;
-            }
             const data = await res.json();
             const freshNotifs = data.notifications || [];
             setNotifications(freshNotifs);
