@@ -21,10 +21,16 @@ Route::get('/kamar', [LandingController::class, 'rooms'])->name('rooms.index');
 Route::get('/cabang', [LandingController::class, 'branches'])->name('branches.index');
 Route::get('/invoice/{booking_code}', [BookingController::class, 'showInvoice'])->name('invoice.show');
 
-// ── Storage file serving (untuk Hostinger yang tidak support symlink) ──────
-// Route ini melayani file dari storage/app/public tanpa butuh `php artisan storage:link`
+// ── Storage file serving (kompatibel Hostinger) ──────────────────────────
+// Coba dua lokasi: public/storage/ (Hostinger) lalu storage/app/public/ (fallback)
 Route::get('/storage/{path}', function (string $path) {
-    $fullPath = storage_path('app/public/' . $path);
+    // Lokasi 1: public/storage/ — di Hostinger file ada di sini
+    $fullPath = public_path('storage/' . $path);
+
+    // Lokasi 2 (fallback): storage/app/public/ — lokasi standar Laravel
+    if (!file_exists($fullPath) || !is_file($fullPath)) {
+        $fullPath = storage_path('app/public/' . $path);
+    }
 
     if (!file_exists($fullPath) || !is_file($fullPath)) {
         abort(404, 'File tidak ditemukan.');
