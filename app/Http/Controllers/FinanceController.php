@@ -74,7 +74,8 @@ class FinanceController extends Controller
             $file = $request->file('receipt_file');
             $filename = time() . '_' . \Illuminate\Support\Str::random(10) . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('receipts', $filename, 'public');
-            $data['receipt_path'] = \Illuminate\Support\Facades\Storage::url($path);
+            $data['receipt_path'] = $path; // simpan path relatif: receipts/filename.ext
+
         }
 
         $finance = Finance::create($data);
