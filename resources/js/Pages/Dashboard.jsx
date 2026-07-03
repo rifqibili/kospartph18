@@ -1665,6 +1665,13 @@ export default function Dashboard() {
                     </div>
                     
                     <Link 
+                        href="/profile"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-800 rounded-xl text-xs font-semibold transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        Edit Profil
+                    </Link>
+                    <Link 
                         href="/logout" 
                         method="post" 
                         as="button" 
@@ -1706,6 +1713,14 @@ export default function Dashboard() {
                                 </span>
                             )}
                         </button>
+                        
+                        <Link
+                            href="/profile"
+                            aria-label="Edit Profil"
+                            className="lg:hidden relative p-2 text-emerald-600 hover:text-white transition-colors bg-emerald-50 hover:bg-emerald-600 rounded-full border border-emerald-200 hover:border-emerald-600 flex items-center justify-center"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        </Link>
                         
                         <Link 
                             href="/logout" 
