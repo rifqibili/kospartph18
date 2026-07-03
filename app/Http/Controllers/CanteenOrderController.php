@@ -256,7 +256,9 @@ class CanteenOrderController extends Controller
         }
 
         $request->validate([
-            'payment_status' => 'required|string|in:pending,paid,debt_unpaid'
+            'payment_status' => 'required|string|in:pending,paid,debt_unpaid',
+            'payment_proof' => 'nullable|image|max:5120',
+            'payment_method_received' => 'nullable|string|in:cash,qris',
         ]);
 
         // Validate debt limit if changing to debt
@@ -325,7 +327,23 @@ class CanteenOrderController extends Controller
             }
         }
 
-        $order->update(['payment_status' => $request->payment_status, 'status' => $order->status]);
+        // Build update payload
+        $updateData = [
+            'payment_status' => $request->payment_status,
+            'status'         => $order->status,
+        ];
+
+        // Store payment proof if uploaded (admin accepting payment with QRIS)
+        if ($request->hasFile('payment_proof')) {
+            $updateData['payment_proof'] = $request->file('payment_proof')->store('canteen_payments', 'public');
+        }
+
+        // Record how admin received the money (cash / qris)
+        if ($request->payment_method_received) {
+            $updateData['payment_method'] = $request->payment_method_received;
+        }
+
+        $order->update($updateData);
 
         return response()->json(['message' => 'Status pembayaran pesanan diperbarui.']);
     }

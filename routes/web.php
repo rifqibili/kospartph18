@@ -112,6 +112,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/canteen-orders/manual', [App\Http\Controllers\CanteenOrderController::class, 'storeManual']);
     Route::put('/api/canteen-orders/{id}/status', [App\Http\Controllers\CanteenOrderController::class, 'updateStatus']);
     Route::put('/api/canteen-orders/{id}/payment', [App\Http\Controllers\CanteenOrderController::class, 'updatePayment']);
+    Route::post('/api/canteen-orders/{id}/payment', [App\Http\Controllers\CanteenOrderController::class, 'updatePayment']); // For multipart/form-data with file upload
     Route::post('/api/canteen-orders/{id}/pay-debt', [App\Http\Controllers\CanteenOrderController::class, 'payDebt']);
     Route::post('/api/canteen-orders/pay-bulk-debt', [App\Http\Controllers\CanteenOrderController::class, 'payBulkDebt']);
     Route::post('/api/canteen-orders/remind-bulk-debt', [App\Http\Controllers\CanteenOrderController::class, 'sendBulkReminders']);

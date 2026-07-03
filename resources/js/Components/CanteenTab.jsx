@@ -40,6 +40,9 @@ export default function CanteenTab({
     const [verifyOrderModal, setVerifyOrderModal] = useState(null);
     const [debtPaymentMethod, setDebtPaymentMethod] = useState('qris');
     const [selectedItemInfo, setSelectedItemInfo] = useState(null);
+    const [receivePay, setReceivePay] = useState(null); // { order } for admin accept payment modal
+    const [receivePayMethod, setReceivePayMethod] = useState('cash');
+    const [receivePayProof, setReceivePayProof] = useState(null);
 
     // Helper functions
     const formatCurrency = (amount) => `Rp ${parseFloat(amount).toLocaleString('id-ID')}`;
@@ -704,7 +707,16 @@ export default function CanteenTab({
                                             <td className="p-3 text-right font-bold text-red-600">{formatCurrency(order.total_amount)}</td>
                                             <td className="p-3 text-right">
                                                 {order.payment_status === 'debt_unpaid' && (
-                                                    <span className="font-bold text-red-600 text-xs uppercase bg-red-50 px-2 py-1 rounded-md border border-red-100">Belum Dibayar</span>
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        <span className="font-bold text-red-600 text-xs uppercase bg-red-50 px-2 py-1 rounded-md border border-red-100">Belum Dibayar</span>
+                                                        <button
+                                                            onClick={() => { setReceivePay(order); setReceivePayMethod('cash'); setReceivePayProof(null); }}
+                                                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg whitespace-nowrap flex items-center gap-1.5 transition-colors shadow-sm"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                                                            Terima Bayar
+                                                        </button>
+                                                    </div>
                                                 )}
                                                 {order.payment_status === 'pending' && (
                                                     <div className="flex flex-col items-end gap-2">
@@ -989,6 +1001,133 @@ export default function CanteenTab({
                 )}
                 {limitWarningModalUI}
                 {verifyOrderModalUI}
+
+                {/* Modal Terima Bayar Kasbon (Admin) */}
+                {receivePay && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" style={{ animation: 'fadeIn 0.2s ease' }}>
+                        <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 dark:border-slate-800 flex flex-col">
+                            {/* Header */}
+                            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                    </div>
+                                    <button onClick={() => setReceivePay(null)} className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                                <h3 className="font-extrabold text-xl tracking-tight">Terima Pembayaran Kasbon</h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-emerald-100 text-xs font-semibold">{receivePay.order_code}</span>
+                                    <span className="text-emerald-200 text-xs">•</span>
+                                    <span className="text-emerald-100 text-xs font-semibold">{receivePay.tenant?.name || 'Unknown'}</span>
+                                </div>
+                                <div className="mt-4 bg-white/15 rounded-2xl p-4 text-center">
+                                    <div className="text-emerald-100 text-xs font-bold mb-1">Total Tagihan</div>
+                                    <div className="font-extrabold text-3xl tracking-tight">{formatCurrency(receivePay.total_amount)}</div>
+                                </div>
+                            </div>
+
+                            {/* Body */}
+                            <div className="p-6 space-y-5">
+                                {/* Metode Pembayaran */}
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Metode Pembayaran Diterima</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {['cash', 'qris'].map(method => (
+                                            <button
+                                                key={method}
+                                                type="button"
+                                                onClick={() => { setReceivePayMethod(method); setReceivePayProof(null); }}
+                                                className={`py-3 rounded-xl font-bold text-sm border-2 transition-all ${
+                                                    receivePayMethod === method
+                                                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
+                                                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                                }`}
+                                            >
+                                                {method === 'cash' ? '💵 Tunai' : '📱 QRIS'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Upload bukti jika QRIS */}
+                                {receivePayMethod === 'qris' && (
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Bukti Transfer QRIS</label>
+                                        <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
+                                            receivePayProof ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/50'
+                                        }`}>
+                                            <input type="file" accept="image/*" className="hidden" onChange={e => setReceivePayProof(e.target.files[0])} />
+                                            {receivePayProof ? (
+                                                <div className="flex flex-col items-center gap-1.5">
+                                                    <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                    <span className="text-xs font-bold text-emerald-700">{receivePayProof.name}</span>
+                                                    <span className="text-[10px] text-emerald-500">Klik untuk ganti</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-1.5 text-slate-400">
+                                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                    <span className="text-xs font-semibold">Upload Bukti QRIS</span>
+                                                </div>
+                                            )}
+                                        </label>
+                                    </div>
+                                )}
+
+                                {/* Info */}
+                                <p className="text-xs text-slate-500 leading-relaxed text-center">
+                                    {receivePayMethod === 'cash'
+                                        ? 'Konfirmasi bahwa uang tunai telah diterima secara langsung. Kasbon akan langsung ditandai Lunas.'
+                                        : 'Upload bukti transfer QRIS yang sudah diterima. Kasbon akan langsung ditandai Lunas.'
+                                    }
+                                </p>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-6 pb-6 flex gap-3">
+                                <button
+                                    onClick={() => setReceivePay(null)}
+                                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (receivePayMethod === 'qris' && !receivePayProof) {
+                                            return showToast('Upload bukti QRIS terlebih dahulu.', 'error');
+                                        }
+                                        const formData = new FormData();
+                                        formData.append('payment_status', 'paid');
+                                        formData.append('payment_method_received', receivePayMethod);
+                                        if (receivePayProof) {
+                                            formData.append('payment_proof', receivePayProof);
+                                        }
+
+                                        const res = await authFetch(`/api/canteen-orders/${receivePay.id}/payment`, {
+                                            method: 'POST',
+                                            body: formData,
+                                            headers: {}
+                                        });
+                                        const data = await res.json();
+                                        if (res.ok) {
+                                            showToast('Pembayaran kasbon berhasil diterima & dicatat sebagai Lunas! ✓');
+                                            setReceivePay(null);
+                                            setReceivePayProof(null);
+                                            setReceivePayMethod('cash');
+                                            loadAllData();
+                                        } else {
+                                            showToast(data.message || 'Gagal memproses pembayaran.', 'error');
+                                        }
+                                    }}
+                                    className="flex-[1.5] py-3 font-bold rounded-xl text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                                >
+                                    ✓ Konfirmasi Lunas
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
