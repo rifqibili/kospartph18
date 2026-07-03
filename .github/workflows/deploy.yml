@@ -1,9 +1,7 @@
 name: Deploy to Hostinger via FTP
 
 on:
-  push:
-    branches:
-      - main # Jalankan otomatis setiap kali ada push ke branch main
+  workflow_dispatch: # Hanya jalan jika dipicu manual, tidak otomatis
 
 jobs:
   deploy:
