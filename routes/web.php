@@ -21,6 +21,36 @@ Route::get('/kamar', [LandingController::class, 'rooms'])->name('rooms.index');
 Route::get('/cabang', [LandingController::class, 'branches'])->name('branches.index');
 Route::get('/invoice/{booking_code}', [BookingController::class, 'showInvoice'])->name('invoice.show');
 
+// ── Storage file serving (untuk Hostinger yang tidak support symlink) ──────
+// Route ini melayani file dari storage/app/public tanpa butuh `php artisan storage:link`
+Route::get('/storage/{path}', function (string $path) {
+    $fullPath = storage_path('app/public/' . $path);
+
+    if (!file_exists($fullPath) || !is_file($fullPath)) {
+        abort(404, 'File tidak ditemukan.');
+    }
+
+    // Hanya izinkan ekstensi file yang aman
+    $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'mp4', 'mov', 'avi'];
+    if (!in_array($ext, $allowed)) {
+        abort(403, 'Tipe file tidak diizinkan.');
+    }
+
+    $mimeTypes = [
+        'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
+        'gif' => 'image/gif',  'webp' => 'image/webp', 'pdf' => 'application/pdf',
+        'mp4' => 'video/mp4',  'mov' => 'video/quicktime', 'avi' => 'video/x-msvideo',
+    ];
+    $mime = $mimeTypes[$ext] ?? 'application/octet-stream';
+
+    return response()->file($fullPath, [
+        'Content-Type'  => $mime,
+        'Cache-Control' => 'public, max-age=2592000', // cache 30 hari
+    ]);
+})->where('path', '.*')->name('storage.serve');
+
+
 // Public Settings (for Landing pages — no auth required)
 Route::get('/api/settings', [SettingController::class, 'index']);
 
