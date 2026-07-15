@@ -1214,12 +1214,18 @@ class BookingController extends Controller
             }
         }
 
-        // Use absolute URL for KTP so MS Word can fetch it
+        // Embed KTP as base64 so it always displays in Word/DOC
+        // (URL-based images often fail in Word due to auth/CORS or missing symlink)
         $ktpUrl = null;
         if ($booking->tenant && $booking->tenant->ktp_photo) {
-            $path = storage_path('app/public/' . $booking->tenant->ktp_photo);
-            if (file_exists($path)) {
-                // Generates http://domain/storage/ktp/...
+            // Try using Storage facade first (most reliable across environments)
+            if (\Storage::disk('public')->exists($booking->tenant->ktp_photo)) {
+                $path = \Storage::disk('public')->path($booking->tenant->ktp_photo);
+                $imageData = base64_encode(file_get_contents($path));
+                $mimeType = mime_content_type($path);
+                $ktpUrl = 'data:' . $mimeType . ';base64,' . $imageData;
+            } else {
+                // Fallback: absolute URL (may not show in Word but will show in browser)
                 $ktpUrl = asset('storage/' . $booking->tenant->ktp_photo);
             }
         }
