@@ -1132,7 +1132,7 @@ export default function CanteenTab({
                                         }
 
                                         const res = await authFetch(`/api/canteen-orders/${receivePay.id}/payment`, {
-                                            method: 'POST',
+                                            method: 'PUT',
                                             body: formData,
                                             headers: {}
                                         });
