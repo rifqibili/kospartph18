@@ -1232,12 +1232,11 @@ class BookingController extends Controller
 
         $view = view('contract', compact('booking', 'ktpUrl'))->render();
 
-        $headers = [
-            "Content-type" => "application/vnd.ms-word",
-            "Content-Disposition" => "attachment;Filename=Surat_Kontrak_" . str_replace(' ', '_', $booking->tenant->name ?? 'Kospart') . "_" . str_replace(' ', '_', $booking->room->room_number ?? 'Kamar') . ".doc"
-        ];
-
-        return response()->make($view, 200, $headers);
+        // Serve as HTML so the browser can render it properly (including base64 images)
+        // User can then print to PDF via browser (Ctrl+P → Save as PDF)
+        return response()->make($view, 200, [
+            'Content-Type' => 'text/html; charset=utf-8',
+        ]);
     }
 
     public function destroy($id)

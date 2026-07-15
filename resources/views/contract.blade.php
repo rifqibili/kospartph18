@@ -9,7 +9,7 @@
             size: 21cm 29.7cm; /* A4 size */
             margin: 2cm;
         }
-        body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; }
+        body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; margin: 0; padding: 0; }
         .text-center { text-align: center; }
         .font-bold { font-weight: bold; }
         .header-title { font-size: 16pt; text-transform: uppercase; margin-bottom: 5px; }
@@ -26,9 +26,64 @@
         .ktp-img { max-width: 400px; max-height: 250px; border: 1px solid #000; }
         ul { margin-top: 5px; margin-bottom: 15px; }
         li { margin-bottom: 5px; }
+        /* Print controls - hidden when printing */
+        .print-controls {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+            z-index: 999;
+        }
+        .btn-print {
+            background: #16a34a;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .btn-print:hover { background: #15803d; }
+        .btn-close {
+            background: #64748b;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .btn-close:hover { background: #475569; }
+        .document-wrapper {
+            max-width: 21cm;
+            margin: 60px auto 40px;
+            padding: 2cm;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.15);
+        }
+        @media print {
+            .print-controls { display: none !important; }
+            .document-wrapper { margin: 0; padding: 2cm; box-shadow: none; max-width: none; }
+            body { background: white; }
+        }
+        body { background: #e2e8f0; }
     </style>
 </head>
 <body>
+    <!-- Print Controls -->
+    <div class="print-controls">
+        <button class="btn-print" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+        <button class="btn-close" onclick="window.close()">✕ Tutup</button>
+    </div>
+
+    <div class="document-wrapper">
 
     <div class="text-center font-bold header-title">SURAT PERJANJIAN SEWA KAMAR</div>
     <div class="text-center header-subtitle">KOSPART PH 18<br><span>Cabang: {{ $booking->room->branch->name ?? 'Pusat' }}</span></div>
@@ -141,5 +196,6 @@
         </div>
     @endif
 
+    </div><!-- end document-wrapper -->
 </body>
 </html>
