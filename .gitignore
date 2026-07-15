@@ -21,6 +21,11 @@
 !/public/storage/.gitkeep
 /storage/*.key
 /storage/pail
+# User-uploaded files - JANGAN pernah di-push/overwrite saat deploy
+/storage/app/public/*
+!/storage/app/public/.gitkeep
+/storage/app/private/*
+!/storage/app/private/.gitkeep
 /vendor
 /verification/screenshots
 _ide_helper.php
