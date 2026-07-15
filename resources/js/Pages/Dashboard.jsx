@@ -8,6 +8,7 @@ import WebSettingsTab from '@/Components/WebSettingsTab';
 import UsersManagementTab from '@/Components/UsersManagementTab';
 import ThemeToggle from '@/Components/ThemeToggle';
 import DragDropZone from '@/Components/DragDropZone';
+import PushNotificationManager from '@/Components/PushNotificationManager';
 
 // ─── Skeleton Components ───────────────────────────────────────────────────────
 const SkeletonBox = ({ className = '' }) => (
@@ -1701,6 +1702,7 @@ export default function Dashboard() {
 
                     {/* Notification Bell, Theme Toggle & Mobile Logout */}
                     <div className="relative flex items-center gap-3 ml-auto" ref={notifRef}>
+                        <PushNotificationManager />
                         <ThemeToggle />
                         <button aria-label="Action Button"  
                             onClick={() => setShowNotifications(!showNotifications)}

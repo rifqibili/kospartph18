@@ -13,6 +13,7 @@ use App\Http\Controllers\VirtualTourController;
 use App\Http\Controllers\TestimonialController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\PushNotificationController;
 use Illuminate\Support\Facades\Route;
 
 // Guest Landing Page
@@ -20,6 +21,31 @@ Route::get('/', [LandingController::class, 'index'])->name('home');
 Route::get('/kamar', [LandingController::class, 'rooms'])->name('rooms.index');
 Route::get('/cabang', [LandingController::class, 'branches'])->name('branches.index');
 Route::get('/invoice/{booking_code}', [BookingController::class, 'showInvoice'])->name('invoice.show');
+
+// Sitemap XML (Google Search Console)
+Route::get('/sitemap.xml', function () {
+    $urls = [
+        ['loc' => url('/'),         'changefreq' => 'weekly',  'priority' => '1.0'],
+        ['loc' => url('/kamar'),    'changefreq' => 'weekly',  'priority' => '0.9'],
+        ['loc' => url('/cabang'),   'changefreq' => 'monthly', 'priority' => '0.8'],
+        ['loc' => url('/login'),    'changefreq' => 'yearly',  'priority' => '0.5'],
+        ['loc' => url('/register'), 'changefreq' => 'yearly',  'priority' => '0.5'],
+    ];
+
+    $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+    $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+    foreach ($urls as $url) {
+        $xml .= "  <url>\n";
+        $xml .= "    <loc>{$url['loc']}</loc>\n";
+        $xml .= "    <lastmod>" . now()->toAtomString() . "</lastmod>\n";
+        $xml .= "    <changefreq>{$url['changefreq']}</changefreq>\n";
+        $xml .= "    <priority>{$url['priority']}</priority>\n";
+        $xml .= "  </url>\n";
+    }
+    $xml .= '</urlset>';
+
+    return response($xml, 200)->header('Content-Type', 'application/xml');
+})->name('sitemap');
 
 // ── Storage file serving (kompatibel Hostinger) ──────────────────────────
 // Coba dua lokasi: public/storage/ (Hostinger) lalu storage/app/public/ (fallback)
@@ -152,6 +178,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/canteen-orders/{id}/pay-debt', [App\Http\Controllers\CanteenOrderController::class, 'payDebt']);
     Route::post('/api/canteen-orders/pay-bulk-debt', [App\Http\Controllers\CanteenOrderController::class, 'payBulkDebt']);
     Route::post('/api/canteen-orders/remind-bulk-debt', [App\Http\Controllers\CanteenOrderController::class, 'sendBulkReminders']);
+
+    // Web Push Notifications
+    Route::get('/api/push/vapid-key', [PushNotificationController::class, 'vapidPublicKey']);
+    Route::post('/api/push/subscribe', [PushNotificationController::class, 'subscribe']);
+    Route::post('/api/push/unsubscribe', [PushNotificationController::class, 'unsubscribe']);
+
     // Branches & Rooms Management (Master Data)
     Route::apiResource('/api/branches', BranchController::class)->names('api.branches');
     Route::apiResource('/api/rooms', RoomController::class)->names('api.rooms');

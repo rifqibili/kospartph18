@@ -6,6 +6,7 @@ use App\Models\CanteenOrder;
 use App\Models\CanteenOrderItem;
 use App\Models\CanteenItem;
 use App\Models\Finance;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -141,7 +142,20 @@ class CanteenOrderController extends Controller
                 CanteenOrderItem::create(array_merge($oi, ['canteen_order_id' => $order->id]));
             }
 
-            // Note: In real production we could send a WhatsApp notification to the Operator here using Fonnte API
+            // Kirim push notification ke admin/operator cabang ini
+            try {
+                $pushService = new PushNotificationService();
+                $itemCount = count($request->items);
+                $pushService->sendToAdminsOfBranch(
+                    $request->branch_id,
+                    '🍽️ Pesanan Kantin Baru!',
+                    "{$user->name} memesan {$itemCount} item · Rp " . number_format($totalAmount, 0, ',', '.'),
+                    '/dashboard'
+                );
+            } catch (\Exception $e) {
+                // Push notif gagal tidak boleh batalkan order
+                \Log::warning('Push notification gagal: ' . $e->getMessage());
+            }
 
             \DB::commit();
 
@@ -236,6 +250,26 @@ class CanteenOrderController extends Controller
 
         $order->status = $request->status;
         $order->save();
+
+        // Kirim push notification ke resident jika statusnya berubah
+        try {
+            if ($order->tenant_id) {
+                $pushService = new PushNotificationService();
+                $statusMessages = [
+                    'processing'       => ['⏳ Pesanan Diproses', 'Pesanan kantin kamu sedang diproses oleh dapur.'],
+                    'ready'            => ['✅ Pesanan Siap!', 'Pesanan kantin kamu sudah siap. Silakan diambil!'],
+                    'completed'        => ['🎉 Pesanan Selesai', 'Pesanan kantin kamu telah diselesaikan.'],
+                    'cancelled'        => ['❌ Pesanan Dibatalkan', 'Maaf, pesanan kantin kamu dibatalkan oleh admin.'],
+                    'pending_approval' => null,
+                ];
+                if (isset($statusMessages[$request->status]) && $statusMessages[$request->status]) {
+                    [$title, $body] = $statusMessages[$request->status];
+                    $pushService->sendToUser($order->tenant_id, $title, $body, '/dashboard');
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Push notification status gagal: ' . $e->getMessage());
+        }
 
         return response()->json(['message' => 'Status pesanan diperbarui.']);
     }
@@ -573,7 +607,7 @@ class CanteenOrderController extends Controller
 
         $branchId = $request->branch_id;
         
-        $query = CanteenOrder::with('tenant')->where('payment_status', 'debt_unpaid')->where('status', '!=', 'cancelled');
+        $query = CanteenOrder::with(['tenant', 'items.item'])->where('payment_status', 'debt_unpaid')->where('status', '!=', 'cancelled');
         
         if ($user->role === 'operator' && is_array($user->assigned_branches)) {
             $query->whereIn('branch_id', $user->assigned_branches);
@@ -595,14 +629,16 @@ class CanteenOrderController extends Controller
             
             if (!isset($debtsByTenant[$order->tenant_id])) {
                 $debtsByTenant[$order->tenant_id] = [
-                    'tenant' => $order->tenant,
+                    'tenant'       => $order->tenant,
                     'total_amount' => 0,
-                    'count' => 0
+                    'count'        => 0,
+                    'orders'       => [],
                 ];
             }
             
             $debtsByTenant[$order->tenant_id]['total_amount'] += $order->total_amount;
             $debtsByTenant[$order->tenant_id]['count']++;
+            $debtsByTenant[$order->tenant_id]['orders'][] = $order;
         }
 
         if (empty($debtsByTenant)) {
@@ -613,16 +649,34 @@ class CanteenOrderController extends Controller
         foreach ($debtsByTenant as $debt) {
             $amountFormatted = 'Rp ' . number_format($debt['total_amount'], 0, ',', '.');
             
-            $message = "*REMINDER KASBON KANTIN KOSPART*\n\n"
-                . "Halo {$debt['tenant']->name},\n\n"
-                . "Mengingatkan kembali bahwa Anda memiliki kasbon kantin yang belum dibayar sebanyak *{$debt['count']} pesanan*.\n\n"
-                . "Total Tagihan: *{$amountFormatted}*\n\n"
-                . "Silakan selesaikan pembayaran ke rekening berikut:\n"
-                . "- BCA: 8447060951\n"
-                . "A/N PRAYOGA HERIYANTO\n\n"
-                . "Atau Anda juga bisa membayar menggunakan **QRIS** yang tersedia di dalam menu Kantin pada aplikasi Kospart PH 18.\n\n"
-                . "Mohon segera melakukan pembayaran dan sertakan bukti bayarnya melalui aplikasi Kospart PH 18, atau hubungi operator kami jika ada kendala.\n\n"
-                . "Abaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih!";
+            // Susun ringkasan menu per order
+            $orderSummaryLines = [];
+            foreach ($debt['orders'] as $idx => $order) {
+                $orderNo      = $idx + 1;
+                $orderTotal   = 'Rp ' . number_format($order->total_amount, 0, ',', '.');
+                $itemLines    = [];
+                foreach ($order->items as $orderItem) {
+                    $itemName   = $orderItem->item ? $orderItem->item->name : 'Item';
+                    $itemPrice  = 'Rp ' . number_format($orderItem->price_at_time * $orderItem->quantity, 0, ',', '.');
+                    $itemLines[] = "   • {$orderItem->quantity}x {$itemName} ({$itemPrice})";
+                }
+                $itemsText          = !empty($itemLines) ? implode("\n", $itemLines) : '   (tidak ada detail item)';
+                $orderSummaryLines[] = "*Pesanan #{$orderNo}* ({$order->order_code}) — {$orderTotal}\n{$itemsText}";
+            }
+            $orderSummaryText = implode("\n\n", $orderSummaryLines);
+
+            $message = "🍽️ *REMINDER KASBON KANTIN KOSPART*\n\n"
+                . "Halo *{$debt['tenant']->name}*,\n\n"
+                . "Anda memiliki *{$debt['count']} pesanan* kasbon kantin yang belum dibayar.\n\n"
+                . "📋 *Rincian Pesanan:*\n"
+                . "{$orderSummaryText}\n\n"
+                . "💰 *Total Tagihan: {$amountFormatted}*\n\n"
+                . "💳 *Bayar ke:*\n"
+                . "- BCA : *8447060951*\n"
+                . "- A/N : *PRAYOGA HERIYANTO*\n\n"
+                . "Atau bayar via *QRIS* di menu Kantin aplikasi Kospart PH 18.\n\n"
+                . "Kirimkan bukti bayar melalui aplikasi atau langsung ke operator kami.\n"
+                . "Abaikan pesan ini jika Anda sudah membayar. Terima kasih! 🙏";
 
             $response = \Illuminate\Support\Facades\Http::withHeaders([
                 'Authorization' => $token,

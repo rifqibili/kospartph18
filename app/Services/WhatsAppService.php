@@ -149,7 +149,7 @@ class WhatsAppService
         $tenant      = $booking->tenant;
         $room        = $booking->room;
         $amountFmt   = 'Rp ' . number_format($amount, 0, ',', '.');
-        $statusLabel = $isFullyPaid ? '✅ LUNAS' : '🟡 UANG MUKA (DP)';
+        $statusLabel = $isFullyPaid ? '✅ LUNAS' : '🟡 BAYAR SEBAGIAN';
         $invoiceUrl  = route('invoice.show', $booking->booking_code);
 
         $message = "🏢 *KOSPART PH 18 - KUITANSI PEMBAYARAN* 🧾\n\n"
@@ -197,7 +197,7 @@ class WhatsAppService
                 . "Mohon segera selesaikan sisa tagihan sebesar *{$amountFmt}* untuk menghindari kendala.";
         } else {
             $header  = "🔔 *KOSPART PH 18 - PENGINGAT TAGIHAN*";
-            $urgency = "Mengingatkan bahwa masa sewa *Kamar {$room->room_number}* akan berakhir pada *{$dueDate}* _(3 hari lagi)_.\n\n"
+            $urgency = "Mengingatkan bahwa masa sewa *Kamar {$room->room_number}* akan berakhir pada *{$dueDate}*.\n\n"
                 . "Sisa tagihan Anda: *{$amountFmt}*. Mohon segera dilunasi.";
         }
 

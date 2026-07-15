@@ -3,12 +3,13 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-        <meta name="description" content="Kospart PH 18 - Hunian kos eksklusif dan nyaman di Bandar Lampung dengan fasilitas premium setara apartemen.">
+        <meta name="description" content="Mencari kos rasa apartemen di Bandar Lampung? Kospart PH 18 menghadirkan hunian kos rasa apart eksklusif dengan fasilitas lengkap, AC, kamar mandi dalam, Wi-Fi cepat & layanan admin 24/7. Hubungi kami sekarang!">
+        <meta name="keywords" content="kos rasa apart, kos rasa apartemen, kos eksklusif Bandar Lampung, kos premium Lampung, kospart ph18, hunian kos mewah Lampung">
         <meta name="theme-color" content="#1a3d2b">
         
         <!-- Open Graph / WhatsApp Preview Meta Tags -->
-        <meta property="og:title" content="Kospart PH 18 - Hunian Kos Premium & Eksklusif">
-        <meta property="og:description" content="Kos premium setara apartemen di Bandar Lampung dengan fasilitas lengkap, keamanan 24 jam, dan kenyamanan terbaik.">
+        <meta property="og:title" content="Kospart PH 18 - Kos Rasa Apartemen di Bandar Lampung">
+        <meta property="og:description" content="Nikmati pengalaman kos rasa apart eksklusif di Bandar Lampung. Kospart PH 18 menawarkan kamar premium dengan AC, kamar mandi dalam, Wi-Fi cepat & fasilitas bintang lima.">
         <meta property="og:image" content="{{ asset('images/hero section.jpg') }}">
         <meta property="og:url" content="{{ url('/') }}">
         <meta property="og:type" content="website">

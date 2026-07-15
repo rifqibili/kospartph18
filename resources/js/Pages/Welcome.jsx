@@ -304,7 +304,7 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                 <circle cx="280" cy="280" r="60" stroke="rgba(45,106,79,0.05)" strokeWidth="1" />
             </svg>
 
-            <Head title="Kospart PH 18" />
+            <Head title="Kospart PH 18 - Kos Rasa Apartemen di Bandar Lampung" />
 
 
             {/* ── HEADER ── */}
@@ -376,9 +376,11 @@ export default function Welcome({ branches, rooms, faqs, virtualTours = [], test
                             KOST NYAMAN, <br />
                             <span className="text-gold italic drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]">RASA APARTEMEN.</span>
                         </h1>
+                        {/* SEO keyword hidden visually but readable by crawler */}
+                        <p className="sr-only">Kos rasa apart eksklusif di Bandar Lampung — Kospart PH 18</p>
                         
                         <p className="text-white/95 text-lg sm:text-xl font-medium leading-relaxed max-w-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                            Lebih dari sekadar tempat singgah. Temukan standar baru kos-kosan elit dengan fasilitas premium, privasi maksimal, dan pelayanan bintang lima.
+                            Nikmati pengalaman tinggal di <strong>kos rasa apartemen</strong> eksklusif di Bandar Lampung. Fasilitas premium, privasi maksimal, dan pelayanan bintang lima hanya di Kospart PH 18.
                         </p>
                         
                         <div className="flex flex-wrap gap-4 pt-4">
