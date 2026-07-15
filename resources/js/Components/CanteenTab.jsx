@@ -1125,6 +1125,7 @@ export default function CanteenTab({
                                             return showToast('Upload bukti QRIS terlebih dahulu.', 'error');
                                         }
                                         const formData = new FormData();
+                                        formData.append('_method', 'PUT'); // Laravel method spoofing
                                         formData.append('payment_status', 'paid');
                                         formData.append('payment_method_received', receivePayMethod);
                                         if (receivePayProof) {
@@ -1132,7 +1133,7 @@ export default function CanteenTab({
                                         }
 
                                         const res = await authFetch(`/api/canteen-orders/${receivePay.id}/payment`, {
-                                            method: 'PUT',
+                                            method: 'POST', // POST + _method=PUT agar Laravel bisa parse FormData
                                             body: formData,
                                             headers: {}
                                         });
