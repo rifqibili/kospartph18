@@ -17,8 +17,8 @@
 # /public/build
 /public/fonts-manifest.dev.json
 /public/hot
-/public/storage/*
-!/public/storage/.gitkeep
+# public/storage adalah symlink di server - jangan disentuh git sama sekali
+/public/storage
 /storage/*.key
 /storage/pail
 # User-uploaded files - JANGAN pernah di-push/overwrite saat deploy
