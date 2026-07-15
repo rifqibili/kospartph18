@@ -335,7 +335,7 @@ class CanteenOrderController extends Controller
                     'category' => 'pendapatan_kantin',
                     'description' => "Pendapatan kantin dari {$tenantName} ({$roomNumber}) - {$order->order_code}",
                     'transaction_date' => now()->toDateString(),
-                    'payment_method' => $order->payment_method,
+                    'payment_method' => $request->payment_method_received ?? $order->payment_method, // gunakan metode diterima (cash/qris), bukan 'debt'
                     'booking_id' => $bookingId,
                     'canteen_order_id' => $order->id,
                 ]);
