@@ -10,12 +10,13 @@ class CanteenOrder extends Model
     use HasFactory;
 
     protected $fillable = [
-        'branch_id', 'tenant_id', 'customer_name', 'order_code', 'total_amount', 'payment_method',
+        'branch_id', 'tenant_id', 'customer_name', 'order_code', 'total_amount', 'paid_amount', 'payment_method',
         'payment_status', 'status', 'payment_proof', 'notes', 'delivery_method'
     ];
 
     protected $casts = [
         'total_amount' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
     ];
 
     public function branch()

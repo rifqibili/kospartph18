@@ -1,23 +1,23 @@
 import React, { useState } from 'react';
 
-export default function CanteenTab({ 
+export default function CanteenTab({
     stopCanteenRingtone,
-    currentRole, 
-    auth, 
-    branches, 
-    operatorBranches, 
-    canteenItems, 
-    setCanteenItems, 
-    canteenOrders, 
-    setCanteenOrders, 
-                            canteenCart, 
-                            setCanteenCart, 
-                            bookings,
-                            showToast, 
-                            loadAllData,
-                            authFetch,
-                            showConfirm
-                        }) {
+    currentRole,
+    auth,
+    branches,
+    operatorBranches,
+    canteenItems,
+    setCanteenItems,
+    canteenOrders,
+    setCanteenOrders,
+    canteenCart,
+    setCanteenCart,
+    bookings,
+    showToast,
+    loadAllData,
+    authFetch,
+    showConfirm
+}) {
     // Admin/Operator States
     const [showAddItemModal, setShowAddItemModal] = useState(false);
     const [showManualOrderModal, setShowManualOrderModal] = useState(false);
@@ -40,14 +40,20 @@ export default function CanteenTab({
     const [verifyOrderModal, setVerifyOrderModal] = useState(null);
     const [debtPaymentMethod, setDebtPaymentMethod] = useState('qris');
     const [selectedItemInfo, setSelectedItemInfo] = useState(null);
-    const [receivePay, setReceivePay] = useState(null); // { order } for admin accept payment modal
+    const [receivePay, setReceivePay] = useState(null); // { order or tenant group } for admin accept payment modal
     const [receivePayMethod, setReceivePayMethod] = useState('cash');
     const [receivePayProof, setReceivePayProof] = useState(null);
+    const [receivePayAmount, setReceivePayAmount] = useState('');
+    const [expandedDebtTenants, setExpandedDebtTenants] = useState({});
 
     // Helper functions
-    const formatCurrency = (amount) => `Rp ${parseFloat(amount).toLocaleString('id-ID')}`;
+    const formatCurrency = (amount) => `Rp ${parseFloat(amount || 0).toLocaleString('id-ID')}`;
+    const getOrderRemaining = (order) => Math.max(0, parseFloat(order?.total_amount || 0) - parseFloat(order?.paid_amount || 0));
+    const toggleTenantDebtDropdown = (tenantKey) => {
+        setExpandedDebtTenants(prev => ({ ...prev, [tenantKey]: !prev[tenantKey] }));
+    };
     const translateCategory = (cat) => {
-        switch(cat) {
+        switch (cat) {
             case 'food': return 'Makanan';
             case 'drink': return 'Minuman';
             case 'snack': return 'Cemilan';
@@ -141,7 +147,7 @@ export default function CanteenTab({
                 body: JSON.stringify({ branch_id: selectedBranchFilter }),
                 headers: { 'Content-Type': 'application/json' }
             });
-            
+
             const data = await res.json();
             if (res.ok) {
                 showToast(data.message);
@@ -178,7 +184,7 @@ export default function CanteenTab({
             if (!manualOrderData.tenant_id) {
                 return showToast('Metode Kasbon hanya bisa digunakan jika terhubung ke penghuni.', 'error');
             }
-            const existingDebt = canteenOrders.filter(o => o.tenant_id === parseInt(manualOrderData.tenant_id) && o.payment_status === 'debt_unpaid').reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+            const existingDebt = canteenOrders.filter(o => o.tenant_id === parseInt(manualOrderData.tenant_id) && o.payment_status === 'debt_unpaid' && o.status !== 'cancelled').reduce((sum, o) => sum + getOrderRemaining(o), 0);
             if (existingDebt + manualCartTotal > 250000) {
                 return setLimitWarningData({
                     existingDebt: existingDebt,
@@ -235,7 +241,7 @@ export default function CanteenTab({
     };
 
     const cartTotal = canteenCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const tenantDebt = canteenOrders.filter(o => o.payment_status === 'debt_unpaid' && o.status !== 'cancelled' && o.tenant_id === auth.user.id).reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+    const tenantDebt = canteenOrders.filter(o => o.payment_status === 'debt_unpaid' && o.status !== 'cancelled' && o.tenant_id === auth.user.id).reduce((sum, o) => sum + getOrderRemaining(o), 0);
 
     const handleCheckout = async (e) => {
         e.preventDefault();
@@ -250,7 +256,7 @@ export default function CanteenTab({
                 });
             }
         }
-        
+
         if (checkoutData.payment_method === 'qris' && !paymentProof) {
             return showToast('Upload bukti QRIS terlebih dahulu.', 'error');
         }
@@ -261,7 +267,7 @@ export default function CanteenTab({
         formData.append('payment_method', checkoutData.payment_method);
         formData.append('delivery_method', checkoutData.delivery_method);
         formData.append('notes', checkoutData.notes);
-        
+
         canteenCart.forEach((item, index) => {
             formData.append(`items[${index}][id]`, item.id);
             formData.append(`items[${index}][quantity]`, item.quantity);
@@ -292,15 +298,15 @@ export default function CanteenTab({
     const handlePayDebt = async (e) => {
         e.preventDefault();
         if (debtPaymentMethod === 'qris' && !paymentProof) return showToast('Pilih bukti QRIS dulu.', 'error');
-        
+
         const formData = new FormData();
         formData.append('payment_method', debtPaymentMethod);
         if (paymentProof) {
             formData.append('payment_proof', paymentProof);
         }
-        
-        const url = showPayDebtModal.isBulk 
-            ? '/api/canteen-orders/pay-bulk-debt' 
+
+        const url = showPayDebtModal.isBulk
+            ? '/api/canteen-orders/pay-bulk-debt'
             : `/api/canteen-orders/${showPayDebtModal.id}/pay-debt`;
 
         const res = await authFetch(url, {
@@ -308,7 +314,7 @@ export default function CanteenTab({
             body: formData,
             headers: {}
         });
-        
+
         if (res.ok) {
             showToast(debtPaymentMethod === 'qris' ? 'Bukti QRIS terkirim. Menunggu verifikasi.' : 'Pengajuan pelunasan tunai terkirim.');
             setShowPayDebtModal(null);
@@ -390,7 +396,7 @@ export default function CanteenTab({
     const verifyOrderModalUI = verifyOrderModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-md" style={{ animation: 'fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1)' }}>
             <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 dark:border-slate-800 transform transition-all animate-in zoom-in-95 duration-200 flex flex-col max-h-full">
-                
+
                 {/* Header */}
                 <div className="px-6 pt-6 pb-4 flex justify-between items-start">
                     <div>
@@ -416,7 +422,7 @@ export default function CanteenTab({
                             {formatCurrency(verifyOrderModal.total_amount)}
                         </div>
                     </div>
-                    
+
                     {/* Proof Image */}
                     <div className="space-y-2.5">
                         <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block pl-1">Bukti Pembayaran</label>
@@ -470,8 +476,8 @@ export default function CanteenTab({
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <h3 className="font-extrabold text-2xl text-slate-800">Master Data Kantin</h3>
                     <div className="flex flex-col md:flex-row gap-4 items-start md:items-center w-full md:w-auto">
-                        <select 
-                            value={selectedBranchFilter} 
+                        <select
+                            value={selectedBranchFilter}
                             onChange={e => setSelectedBranchFilter(e.target.value)}
                             className="glass-input rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 border border-slate-200 bg-white w-full md:w-auto"
                         >
@@ -481,7 +487,7 @@ export default function CanteenTab({
                             ))}
                         </select>
                         <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                            <button 
+                            <button
                                 onClick={() => {
                                     setEditItem(null);
                                     setImageFile(null);
@@ -492,7 +498,7 @@ export default function CanteenTab({
                             >
                                 + Tambah Menu
                             </button>
-                            <button 
+                            <button
                                 onClick={() => {
                                     setEditItem(null);
                                     setImageFile(null);
@@ -503,7 +509,7 @@ export default function CanteenTab({
                             >
                                 + Tambah Barang
                             </button>
-                            <button 
+                            <button
                                 onClick={() => {
                                     setManualOrderData({ branch_id: selectedBranchFilter || (operatorBranches || [])[0] || '', tenant_id: '', customer_name: '', payment_method: 'cash', payment_status: 'paid' });
                                     setManualCart([]);
@@ -584,9 +590,9 @@ export default function CanteenTab({
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                             <h4 className="font-bold text-lg text-slate-800">Daftar Menu Kantin</h4>
                             <div className="relative w-full sm:w-64">
-                                <input 
-                                    type="text" 
-                                    placeholder="Cari menu / barang..." 
+                                <input
+                                    type="text"
+                                    placeholder="Cari menu / barang..."
                                     value={adminSearch}
                                     onChange={(e) => setAdminSearch(e.target.value)}
                                     className="glass-input rounded-xl px-4 py-2 text-sm w-full border border-slate-200"
@@ -634,7 +640,7 @@ export default function CanteenTab({
                                             <td className="py-2">{formatCurrency(item.price)}</td>
                                             <td className="py-2">
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => { setEditItem(item); setImageFile(null); setNewItem({...item, add_to_finance: false, form_type: item.unit ? 'barang' : 'menu', recipes: item.recipes || []}); setShowAddItemModal(true); }} className="text-blue-500 hover:text-blue-700 text-xs font-bold">Edit</button>
+                                                    <button onClick={() => { setEditItem(item); setImageFile(null); setNewItem({ ...item, add_to_finance: false, form_type: item.unit ? 'barang' : 'menu', recipes: item.recipes || [] }); setShowAddItemModal(true); }} className="text-blue-500 hover:text-blue-700 text-xs font-bold">Edit</button>
                                                     <button onClick={() => handleDeleteItem(item.id)} className="text-red-500 hover:text-red-700 text-xs font-bold">Hapus</button>
                                                 </div>
                                             </td>
@@ -678,7 +684,7 @@ export default function CanteenTab({
                                             <td className="py-2">{formatCurrency(item.price)}</td>
                                             <td className="py-2">
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => { setEditItem(item); setImageFile(null); setNewItem({...item, add_to_finance: false, form_type: item.unit ? 'barang' : 'menu', recipes: item.recipes || []}); setShowAddItemModal(true); }} className="text-blue-500 hover:text-blue-700 text-xs font-bold">Edit</button>
+                                                    <button onClick={() => { setEditItem(item); setImageFile(null); setNewItem({ ...item, add_to_finance: false, form_type: item.unit ? 'barang' : 'menu', recipes: item.recipes || [] }); setShowAddItemModal(true); }} className="text-blue-500 hover:text-blue-700 text-xs font-bold">Edit</button>
                                                     <button onClick={() => handleDeleteItem(item.id)} className="text-red-500 hover:text-red-700 text-xs font-bold">Hapus</button>
                                                 </div>
                                             </td>
@@ -690,79 +696,274 @@ export default function CanteenTab({
                     </div>
                 </div>
 
-                {/* Admin Kasbon View */}
-                {filteredOrders.filter(o => o.status !== 'cancelled' && (o.payment_status === 'debt_unpaid' || (o.payment_status === 'pending' && o.status === 'completed'))).length > 0 && (
-                    <div className="glass-panel p-6 rounded-2xl border border-slate-200 mt-8">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                            <h4 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                Daftar Kasbon & Verifikasi
-                            </h4>
-                            <div className="flex flex-wrap gap-3 items-center w-full sm:w-auto justify-between sm:justify-end">
-                                <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-red-100 text-red-600">
-                                    Total: {formatCurrency(filteredOrders.filter(o => o.payment_status === 'debt_unpaid' && o.status !== 'cancelled').reduce((sum, o) => sum + Number(o.total_amount), 0))}
-                                </span>
-                                <button onClick={handleSendBulkReminders} className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold rounded-lg flex items-center gap-2 shadow-sm whitespace-nowrap">
-                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                                    Kirim Reminder
-                                </button>
+                {/* Admin Kasbon View — Akumulasi Per Orang + Dropdown Rincian Pesanan */}
+                {(() => {
+                    const kasbonOrders = filteredOrders.filter(o => o.status !== 'cancelled' && (o.payment_status === 'debt_unpaid' || (o.payment_status === 'pending' && o.status === 'completed')));
+                    if (kasbonOrders.length === 0) return null;
+
+                    const totalRemainingAll = filteredOrders
+                        .filter(o => o.payment_status === 'debt_unpaid' && o.status !== 'cancelled')
+                        .reduce((sum, o) => sum + getOrderRemaining(o), 0);
+
+                    // Group kasbon orders per person (tenant_id or guest name)
+                    const groupedMap = {};
+                    kasbonOrders.forEach(order => {
+                        const key = order.tenant_id ? `tenant_${order.tenant_id}` : `guest_${order.customer_name || order.id}`;
+                        if (!groupedMap[key]) {
+                            groupedMap[key] = {
+                                key,
+                                tenant_id: order.tenant_id || null,
+                                tenantName: order.tenant?.name || order.customer_name || 'Unknown',
+                                roomNumber: order.tenant?.bookings?.[0]?.room?.room_number ? 'Kamar ' + order.tenant.bookings[0].room.room_number : '-',
+                                branchName: order.branch?.name?.replace('Kospart PH 18 - ', '') || '-',
+                                orders: [],
+                                totalInitial: 0,
+                                totalPaid: 0,
+                                totalRemaining: 0,
+                                pendingVerifyCount: 0,
+                                latestDate: order.created_at,
+                            };
+                        }
+                        const rem = getOrderRemaining(order);
+                        groupedMap[key].orders.push(order);
+                        groupedMap[key].totalInitial += Number(order.total_amount || 0);
+                        groupedMap[key].totalPaid += Number(order.paid_amount || 0);
+                        groupedMap[key].totalRemaining += rem;
+                        if (order.payment_status === 'pending') {
+                            groupedMap[key].pendingVerifyCount += 1;
+                        }
+                        if (new Date(order.created_at) > new Date(groupedMap[key].latestDate)) {
+                            groupedMap[key].latestDate = order.created_at;
+                        }
+                    });
+
+                    const groupedTenants = Object.values(groupedMap);
+
+                    return (
+                        <div className="glass-panel p-6 rounded-2xl border border-slate-200 mt-8">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                                        <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        Daftar Kasbon & Verifikasi (Akumulasi Per Orang)
+                                    </h4>
+                                    <p className="text-xs text-slate-500 mt-0.5">Klik baris penghuni atau tombol <b>Rincian Pesanan</b> untuk melihat daftar pesanan dan input pembayaran penuh maupun cicilan.</p>
+                                </div>
+                                <div className="flex flex-wrap gap-3 items-center w-full sm:w-auto justify-between sm:justify-end">
+                                    <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-red-100 text-red-600">
+                                        Total Sisa Kasbon: {formatCurrency(totalRemainingAll)}
+                                    </span>
+                                    <button onClick={handleSendBulkReminders} className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold rounded-lg flex items-center gap-2 shadow-sm whitespace-nowrap">
+                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
+                                        Kirim Reminder
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="overflow-x-auto w-full pb-2 relative">
+                                <table className="w-full whitespace-nowrap min-w-[680px] text-left border-collapse text-sm">
+                                    <thead>
+                                        <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase border-b border-slate-200">
+                                            <th className="p-3">Penghuni</th>
+                                            <th className="p-3">Kamar & Cabang</th>
+                                            <th className="p-3">Jumlah Bon</th>
+                                            <th className="p-3 text-right">Akumulasi Sisa Kasbon</th>
+                                            <th className="p-3 text-right">Rincian & Pembayaran</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {groupedTenants.map(group => {
+                                            const isExpanded = !!expandedDebtTenants[group.key];
+                                            return (
+                                                <React.Fragment key={group.key}>
+                                                    <tr
+                                                        onClick={() => toggleTenantDebtDropdown(group.key)}
+                                                        className={`cursor-pointer transition-colors ${isExpanded ? 'bg-slate-50/90' : 'hover:bg-slate-50/60'}`}
+                                                    >
+                                                        <td className="p-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-100 text-slate-600 transition-transform duration-200 ${isExpanded ? 'rotate-180 bg-emerald-100 text-emerald-700' : ''}`}>
+                                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+                                                                </span>
+                                                                <div>
+                                                                    <div className="font-bold text-slate-800">{group.tenantName}</div>
+                                                                    <div className="text-[11px] text-slate-500">Update: {new Date(group.latestDate).toLocaleDateString('id-ID')}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-3">
+                                                            <div className="font-semibold text-slate-700">{group.roomNumber}</div>
+                                                            <div className="text-xs text-slate-500">{group.branchName}</div>
+                                                        </td>
+                                                        <td className="p-3">
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                {group.orders.length} Pesanan
+                                                            </span>
+                                                            {group.pendingVerifyCount > 0 && (
+                                                                <span className="ml-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200">
+                                                                    {group.pendingVerifyCount} Verifikasi
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3 text-right">
+                                                            <div className="font-extrabold text-red-600 text-base">{formatCurrency(group.totalRemaining)}</div>
+                                                            {group.totalPaid > 0 && (
+                                                                <div className="text-[11px] text-emerald-600 font-semibold">
+                                                                    Total Awal: {formatCurrency(group.totalInitial)} • Dicicil: {formatCurrency(group.totalPaid)}
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleTenantDebtDropdown(group.key)}
+                                                                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors"
+                                                                >
+                                                                    <span>{isExpanded ? 'Tutup Rincian' : 'Rincian Pesanan'}</span>
+                                                                    <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+                                                                </button>
+                                                                {group.totalRemaining > 0 && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (group.tenant_id) {
+                                                                                setReceivePay({
+                                                                                    isTenantGroup: true,
+                                                                                    tenant_id: group.tenant_id,
+                                                                                    tenant_name: group.tenantName,
+                                                                                    orders_count: group.orders.length,
+                                                                                    total_amount: group.totalInitial,
+                                                                                    paid_amount: group.totalPaid,
+                                                                                    remaining_amount: group.totalRemaining,
+                                                                                });
+                                                                            } else {
+                                                                                const firstOrder = group.orders[0];
+                                                                                setReceivePay({
+                                                                                    ...firstOrder,
+                                                                                    isTenantGroup: false,
+                                                                                    remaining_amount: getOrderRemaining(firstOrder),
+                                                                                });
+                                                                            }
+                                                                            setReceivePayAmount(String(group.totalRemaining));
+                                                                            setReceivePayMethod('cash');
+                                                                            setReceivePayProof(null);
+                                                                        }}
+                                                                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg whitespace-nowrap flex items-center gap-1.5 transition-colors shadow-sm"
+                                                                    >
+                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                                        Bayar / Cicil
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {isExpanded && (
+                                                        <tr className="bg-slate-50/70">
+                                                            <td colSpan="5" className="p-4 border-t border-slate-200/70">
+                                                                <div className="space-y-3">
+                                                                    <div className="flex items-center justify-between text-xs font-bold text-slate-600 px-1">
+                                                                        <span>Daftar Rincian Pesanan Kasbon — {group.tenantName} ({group.orders.length} Pesanan)</span>
+                                                                        <span>Total Sisa: <span className="text-red-600">{formatCurrency(group.totalRemaining)}</span></span>
+                                                                    </div>
+                                                                    <div className="grid gap-2.5">
+                                                                        {group.orders.map((order, idx) => {
+                                                                            const orderRem = getOrderRemaining(order);
+                                                                            const orderPaid = Number(order.paid_amount || 0);
+                                                                            return (
+                                                                                <div key={order.id} className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
+                                                                                    <div className="space-y-1.5 flex-1">
+                                                                                        <div className="flex flex-wrap items-center gap-2">
+                                                                                            <span className="text-xs font-extrabold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">#{idx + 1} • {order.order_code}</span>
+                                                                                            <span className="text-xs text-slate-500">
+                                                                                                {new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                                                            </span>
+                                                                                            {orderPaid > 0 && orderRem > 0 && (
+                                                                                                <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                                                                                                    Dicicil ({formatCurrency(orderPaid)})
+                                                                                                </span>
+                                                                                            )}
+                                                                                            {order.payment_status === 'pending' && (
+                                                                                                <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                                                                                    Menunggu Verifikasi
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                        <div className="text-xs text-slate-700 space-y-0.5 pl-1">
+                                                                                            {(order.items || []).map(oi => (
+                                                                                                <div key={oi.id} className="flex items-center gap-1.5">
+                                                                                                    <span className="text-slate-400">•</span>
+                                                                                                    <span className="font-semibold">{oi.quantity}x {oi.item?.name || 'Item'}</span>
+                                                                                                    <span className="text-slate-400">({formatCurrency(oi.price_at_time * oi.quantity)})</span>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                        {order.notes && (
+                                                                                            <div className="text-[11px] text-amber-700 italic bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-100 w-fit">
+                                                                                                Catatan: {order.notes}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                                                                                        <div className="text-left sm:text-right">
+                                                                                            <div className="text-xs text-slate-500">
+                                                                                                Tagihan: <span className="font-semibold text-slate-700">{formatCurrency(order.total_amount)}</span>
+                                                                                            </div>
+                                                                                            {orderPaid > 0 && (
+                                                                                                <div className="text-[11px] text-emerald-600 font-semibold">
+                                                                                                    Terbayar: {formatCurrency(orderPaid)}
+                                                                                                </div>
+                                                                                            )}
+                                                                                            <div className="font-bold text-red-600 text-sm">
+                                                                                                Sisa: {formatCurrency(orderRem)}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            {order.payment_status === 'pending' && (
+                                                                                                <button
+                                                                                                    type="button"
+                                                                                                    onClick={() => setVerifyOrderModal(order)}
+                                                                                                    className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg whitespace-nowrap"
+                                                                                                >
+                                                                                                    Verifikasi Bukti
+                                                                                                </button>
+                                                                                            )}
+                                                                                            {orderRem > 0 && (
+                                                                                                <button
+                                                                                                    type="button"
+                                                                                                    onClick={() => {
+                                                                                                        setReceivePay({
+                                                                                                            ...order,
+                                                                                                            isTenantGroup: false,
+                                                                                                            remaining_amount: orderRem,
+                                                                                                        });
+                                                                                                        setReceivePayAmount(String(orderRem));
+                                                                                                        setReceivePayMethod('cash');
+                                                                                                        setReceivePayProof(null);
+                                                                                                    }}
+                                                                                                    className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-lg whitespace-nowrap"
+                                                                                                >
+                                                                                                    Bayar / Cicil Bon Ini
+                                                                                                </button>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                        <div className="overflow-x-auto w-full pb-2 relative">
-                            <table className="w-full whitespace-nowrap min-w-[600px] text-left border-collapse text-sm">
-                                <thead>
-                                    <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase border-b border-slate-200">
-                                        <th className="p-3">Penghuni / Kode</th>
-                                        <th className="p-3">Kamar & Cabang</th>
-                                        <th className="p-3">Tanggal</th>
-                                        <th className="p-3 text-right">Jumlah Kasbon</th>
-                                        <th className="p-3 text-right">Status / Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {filteredOrders.filter(o => o.status !== 'cancelled' && (o.payment_status === 'debt_unpaid' || (o.payment_status === 'pending' && o.status === 'completed'))).map(order => (
-                                        <tr key={order.id} className="">
-                                            <td className="p-3">
-                                                <div className="font-bold text-slate-800">{order.tenant?.name || 'Unknown'}</div>
-                                                <div className="text-xs text-slate-500">{order.order_code}</div>
-                                            </td>
-                                            <td className="p-3">
-                                                <div className="font-semibold text-slate-700">{order.tenant?.bookings?.[0]?.room?.room_number ? 'Kamar ' + order.tenant.bookings[0].room.room_number : '-'}</div>
-                                                <div className="text-xs text-slate-500">{order.branch?.name?.replace('Kospart PH 18 - ', '')}</div>
-                                            </td>
-                                            <td className="p-3 text-slate-500 text-xs">{new Date(order.created_at).toLocaleDateString('id-ID')}</td>
-                                            <td className="p-3 text-right font-bold text-red-600">{formatCurrency(order.total_amount)}</td>
-                                            <td className="p-3 text-right">
-                                                {order.payment_status === 'debt_unpaid' && (
-                                                    <div className="flex flex-col items-end gap-2">
-                                                        <span className="font-bold text-red-600 text-xs uppercase bg-red-50 px-2 py-1 rounded-md border border-red-100">Belum Dibayar</span>
-                                                        <button
-                                                            onClick={() => { setReceivePay(order); setReceivePayMethod('cash'); setReceivePayProof(null); }}
-                                                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg whitespace-nowrap flex items-center gap-1.5 transition-colors shadow-sm"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
-                                                            Terima Bayar
-                                                        </button>
-                                                    </div>
-                                                )}
-                                                {order.payment_status === 'pending' && (
-                                                    <div className="flex flex-col items-end gap-2">
-                                                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">Menunggu Verifikasi</span>
-                                                        <div className="flex gap-2 justify-end mt-1">
-                                                            <button onClick={() => setVerifyOrderModal(order)} className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg whitespace-nowrap hover:bg-emerald-700">
-                                                                Verifikasi Kasbon
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+                    );
+                })()}
 
                 {/* Modal Add/Edit Item */}
                 {showAddItemModal && (
@@ -772,7 +973,7 @@ export default function CanteenTab({
                             <form onSubmit={handleSaveItem} className="space-y-4">
                                 <div>
                                     <label className="text-xs font-semibold text-slate-500">Cabang</label>
-                                    <select required value={newItem.branch_id} onChange={e => setNewItem({...newItem, branch_id: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
+                                    <select required value={newItem.branch_id} onChange={e => setNewItem({ ...newItem, branch_id: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
                                         <option value="">Pilih Cabang</option>
                                         {branches.filter(b => currentRole === 'operator' ? operatorBranches.some(br => Number(br) === Number(b.id)) : true).map(b => (
                                             <option key={b.id} value={b.id}>{b.name}</option>
@@ -781,7 +982,7 @@ export default function CanteenTab({
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold text-slate-500">Nama Barang</label>
-                                    <input required type="text" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" />
+                                    <input required type="text" value={newItem.name} onChange={e => setNewItem({ ...newItem, name: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" />
                                 </div>
                                 {newItem.form_type === 'menu' && (
                                     <div>
@@ -792,7 +993,7 @@ export default function CanteenTab({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-xs font-semibold text-slate-500">Kategori</label>
-                                        <select required value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
+                                        <select required value={newItem.category} onChange={e => setNewItem({ ...newItem, category: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
                                             {newItem.form_type !== 'barang' && (
                                                 <>
                                                     <option value="food">Makanan</option>
@@ -810,13 +1011,13 @@ export default function CanteenTab({
                                         {!(newItem.form_type === 'menu' && newItem.recipes?.length > 0) && (
                                             <div className="flex-1">
                                                 <label className="text-xs font-semibold text-slate-500">Stok Tersedia</label>
-                                                <input required type="number" min="0" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" />
+                                                <input required type="number" min="0" value={newItem.stock} onChange={e => setNewItem({ ...newItem, stock: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" />
                                             </div>
                                         )}
                                         {newItem.form_type === 'barang' && (
                                             <div className="flex-1">
                                                 <label className="text-xs font-semibold text-slate-500">Satuan</label>
-                                                <select required value={newItem.unit || 'pcs'} onChange={e => setNewItem({...newItem, unit: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
+                                                <select required value={newItem.unit || 'pcs'} onChange={e => setNewItem({ ...newItem, unit: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full">
                                                     <option value="pcs">pcs</option>
                                                     <option value="box">box / dus</option>
                                                     <option value="pack">pack</option>
@@ -832,13 +1033,13 @@ export default function CanteenTab({
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold text-slate-500">Deskripsi (Opsional)</label>
-                                    <textarea rows="2" value={newItem.description || ''} onChange={e => setNewItem({...newItem, description: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder="Tambahkan penjelasan singkat tentang menu/barang ini..."></textarea>
+                                    <textarea rows="2" value={newItem.description || ''} onChange={e => setNewItem({ ...newItem, description: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder="Tambahkan penjelasan singkat tentang menu/barang ini..."></textarea>
                                 </div>
                                 {newItem.form_type === 'menu' && (
                                     <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-white">
                                         <div className="flex justify-between items-center">
                                             <label className="text-xs font-bold text-slate-700">Resep / Bahan Baku (Opsional)</label>
-                                            <button type="button" onClick={() => setNewItem({...newItem, recipes: [...(newItem.recipes || []), {ingredient_item_id: '', quantity: 1}]})} className="text-xs bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700 font-bold">+ Tambah Bahan</button>
+                                            <button type="button" onClick={() => setNewItem({ ...newItem, recipes: [...(newItem.recipes || []), { ingredient_item_id: '', quantity: 1 }] })} className="text-xs bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700 font-bold">+ Tambah Bahan</button>
                                         </div>
                                         {newItem.recipes?.length > 0 && <p className="text-[10px] text-slate-500">Jika ditambahkan, stok menu ini akan dianggap tidak terbatas, namun stok bahan bakunya akan otomatis dipotong saat dibeli.</p>}
                                         {(newItem.recipes || []).map((recipe, index) => (
@@ -846,7 +1047,7 @@ export default function CanteenTab({
                                                 <select required value={recipe.ingredient_item_id} onChange={e => {
                                                     const newRecipes = [...newItem.recipes];
                                                     newRecipes[index].ingredient_item_id = e.target.value;
-                                                    setNewItem({...newItem, recipes: newRecipes});
+                                                    setNewItem({ ...newItem, recipes: newRecipes });
                                                 }} className="glass-input rounded-xl px-3 py-2 text-xs flex-1">
                                                     <option value="">Pilih Bahan Baku</option>
                                                     {canteenItems.filter(i => i.category === 'ingredient' && (!newItem.branch_id || Number(i.branch_id) === Number(newItem.branch_id))).map(i => (
@@ -856,11 +1057,11 @@ export default function CanteenTab({
                                                 <input required type="number" min="0.01" step="0.01" value={recipe.quantity} onChange={e => {
                                                     const newRecipes = [...newItem.recipes];
                                                     newRecipes[index].quantity = e.target.value;
-                                                    setNewItem({...newItem, recipes: newRecipes});
+                                                    setNewItem({ ...newItem, recipes: newRecipes });
                                                 }} className="glass-input rounded-xl px-3 py-2 text-xs w-20" placeholder="Qty" />
                                                 <button type="button" onClick={() => {
                                                     const newRecipes = newItem.recipes.filter((_, i) => i !== index);
-                                                    setNewItem({...newItem, recipes: newRecipes});
+                                                    setNewItem({ ...newItem, recipes: newRecipes });
                                                 }} className="text-red-500 font-extrabold px-2 text-lg hover:text-red-700">&times;</button>
                                             </div>
                                         ))}
@@ -870,26 +1071,26 @@ export default function CanteenTab({
                                     <label className="text-xs font-semibold text-slate-500">
                                         {newItem.form_type === 'barang' ? 'Harga / Nilai Barang (Rp)' : 'Harga Jual (Rp)'}
                                     </label>
-                                    <input required type="number" min="0" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" />
+                                    <input required type="number" min="0" value={newItem.price} onChange={e => setNewItem({ ...newItem, price: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" />
                                 </div>
                                 {newItem.form_type !== 'barang' && (
                                     <div>
                                         <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
-                                            <input type="checkbox" checked={newItem.is_sellable} onChange={e => setNewItem({...newItem, is_sellable: e.target.checked})} className="rounded text-emerald-600 focus:ring-emerald-500" />
+                                            <input type="checkbox" checked={newItem.is_sellable} onChange={e => setNewItem({ ...newItem, is_sellable: e.target.checked })} className="rounded text-emerald-600 focus:ring-emerald-500" />
                                             Menu ini bisa dibeli oleh penghuni (Tampil di menu kantin)
                                         </label>
                                     </div>
                                 )}
-                                
+
                                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                                     <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
-                                        <input type="checkbox" checked={newItem.add_to_finance} onChange={e => setNewItem({...newItem, add_to_finance: e.target.checked})} className="rounded text-emerald-600 focus:ring-emerald-500" />
+                                        <input type="checkbox" checked={newItem.add_to_finance} onChange={e => setNewItem({ ...newItem, add_to_finance: e.target.checked })} className="rounded text-emerald-600 focus:ring-emerald-500" />
                                         Catat belanja stok ini ke Laporan Keuangan (Arus Kas Keluar)
                                     </label>
                                     {newItem.add_to_finance && (
                                         <div>
                                             <label className="text-xs font-semibold text-slate-500">Total Modal Belanja Stok (Rp)</label>
-                                            <input required={newItem.add_to_finance} type="number" min="0" value={newItem.total_cost} onChange={e => setNewItem({...newItem, total_cost: e.target.value})} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder="Total pengeluaran beli stok ini" />
+                                            <input required={newItem.add_to_finance} type="number" min="0" value={newItem.total_cost} onChange={e => setNewItem({ ...newItem, total_cost: e.target.value })} className="glass-input rounded-xl px-4 py-2.5 text-sm w-full" placeholder="Total pengeluaran beli stok ini" />
                                         </div>
                                     )}
                                 </div>
@@ -926,7 +1127,7 @@ export default function CanteenTab({
                                 <form onSubmit={handleManualOrderSubmit} className="space-y-4 flex-grow overflow-y-auto pr-2">
                                     <div>
                                         <label className="text-xs font-semibold text-slate-500">Cabang</label>
-                                        <select required value={manualOrderData.branch_id} onChange={e => setManualOrderData({...manualOrderData, branch_id: e.target.value})} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
+                                        <select required value={manualOrderData.branch_id} onChange={e => setManualOrderData({ ...manualOrderData, branch_id: e.target.value })} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
                                             <option value="">Pilih Cabang</option>
                                             {branches.filter(b => currentRole === 'operator' ? operatorBranches.some(br => Number(br) === Number(b.id)) : true).map(b => (
                                                 <option key={b.id} value={b.id}>{b.name}</option>
@@ -936,7 +1137,7 @@ export default function CanteenTab({
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="text-xs font-semibold text-slate-500">Metode Pembayaran</label>
-                                            <select required value={manualOrderData.payment_method} onChange={e => setManualOrderData({...manualOrderData, payment_method: e.target.value})} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
+                                            <select required value={manualOrderData.payment_method} onChange={e => setManualOrderData({ ...manualOrderData, payment_method: e.target.value })} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
                                                 <option value="cash">Tunai (Cash)</option>
                                                 <option value="qris">QRIS</option>
                                                 <option value="debt">Kasbon (Hutang)</option>
@@ -944,18 +1145,18 @@ export default function CanteenTab({
                                         </div>
                                         <div>
                                             <label className="text-xs font-semibold text-slate-500">Status Pembayaran</label>
-                                            <select required value={manualOrderData.payment_status} onChange={e => setManualOrderData({...manualOrderData, payment_status: e.target.value})} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
+                                            <select required value={manualOrderData.payment_status} onChange={e => setManualOrderData({ ...manualOrderData, payment_status: e.target.value })} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
                                                 <option value="paid">Lunas</option>
                                                 <option value="pending">Menunggu Bayar</option>
                                                 {manualOrderData.payment_method === 'debt' && <option value="debt_unpaid">Belum Lunas (Kasbon)</option>}
                                             </select>
                                         </div>
                                     </div>
-                                    
+
                                     {manualOrderData.payment_method === 'debt' ? (
                                         <div>
                                             <label className="text-xs font-semibold text-slate-500">Pilih Penghuni (Wajib untuk Kasbon)</label>
-                                            <select required value={manualOrderData.tenant_id} onChange={e => setManualOrderData({...manualOrderData, tenant_id: e.target.value})} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
+                                            <select required value={manualOrderData.tenant_id} onChange={e => setManualOrderData({ ...manualOrderData, tenant_id: e.target.value })} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
                                                 <option value="">Pilih Penghuni Aktif...</option>
                                                 {(() => {
                                                     const activeTenants = bookings
@@ -972,7 +1173,7 @@ export default function CanteenTab({
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
                                                 <label className="text-xs font-semibold text-slate-500">Pilih Penghuni (Opsional)</label>
-                                                <select value={manualOrderData.tenant_id} onChange={e => setManualOrderData({...manualOrderData, tenant_id: e.target.value, customer_name: ''})} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
+                                                <select value={manualOrderData.tenant_id} onChange={e => setManualOrderData({ ...manualOrderData, tenant_id: e.target.value, customer_name: '' })} className="glass-input rounded-xl px-3 py-2 text-sm w-full">
                                                     <option value="">Bukan Penghuni</option>
                                                     {(() => {
                                                         const activeTenants = bookings
@@ -988,7 +1189,7 @@ export default function CanteenTab({
                                             {!manualOrderData.tenant_id && (
                                                 <div>
                                                     <label className="text-xs font-semibold text-slate-500">Nama Tamu</label>
-                                                    <input type="text" required value={manualOrderData.customer_name} onChange={e => setManualOrderData({...manualOrderData, customer_name: e.target.value})} className="glass-input rounded-xl px-3 py-2 text-sm w-full" placeholder="Nama Tamu" />
+                                                    <input type="text" required value={manualOrderData.customer_name} onChange={e => setManualOrderData({ ...manualOrderData, customer_name: e.target.value })} className="glass-input rounded-xl px-3 py-2 text-sm w-full" placeholder="Nama Tamu" />
                                                 </div>
                                             )}
                                         </div>
@@ -1016,7 +1217,7 @@ export default function CanteenTab({
                                             <span>{formatCurrency(manualCartTotal)}</span>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="flex gap-3 pt-4 mt-auto">
                                         <button type="button" onClick={() => setShowManualOrderModal(false)} className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-xl font-bold">Batal</button>
                                         <button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold">Buat Pesanan</button>
@@ -1029,133 +1230,204 @@ export default function CanteenTab({
                 {limitWarningModalUI}
                 {verifyOrderModalUI}
 
-                {/* Modal Terima Bayar Kasbon (Admin) */}
-                {receivePay && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" style={{ animation: 'fadeIn 0.2s ease' }}>
-                        <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 dark:border-slate-800 flex flex-col">
-                            {/* Header */}
-                            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white">
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                {/* Modal Terima Bayar / Cicil Kasbon (Admin) */}
+                {receivePay && (() => {
+                    const maxRemaining = Number(receivePay.remaining_amount ?? getOrderRemaining(receivePay));
+                    const numericInput = Number(receivePayAmount || 0);
+                    const isInstallment = numericInput > 0 && numericInput < maxRemaining;
+                    const remainingAfterPay = Math.max(0, maxRemaining - numericInput);
+
+                    return (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" style={{ animation: 'fadeIn 0.2s ease' }}>
+                            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 dark:border-slate-800 flex flex-col max-h-[92vh]">
+                                {/* Header */}
+                                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shrink-0">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                        </div>
+                                        <button onClick={() => setReceivePay(null)} className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
                                     </div>
-                                    <button onClick={() => setReceivePay(null)} className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    <h3 className="font-extrabold text-xl tracking-tight">
+                                        {receivePay.isTenantGroup ? 'Input Bayar / Cicil Kasbon' : 'Terima Pembayaran Bon'}
+                                    </h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-emerald-100 text-xs font-semibold">
+                                            {receivePay.isTenantGroup ? `${receivePay.orders_count} Pesanan Kasbon` : receivePay.order_code}
+                                        </span>
+                                        <span className="text-emerald-200 text-xs">•</span>
+                                        <span className="text-emerald-100 text-xs font-semibold">
+                                            {receivePay.tenant_name || receivePay.tenant?.name || receivePay.customer_name || 'Penghuni'}
+                                        </span>
+                                    </div>
+                                    <div className="mt-4 bg-white/15 rounded-2xl p-4 text-center">
+                                        <div className="text-emerald-100 text-xs font-bold mb-1">Total Sisa Kasbon Saat Ini</div>
+                                        <div className="font-extrabold text-3xl tracking-tight">{formatCurrency(maxRemaining)}</div>
+                                        {Number(receivePay.paid_amount || 0) > 0 && (
+                                            <div className="text-[11px] text-emerald-100 mt-1">
+                                                Total Awal: {formatCurrency(receivePay.total_amount)} • Sudah Dicicil: {formatCurrency(receivePay.paid_amount)}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Body */}
+                                <div className="p-6 space-y-5 overflow-y-auto">
+                                    {/* Nominal Input (Bisa Bayar Penuh atau Cicil) */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nominal Pembayaran / Cicilan (Rp)</label>
+                                            <div className="flex gap-1.5">
+                                                {maxRemaining > 1000 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setReceivePayAmount(String(Math.ceil(maxRemaining / 2)))}
+                                                        className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                                                    >
+                                                        50%
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setReceivePayAmount(String(maxRemaining))}
+                                                    className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                                                >
+                                                    Lunasi Semua
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={maxRemaining}
+                                            value={receivePayAmount}
+                                            onChange={e => setReceivePayAmount(e.target.value)}
+                                            placeholder="Masukkan nominal yang dibayarkan..."
+                                            className="glass-input rounded-xl px-4 py-3 text-base font-extrabold text-slate-800 w-full border-2 border-slate-200 focus:border-emerald-500"
+                                        />
+                                        {numericInput > 0 && (
+                                            <div className={`mt-2.5 p-3 rounded-xl text-xs font-bold flex items-center justify-between border ${isInstallment
+                                                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                                }`}>
+                                                <span>{isInstallment ? '⏳ Pembayaran Cicilan' : '✅ Pelunasan Penuh'}</span>
+                                                <span>
+                                                    {isInstallment
+                                                        ? `Sisa Kasbon: ${formatCurrency(remainingAfterPay)}`
+                                                        : 'Sisa Kasbon: Rp 0 (Lunas)'}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Metode Pembayaran */}
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Metode Pembayaran Diterima</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['cash', 'qris'].map(method => (
+                                                <button
+                                                    key={method}
+                                                    type="button"
+                                                    onClick={() => { setReceivePayMethod(method); setReceivePayProof(null); }}
+                                                    className={`py-3 rounded-xl font-bold text-sm border-2 transition-all ${receivePayMethod === method
+                                                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
+                                                            : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                                        }`}
+                                                >
+                                                    {method === 'cash' ? '💵 Tunai' : '📱 QRIS'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Upload bukti jika QRIS */}
+                                    {receivePayMethod === 'qris' && (
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Bukti Transfer QRIS</label>
+                                            <label className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${receivePayProof ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/50'
+                                                }`}>
+                                                <input type="file" accept="image/*" className="hidden" onChange={e => setReceivePayProof(e.target.files[0])} />
+                                                {receivePayProof ? (
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <svg className="w-7 h-7 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                        <span className="text-xs font-bold text-emerald-700">{receivePayProof.name}</span>
+                                                        <span className="text-[10px] text-emerald-500">Klik untuk ganti</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center gap-1 text-slate-400">
+                                                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                        <span className="text-xs font-semibold">Upload Bukti QRIS</span>
+                                                    </div>
+                                                )}
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer */}
+                                <div className="px-6 pb-6 pt-2 flex gap-3 shrink-0">
+                                    <button
+                                        onClick={() => setReceivePay(null)}
+                                        className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (!numericInput || numericInput <= 0) {
+                                                return showToast('Masukkan nominal pembayaran yang valid.', 'error');
+                                            }
+                                            if (receivePayMethod === 'qris' && !receivePayProof) {
+                                                return showToast('Upload bukti QRIS terlebih dahulu.', 'error');
+                                            }
+
+                                            const formData = new FormData();
+                                            formData.append('paid_amount', String(Math.min(numericInput, maxRemaining)));
+                                            formData.append('payment_method_received', receivePayMethod);
+                                            if (receivePayProof) {
+                                                formData.append('payment_proof', receivePayProof);
+                                            }
+
+                                            let url = '';
+                                            if (receivePay.isTenantGroup && receivePay.tenant_id) {
+                                                url = `/api/canteen-orders/tenant/${receivePay.tenant_id}/pay-debt`;
+                                                if (selectedBranchFilter) {
+                                                    formData.append('branch_id', selectedBranchFilter);
+                                                }
+                                            } else {
+                                                url = `/api/canteen-orders/${receivePay.id}/payment`;
+                                                formData.append('_method', 'PUT');
+                                                formData.append('payment_status', isInstallment ? 'debt_unpaid' : 'paid');
+                                            }
+
+                                            const res = await authFetch(url, {
+                                                method: 'POST',
+                                                body: formData,
+                                                headers: {}
+                                            });
+                                            const data = await res.json();
+                                            if (res.ok) {
+                                                showToast(data.message || 'Pembayaran kasbon berhasil dicatat!');
+                                                setReceivePay(null);
+                                                setReceivePayProof(null);
+                                                setReceivePayMethod('cash');
+                                                setReceivePayAmount('');
+                                                loadAllData();
+                                            } else {
+                                                showToast(data.message || 'Gagal memproses pembayaran.', 'error');
+                                            }
+                                        }}
+                                        className="flex-[1.5] py-3 font-bold rounded-xl text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                                    >
+                                        {isInstallment ? '✓ Simpan Cicilan' : '✓ Konfirmasi Lunas'}
                                     </button>
                                 </div>
-                                <h3 className="font-extrabold text-xl tracking-tight">Terima Pembayaran Kasbon</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-emerald-100 text-xs font-semibold">{receivePay.order_code}</span>
-                                    <span className="text-emerald-200 text-xs">•</span>
-                                    <span className="text-emerald-100 text-xs font-semibold">{receivePay.tenant?.name || 'Unknown'}</span>
-                                </div>
-                                <div className="mt-4 bg-white/15 rounded-2xl p-4 text-center">
-                                    <div className="text-emerald-100 text-xs font-bold mb-1">Total Tagihan</div>
-                                    <div className="font-extrabold text-3xl tracking-tight">{formatCurrency(receivePay.total_amount)}</div>
-                                </div>
-                            </div>
-
-                            {/* Body */}
-                            <div className="p-6 space-y-5">
-                                {/* Metode Pembayaran */}
-                                <div>
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Metode Pembayaran Diterima</label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {['cash', 'qris'].map(method => (
-                                            <button
-                                                key={method}
-                                                type="button"
-                                                onClick={() => { setReceivePayMethod(method); setReceivePayProof(null); }}
-                                                className={`py-3 rounded-xl font-bold text-sm border-2 transition-all ${
-                                                    receivePayMethod === method
-                                                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
-                                                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                                                }`}
-                                            >
-                                                {method === 'cash' ? '💵 Tunai' : '📱 QRIS'}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Upload bukti jika QRIS */}
-                                {receivePayMethod === 'qris' && (
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Bukti Transfer QRIS</label>
-                                        <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
-                                            receivePayProof ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/50'
-                                        }`}>
-                                            <input type="file" accept="image/*" className="hidden" onChange={e => setReceivePayProof(e.target.files[0])} />
-                                            {receivePayProof ? (
-                                                <div className="flex flex-col items-center gap-1.5">
-                                                    <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                    <span className="text-xs font-bold text-emerald-700">{receivePayProof.name}</span>
-                                                    <span className="text-[10px] text-emerald-500">Klik untuk ganti</span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-col items-center gap-1.5 text-slate-400">
-                                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                                    <span className="text-xs font-semibold">Upload Bukti QRIS</span>
-                                                </div>
-                                            )}
-                                        </label>
-                                    </div>
-                                )}
-
-                                {/* Info */}
-                                <p className="text-xs text-slate-500 leading-relaxed text-center">
-                                    {receivePayMethod === 'cash'
-                                        ? 'Konfirmasi bahwa uang tunai telah diterima secara langsung. Kasbon akan langsung ditandai Lunas.'
-                                        : 'Upload bukti transfer QRIS yang sudah diterima. Kasbon akan langsung ditandai Lunas.'
-                                    }
-                                </p>
-                            </div>
-
-                            {/* Footer */}
-                            <div className="px-6 pb-6 flex gap-3">
-                                <button
-                                    onClick={() => setReceivePay(null)}
-                                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
-                                >
-                                    Batal
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        if (receivePayMethod === 'qris' && !receivePayProof) {
-                                            return showToast('Upload bukti QRIS terlebih dahulu.', 'error');
-                                        }
-                                        const formData = new FormData();
-                                        formData.append('_method', 'PUT'); // Laravel method spoofing
-                                        formData.append('payment_status', 'paid');
-                                        formData.append('payment_method_received', receivePayMethod);
-                                        if (receivePayProof) {
-                                            formData.append('payment_proof', receivePayProof);
-                                        }
-
-                                        const res = await authFetch(`/api/canteen-orders/${receivePay.id}/payment`, {
-                                            method: 'POST', // POST + _method=PUT agar Laravel bisa parse FormData
-                                            body: formData,
-                                            headers: {}
-                                        });
-                                        const data = await res.json();
-                                        if (res.ok) {
-                                            showToast('Pembayaran kasbon berhasil diterima & dicatat sebagai Lunas! ✓');
-                                            setReceivePay(null);
-                                            setReceivePayProof(null);
-                                            setReceivePayMethod('cash');
-                                            loadAllData();
-                                        } else {
-                                            showToast(data.message || 'Gagal memproses pembayaran.', 'error');
-                                        }
-                                    }}
-                                    className="flex-[1.5] py-3 font-bold rounded-xl text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 active:translate-y-0"
-                                >
-                                    ✓ Konfirmasi Lunas
-                                </button>
                             </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
             </div>
         );
     }
@@ -1187,7 +1459,7 @@ export default function CanteenTab({
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     Keranjang Anda
                 </h4>
-                
+
                 {canteenCart.length === 0 ? (
                     <div className="text-center py-8 text-slate-400">Keranjang masih kosong</div>
                 ) : (
@@ -1222,8 +1494,8 @@ export default function CanteenTab({
                 if (activeOrDebtOrders.length === 0) return null;
 
                 const debtOrders = activeOrDebtOrders.filter(o => o.payment_status === 'debt_unpaid');
-                const totalDebt = debtOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
-                
+                const totalDebt = debtOrders.reduce((sum, o) => sum + getOrderRemaining(o), 0);
+
                 let debtColorClass = 'bg-emerald-500';
                 let debtTextColor = 'text-emerald-600';
                 if (totalDebt >= 250000) {
@@ -1236,7 +1508,7 @@ export default function CanteenTab({
                     debtColorClass = 'bg-amber-500';
                     debtTextColor = 'text-amber-600';
                 }
-                
+
                 const maxDebtVisual = 250000;
                 const debtPercentage = Math.min((totalDebt / maxDebtVisual) * 100, 100);
 
@@ -1263,8 +1535,8 @@ export default function CanteenTab({
                                 <div className="h-3 w-full bg-slate-200 rounded-full overflow-hidden mb-4">
                                     <div className={`h-full ${debtColorClass} transition-all duration-500`} style={{ width: `${debtPercentage}%` }}></div>
                                 </div>
-                                <button 
-                                    onClick={() => setShowPayDebtModal({ isBulk: true, total_amount: totalDebt })} 
+                                <button
+                                    onClick={() => setShowPayDebtModal({ isBulk: true, total_amount: totalDebt })}
                                     className="w-full py-3 bg-slate-800 dark:bg-slate-600 hover:bg-slate-700 dark:hover:bg-slate-500 text-white rounded-xl text-sm font-bold transition-colors shadow-md"
                                 >
                                     Lunasi Semua Kasbon ({formatCurrency(totalDebt)})
@@ -1285,7 +1557,7 @@ export default function CanteenTab({
                                         </div>
                                         <span className="font-bold text-slate-800">{formatCurrency(order.total_amount)}</span>
                                     </div>
-                                    
+
                                     {order.items && order.items.length > 0 && (
                                         <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
                                             {order.items.map((oi, idx) => (
@@ -1296,11 +1568,12 @@ export default function CanteenTab({
                                             ))}
                                         </div>
                                     )}
-                                    
+
                                     {order.payment_status === 'debt_unpaid' && (
                                         <div className="mt-4">
                                             <div className="flex justify-between text-xs items-center bg-red-50 text-red-700 px-3 py-2 rounded-lg font-semibold border border-red-100">
-                                                <span>Belum Dibayar (Kasbon)</span>
+                                                <span>{Number(order.paid_amount || 0) > 0 ? `Dicicil (${formatCurrency(order.paid_amount)})` : 'Belum Dibayar (Kasbon)'}</span>
+                                                <span className="font-bold">Sisa: {formatCurrency(getOrderRemaining(order))}</span>
                                             </div>
                                         </div>
                                     )}
@@ -1363,7 +1636,7 @@ export default function CanteenTab({
                             ))}
                         </div>
                     </div>
-                    
+
                     <div className="block lg:hidden space-y-6 mb-6">
                         {sidebarContent}
                     </div>
@@ -1379,7 +1652,7 @@ export default function CanteenTab({
                                     <div className="text-sm font-bold text-emerald-600">{formatCurrency(item.price)}</div>
                                     <div className="text-xs text-slate-500 mb-3">Stok: {item.stock > 0 ? `${item.stock} ${item.unit || ''}` : <span className="text-red-500 font-bold">Habis</span>}</div>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => addToCart(item)}
                                     disabled={item.stock <= 0}
                                     className="w-full py-2 bg-slate-800 dark:bg-slate-600 text-white text-sm font-bold rounded-xl hover:bg-slate-700 disabled:opacity-50 transition-colors"
@@ -1407,29 +1680,29 @@ export default function CanteenTab({
                                 <label className="text-xs font-semibold text-slate-500 mb-2 block">Metode Pengiriman</label>
                                 <div className="grid grid-cols-2 gap-3">
                                     <label className={`cursor-pointer border p-3 rounded-xl text-center font-bold text-sm transition-all ${checkoutData.delivery_method === 'pickup' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600'}`}>
-                                        <input type="radio" name="delivery" value="pickup" className="hidden" checked={checkoutData.delivery_method === 'pickup'} onChange={() => setCheckoutData({...checkoutData, delivery_method: 'pickup'})} />
+                                        <input type="radio" name="delivery" value="pickup" className="hidden" checked={checkoutData.delivery_method === 'pickup'} onChange={() => setCheckoutData({ ...checkoutData, delivery_method: 'pickup' })} />
                                         Ambil Sendiri
                                     </label>
                                     <label className={`cursor-pointer border p-3 rounded-xl text-center font-bold text-sm transition-all ${checkoutData.delivery_method === 'delivery' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600'}`}>
-                                        <input type="radio" name="delivery" value="delivery" className="hidden" checked={checkoutData.delivery_method === 'delivery'} onChange={() => setCheckoutData({...checkoutData, delivery_method: 'delivery'})} />
+                                        <input type="radio" name="delivery" value="delivery" className="hidden" checked={checkoutData.delivery_method === 'delivery'} onChange={() => setCheckoutData({ ...checkoutData, delivery_method: 'delivery' })} />
                                         Antar ke Kamar
                                     </label>
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <label className="text-xs font-semibold text-slate-500 mb-2 block">Metode Pembayaran</label>
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <label className={`cursor-pointer border p-3 rounded-xl text-center font-bold text-sm transition-all ${checkoutData.payment_method === 'qris' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-200 text-slate-600 hover:border-emerald-200 hover:bg-slate-50'}`}>
-                                        <input type="radio" name="payment_method" value="qris" className="hidden" checked={checkoutData.payment_method === 'qris'} onChange={() => setCheckoutData({...checkoutData, payment_method: 'qris'})} />
+                                        <input type="radio" name="payment_method" value="qris" className="hidden" checked={checkoutData.payment_method === 'qris'} onChange={() => setCheckoutData({ ...checkoutData, payment_method: 'qris' })} />
                                         QRIS
                                     </label>
                                     <label className={`cursor-pointer border p-3 rounded-xl text-center font-bold text-sm transition-all flex flex-col justify-center ${checkoutData.payment_method === 'cash' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-200 text-slate-600 hover:border-emerald-200 hover:bg-slate-50'}`}>
-                                        <input type="radio" name="payment_method" value="cash" className="hidden" checked={checkoutData.payment_method === 'cash'} onChange={() => setCheckoutData({...checkoutData, payment_method: 'cash'})} />
+                                        <input type="radio" name="payment_method" value="cash" className="hidden" checked={checkoutData.payment_method === 'cash'} onChange={() => setCheckoutData({ ...checkoutData, payment_method: 'cash' })} />
                                         <span>Bayar Tunai</span>
                                     </label>
                                     <label className={`cursor-pointer border p-3 rounded-xl text-center font-bold text-sm transition-all flex flex-col justify-center ${checkoutData.payment_method === 'debt' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-slate-200 text-slate-600 hover:border-emerald-200 hover:bg-slate-50'}`}>
-                                        <input type="radio" name="payment_method" value="debt" className="hidden" checked={checkoutData.payment_method === 'debt'} onChange={() => setCheckoutData({...checkoutData, payment_method: 'debt'})} />
+                                        <input type="radio" name="payment_method" value="debt" className="hidden" checked={checkoutData.payment_method === 'debt'} onChange={() => setCheckoutData({ ...checkoutData, payment_method: 'debt' })} />
                                         <span>Catat Dulu</span>
                                         <span className="text-[10px] font-semibold opacity-70">(Kasbon)</span>
                                     </label>
@@ -1453,7 +1726,7 @@ export default function CanteenTab({
                                             <label className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-emerald-200/50 border-dashed rounded-xl bg-white hover:bg-slate-50 cursor-pointer transition-colors text-slate-500 hover:text-blue-600 hover:border-blue-300">
                                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                                                 <span className="text-[10px] font-bold text-center leading-tight">Pilih Galeri</span>
-                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => { if(e.target.files[0]) setPaymentProof(e.target.files[0]) }} />
+                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files[0]) setPaymentProof(e.target.files[0]) }} />
                                             </label>
                                         </div>
                                     )}
@@ -1462,7 +1735,7 @@ export default function CanteenTab({
 
                             <div>
                                 <label className="text-xs font-semibold text-slate-500 mb-1 block">Catatan Pesanan (Opsional)</label>
-                                <input type="text" placeholder="Misal: pedas, jangan pakai es..." value={checkoutData.notes} onChange={e => setCheckoutData({...checkoutData, notes: e.target.value})} className="glass-input rounded-xl px-4 py-3 text-sm w-full" />
+                                <input type="text" placeholder="Misal: pedas, jangan pakai es..." value={checkoutData.notes} onChange={e => setCheckoutData({ ...checkoutData, notes: e.target.value })} className="glass-input rounded-xl px-4 py-3 text-sm w-full" />
                             </div>
 
                             <div className="flex gap-4 pt-4 border-t border-slate-100">
@@ -1480,7 +1753,7 @@ export default function CanteenTab({
                     <div className="bg-white rounded-3xl p-5 sm:p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
                         <h3 className="font-extrabold text-2xl text-slate-800 mb-2">Lunasi Kasbon Kantin</h3>
                         <p className="text-sm text-slate-500 mb-6">Total Tagihan: <span className="font-bold text-slate-800">{formatCurrency(showPayDebtModal.total_amount)}</span></p>
-                        
+
                         <form onSubmit={handlePayDebt} className="space-y-5">
                             <div className="space-y-4">
                                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
@@ -1496,7 +1769,7 @@ export default function CanteenTab({
                                         </label>
                                     </div>
                                 </div>
-                                
+
                                 {debtPaymentMethod === 'qris' && (
                                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                                         <div className="text-xs font-semibold text-slate-700 text-center mb-2">Scan QRIS di bawah ini untuk melunasi kasbon.</div>
@@ -1514,7 +1787,7 @@ export default function CanteenTab({
                                                 <label className="flex flex-col items-center justify-center gap-2 p-3 border-2 border-slate-300 border-dashed rounded-xl bg-white hover:bg-slate-100 cursor-pointer transition-colors text-slate-500 hover:text-blue-600 hover:border-blue-300">
                                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                                                     <span className="text-[10px] font-bold text-center leading-tight">Pilih dari Galeri</span>
-                                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { if(e.target.files[0]) setPaymentProof(e.target.files[0]) }} />
+                                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files[0]) setPaymentProof(e.target.files[0]) }} />
                                                 </label>
                                             </div>
                                         )}
@@ -1551,20 +1824,18 @@ export default function CanteenTab({
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Metode Pembayaran Diterima</label>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <label className={`cursor-pointer border-2 rounded-xl p-3 text-center font-bold text-sm transition-all flex flex-col items-center gap-1.5 ${
-                                        receivePayMethod === 'cash'
+                                    <label className={`cursor-pointer border-2 rounded-xl p-3 text-center font-bold text-sm transition-all flex flex-col items-center gap-1.5 ${receivePayMethod === 'cash'
                                             ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md'
                                             : 'border-slate-200 text-slate-500 hover:border-emerald-300 hover:bg-slate-50'
-                                    }`}>
+                                        }`}>
                                         <input type="radio" name="receiveMethod" value="cash" className="hidden" checked={receivePayMethod === 'cash'} onChange={() => setReceivePayMethod('cash')} />
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                                         Tunai
                                     </label>
-                                    <label className={`cursor-pointer border-2 rounded-xl p-3 text-center font-bold text-sm transition-all flex flex-col items-center gap-1.5 ${
-                                        receivePayMethod === 'qris'
+                                    <label className={`cursor-pointer border-2 rounded-xl p-3 text-center font-bold text-sm transition-all flex flex-col items-center gap-1.5 ${receivePayMethod === 'qris'
                                             ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md'
                                             : 'border-slate-200 text-slate-500 hover:border-emerald-300 hover:bg-slate-50'
-                                    }`}>
+                                        }`}>
                                         <input type="radio" name="receiveMethod" value="qris" className="hidden" checked={receivePayMethod === 'qris'} onChange={() => setReceivePayMethod('qris')} />
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
                                         QRIS
@@ -1618,14 +1889,14 @@ export default function CanteenTab({
                         <button onClick={() => setSelectedItemInfo(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
-                        
+
                         <div className="w-full h-48 bg-slate-100 rounded-2xl mb-6 flex items-center justify-center overflow-hidden">
                             {selectedItemInfo.image ? <img src={`/storage/${selectedItemInfo.image}`} alt={selectedItemInfo.name} className="object-cover w-full h-full" /> : <span className="text-5xl text-slate-300">🍴</span>}
                         </div>
-                        
+
                         <h3 className="font-extrabold text-2xl text-slate-800 mb-2">{selectedItemInfo.name}</h3>
                         <div className="text-xl font-bold text-emerald-600 mb-4">{formatCurrency(selectedItemInfo.price)}</div>
-                        
+
                         <div className="space-y-4 text-sm text-slate-600">
                             <div>
                                 <span className="font-bold text-slate-800">Kategori:</span> <span className="capitalize">{translateCategory(selectedItemInfo.category)}</span>
@@ -1633,7 +1904,7 @@ export default function CanteenTab({
                             <div>
                                 <span className="font-bold text-slate-800">Sisa Stok:</span> {selectedItemInfo.stock > 0 ? `${selectedItemInfo.stock} ${selectedItemInfo.unit || ''}` : <span className="text-red-500 font-bold">Habis</span>}
                             </div>
-                            
+
                             {selectedItemInfo.description && (
                                 <div>
                                     <span className="font-bold text-slate-800 block mb-1">Deskripsi:</span>
@@ -1652,8 +1923,8 @@ export default function CanteenTab({
                                 </div>
                             )}
                         </div>
-                        
-                        <button 
+
+                        <button
                             onClick={() => { addToCart(selectedItemInfo); setSelectedItemInfo(null); }}
                             disabled={selectedItemInfo.stock <= 0}
                             className="w-full mt-8 py-3 bg-slate-800 dark:bg-slate-600 text-white font-bold rounded-xl hover:bg-slate-700 disabled:opacity-50 transition-colors"

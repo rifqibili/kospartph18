@@ -7,12 +7,44 @@ use App\Models\CanteenOrderItem;
 use App\Models\CanteenItem;
 use App\Models\Finance;
 use App\Services\PushNotificationService;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class CanteenOrderController extends Controller
 {
+    public function __construct()
+    {
+        $this->ensurePaidAmountColumn();
+    }
+
+    /**
+     * Pastikan kolom paid_amount tersedia di tabel canteen_orders (otomatis untuk auto-deploy Hostinger).
+     */
+    private function ensurePaidAmountColumn(): void
+    {
+        try {
+            if (Cache::get('canteen_orders_has_paid_amount_col')) {
+                return;
+            }
+            if (Schema::hasTable('canteen_orders') && !Schema::hasColumn('canteen_orders', 'paid_amount')) {
+                Schema::table('canteen_orders', function (Blueprint $table) {
+                    $table->decimal('paid_amount', 12, 2)->default(0)->after('total_amount');
+                });
+                DB::table('canteen_orders')
+                    ->where('payment_status', 'paid')
+                    ->update(['paid_amount' => DB::raw('total_amount')]);
+            }
+            Cache::forever('canteen_orders_has_paid_amount_col', true);
+        } catch (\Throwable $e) {
+            // Abaikan jika koneksi DB belum siap saat boot CLI
+        }
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -94,10 +126,11 @@ class CanteenOrderController extends Controller
             }
 
             if ($request->payment_method === 'debt') {
-                $existingDebt = CanteenOrder::where('tenant_id', $user->id)
+                $existingDebt = (float) CanteenOrder::where('tenant_id', $user->id)
                     ->where('payment_status', 'debt_unpaid')
                     ->where('status', '!=', 'cancelled')
-                    ->sum('total_amount');
+                    ->selectRaw('COALESCE(SUM(total_amount - COALESCE(paid_amount, 0)), 0) as remaining')
+                    ->value('remaining');
                 if ($existingDebt + $totalAmount > 250000) {
                     throw new \Exception("MAAF, TRANSAKSI DITOLAK! Batas maksimal kasbon adalah Rp 250.000. Total kasbon Anda saat ini: Rp " . number_format($existingDebt, 0, ',', '.') . ". Pesanan baru: Rp " . number_format($totalAmount, 0, ',', '.') . ". Silakan lunasi kasbon terlebih dahulu.");
                 }
@@ -188,10 +221,11 @@ class CanteenOrderController extends Controller
         if ($request->status === 'completed' && $order->status !== 'completed') {
             if ($order->payment_status === 'pending') {
                 if ($order->tenant_id) {
-                    $existingDebt = CanteenOrder::where('tenant_id', $order->tenant_id)
+                    $existingDebt = (float) CanteenOrder::where('tenant_id', $order->tenant_id)
                         ->where('payment_status', 'debt_unpaid')
                         ->where('status', '!=', 'cancelled')
-                        ->sum('total_amount');
+                        ->selectRaw('COALESCE(SUM(total_amount - COALESCE(paid_amount, 0)), 0) as remaining')
+                        ->value('remaining');
                         
                     if ($existingDebt + $order->total_amount > 250000) {
                         return response()->json(['message' => 'Gagal: Pesanan tidak bisa otomatis dijadikan Kasbon karena melebihi batas Rp 250.000. Total kasbon saat ini: Rp ' . number_format($existingDebt, 0, ',', '.') . '. Total pesanan: Rp ' . number_format($order->total_amount, 0, ',', '.') . '.'], 400);
@@ -293,65 +327,99 @@ class CanteenOrderController extends Controller
             'payment_status' => 'required|string|in:pending,paid,debt_unpaid',
             'payment_proof' => 'nullable|image|max:5120',
             'payment_method_received' => 'nullable|string|in:cash,qris',
+            'paid_amount' => 'nullable|numeric|min:1',
         ]);
 
-        // Validate debt limit if changing to debt
-        if ($request->payment_status === 'debt_unpaid' && $order->payment_status !== 'debt_unpaid') {
+        $orderTotal = floatval($order->total_amount);
+        $currentPaid = floatval($order->paid_amount ?? 0);
+        $orderRemaining = max(0, $orderTotal - $currentPaid);
+
+        // Validate debt limit if changing to debt without payment
+        if ($request->payment_status === 'debt_unpaid' && $order->payment_status !== 'debt_unpaid' && !$request->filled('paid_amount')) {
             if (!$order->tenant_id) {
                 return response()->json(['message' => 'Gagal: Kasbon hanya berlaku untuk pesanan yang terhubung dengan penghuni.'], 400);
             }
             
-            $existingDebt = CanteenOrder::where('tenant_id', $order->tenant_id)
+            $existingDebt = (float) CanteenOrder::where('tenant_id', $order->tenant_id)
                 ->where('payment_status', 'debt_unpaid')
                 ->where('status', '!=', 'cancelled')
-                ->sum('total_amount');
+                ->selectRaw('COALESCE(SUM(total_amount - COALESCE(paid_amount, 0)), 0) as remaining')
+                ->value('remaining');
                 
-            if ($existingDebt + $order->total_amount > 250000) {
-                return response()->json(['message' => 'Gagal: Batas maksimal kasbon penghuni adalah Rp 250.000. Total kasbon saat ini: Rp ' . number_format($existingDebt, 0, ',', '.') . '. Total pesanan ini: Rp ' . number_format($order->total_amount, 0, ',', '.') . '.'], 400);
+            if ($existingDebt + $orderRemaining > 250000) {
+                return response()->json(['message' => 'Gagal: Batas maksimal kasbon penghuni adalah Rp 250.000. Total kasbon saat ini: Rp ' . number_format($existingDebt, 0, ',', '.') . '. Total pesanan ini: Rp ' . number_format($orderRemaining, 0, ',', '.') . '.'], 400);
             }
         }
 
-        // If changing to paid from something else, log to finances (prevent duplicates using canteen_order_id)
-        if ($request->payment_status === 'paid' && $order->payment_status !== 'paid') {
-            // Check if finance record already exists for this specific order
-            $existingFinance = Finance::where('canteen_order_id', $order->id)->first();
+        $finalPaymentStatus = $request->payment_status;
+        $newPaidAmount = $currentPaid;
+        $amountToRecord = 0;
 
-            if (!$existingFinance) {
-                $bookingId = null;
-                $roomNumber = '-';
-                $tenantName = $order->tenant ? $order->tenant->name : ($order->customer_name ?? 'Unknown');
-                
-                if ($order->tenant && $order->tenant->bookings && $order->tenant->bookings->first()) {
-                    $bookingId = $order->tenant->bookings->first()->id;
-                    if ($order->tenant->bookings->first()->room) {
-                        $roomNumber = 'Kamar ' . $order->tenant->bookings->first()->room->room_number;
-                    }
+        // Jika admin menginput nominal pembayaran (cicil atau pelunasan)
+        if ($request->filled('paid_amount') && floatval($request->paid_amount) > 0) {
+            $inputAmount = floatval($request->paid_amount);
+            $amountToRecord = min($inputAmount, $orderRemaining);
+            $newPaidAmount = $currentPaid + $amountToRecord;
+
+            if ($newPaidAmount >= $orderTotal - 0.01) {
+                $newPaidAmount = $orderTotal;
+                $finalPaymentStatus = 'paid';
+            } else {
+                $finalPaymentStatus = 'debt_unpaid';
+            }
+        } elseif ($request->payment_status === 'paid' && $order->payment_status !== 'paid') {
+            $amountToRecord = $orderRemaining > 0 ? $orderRemaining : $orderTotal;
+            $newPaidAmount = $orderTotal;
+            $finalPaymentStatus = 'paid';
+        }
+
+        // Catat pemasukan ke tabel finances jika ada pembayaran baru (cicilan maupun pelunasan)
+        if ($amountToRecord > 0) {
+            $bookingId = null;
+            $roomNumber = '-';
+            $tenantName = $order->tenant ? $order->tenant->name : ($order->customer_name ?? 'Unknown');
+            
+            if ($order->tenant && $order->tenant->bookings && $order->tenant->bookings->first()) {
+                $bookingId = $order->tenant->bookings->first()->id;
+                if ($order->tenant->bookings->first()->room) {
+                    $roomNumber = 'Kamar ' . $order->tenant->bookings->first()->room->room_number;
                 }
+            }
 
+            $isPartial = $finalPaymentStatus !== 'paid' || ($currentPaid > 0 && $amountToRecord < $orderTotal);
+            $descPrefix = $finalPaymentStatus === 'paid'
+                ? ($currentPaid > 0 ? "Pelunasan sisa kasbon kantin dari" : "Pendapatan kantin dari")
+                : "Cicilan kasbon kantin dari";
+
+            // Jika pelunasan langsung tanpa cicilan, pastikan tidak duplikat
+            $alreadyRecordedFull = ($currentPaid == 0 && $finalPaymentStatus === 'paid')
+                ? Finance::where('canteen_order_id', $order->id)->where('transaction_type', 'income')->exists()
+                : false;
+
+            if (!$alreadyRecordedFull) {
                 Finance::create([
                     'branch_id' => $order->branch_id,
-                    'amount' => $order->total_amount,
+                    'amount' => $amountToRecord,
                     'transaction_type' => 'income',
                     'category' => 'pendapatan_kantin',
-                    'description' => "Pendapatan kantin dari {$tenantName} ({$roomNumber}) - {$order->order_code}",
+                    'description' => "{$descPrefix} {$tenantName} ({$roomNumber}) - {$order->order_code}",
                     'transaction_date' => now()->toDateString(),
-                    'payment_method' => $request->payment_method_received ?? $order->payment_method, // gunakan metode diterima (cash/qris), bukan 'debt'
+                    'payment_method' => $request->payment_method_received ?? $order->payment_method,
                     'booking_id' => $bookingId,
                     'canteen_order_id' => $order->id,
                 ]);
             }
             
-            // If it was debt, maybe the user wants to keep the status logic intact, but let's make sure it's known
-            if ($order->status === 'pending_approval') {
+            if ($finalPaymentStatus === 'paid' && $order->status === 'pending_approval') {
                 $order->status = 'processing';
             }
-        } elseif ($request->payment_status !== 'paid' && $order->payment_status === 'paid') {
+        } elseif ($finalPaymentStatus !== 'paid' && $order->payment_status === 'paid' && !$request->filled('paid_amount')) {
             // Jika status pembayaran dibatalkan dari 'paid', buat Jurnal Pembalik
-            $existingIncome = Finance::where('canteen_order_id', $order->id)->where('transaction_type', 'income')->first();
-            if ($existingIncome) {
+            $existingIncomeSum = Finance::where('canteen_order_id', $order->id)->where('transaction_type', 'income')->sum('amount');
+            if ($existingIncomeSum > 0) {
                 Finance::create([
                     'branch_id' => $order->branch_id,
-                    'amount' => $order->total_amount,
+                    'amount' => $existingIncomeSum,
                     'transaction_type' => 'expense',
                     'category' => 'refund',
                     'description' => "Jurnal Pembalik: Pembatalan pembayaran pesanan kantin ({$order->order_code})",
@@ -359,11 +427,13 @@ class CanteenOrderController extends Controller
                     'canteen_order_id' => $order->id,
                 ]);
             }
+            $newPaidAmount = 0;
         }
 
         // Build update payload
         $updateData = [
-            'payment_status' => $request->payment_status,
+            'payment_status' => $finalPaymentStatus,
+            'paid_amount'    => $newPaidAmount,
             'status'         => $order->status,
         ];
 
@@ -372,14 +442,141 @@ class CanteenOrderController extends Controller
             $updateData['payment_proof'] = $request->file('payment_proof')->store('canteen_payments', 'public');
         }
 
-        // Record how admin received the money (cash / qris)
-        if ($request->payment_method_received) {
+        // Record how admin received the money (cash / qris) hanya jika sudah lunas
+        if ($request->payment_method_received && $finalPaymentStatus === 'paid') {
             $updateData['payment_method'] = $request->payment_method_received;
         }
 
         $order->update($updateData);
 
-        return response()->json(['message' => 'Status pembayaran pesanan diperbarui.']);
+        return response()->json(['message' => $finalPaymentStatus === 'paid' ? 'Pembayaran kasbon lunas!' : 'Cicilan kasbon berhasil dicatat!']);
+    }
+
+    public function payTenantDebt(Request $request, $tenantId)
+    {
+        $user = Auth::user();
+        if (!in_array($user->role, ['super_admin', 'operator'])) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'paid_amount' => 'required|numeric|min:1',
+            'payment_method_received' => 'required|string|in:cash,qris',
+            'payment_proof' => 'nullable|image|max:5120',
+            'branch_id' => 'nullable',
+        ]);
+
+        $query = CanteenOrder::with('tenant.bookings.room')
+            ->where('tenant_id', $tenantId)
+            ->where('status', '!=', 'cancelled')
+            ->where(function ($q) {
+                $q->where('payment_status', 'debt_unpaid')
+                  ->orWhere(function ($q2) {
+                      $q2->where('payment_status', 'pending')->where('status', 'completed');
+                  });
+            })
+            ->orderBy('created_at', 'asc');
+
+        if ($user->role === 'operator' && is_array($user->assigned_branches)) {
+            $query->whereIn('branch_id', $user->assigned_branches);
+        }
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
+        $orders = $query->get();
+        if ($orders->isEmpty()) {
+            return response()->json(['message' => 'Tidak ada tagihan kasbon aktif untuk penghuni ini.'], 400);
+        }
+
+        $totalRemaining = $orders->sum(function ($o) {
+            return max(0, floatval($o->total_amount) - floatval($o->paid_amount ?? 0));
+        });
+
+        if ($totalRemaining <= 0) {
+            return response()->json(['message' => 'Seluruh kasbon penghuni ini sudah lunas.'], 400);
+        }
+
+        $inputPayment = floatval($request->paid_amount);
+        $remainingToAllocate = min($inputPayment, $totalRemaining);
+
+        $proofPath = null;
+        if ($request->hasFile('payment_proof')) {
+            $proofPath = $request->file('payment_proof')->store('canteen_payments', 'public');
+        }
+
+        \DB::beginTransaction();
+        try {
+            foreach ($orders as $order) {
+                if ($remainingToAllocate <= 0) break;
+
+                $orderTotal = floatval($order->total_amount);
+                $orderPaid = floatval($order->paid_amount ?? 0);
+                $orderRemaining = max(0, $orderTotal - $orderPaid);
+
+                if ($orderRemaining <= 0) continue;
+
+                $allocated = min($remainingToAllocate, $orderRemaining);
+                $newOrderPaid = $orderPaid + $allocated;
+                $isFullyPaid = ($newOrderPaid >= $orderTotal - 0.01);
+
+                $updatePayload = [
+                    'paid_amount' => $isFullyPaid ? $orderTotal : $newOrderPaid,
+                    'payment_status' => $isFullyPaid ? 'paid' : 'debt_unpaid',
+                ];
+
+                if ($isFullyPaid) {
+                    $updatePayload['payment_method'] = $request->payment_method_received;
+                }
+                if ($proofPath) {
+                    $updatePayload['payment_proof'] = $proofPath;
+                }
+
+                $order->update($updatePayload);
+
+                // Catat ke laporan keuangan (Finances)
+                $bookingId = null;
+                $roomNumber = '-';
+                $tenantName = $order->tenant ? $order->tenant->name : ($order->customer_name ?? 'Unknown');
+
+                if ($order->tenant && $order->tenant->bookings && $order->tenant->bookings->first()) {
+                    $bookingId = $order->tenant->bookings->first()->id;
+                    if ($order->tenant->bookings->first()->room) {
+                        $roomNumber = 'Kamar ' . $order->tenant->bookings->first()->room->room_number;
+                    }
+                }
+
+                $descPrefix = $isFullyPaid
+                    ? ($orderPaid > 0 ? "Pelunasan sisa kasbon kantin dari" : "Pendapatan kantin (Pelunasan Kasbon) dari")
+                    : "Cicilan kasbon kantin dari";
+
+                Finance::create([
+                    'branch_id' => $order->branch_id,
+                    'amount' => $allocated,
+                    'transaction_type' => 'income',
+                    'category' => 'pendapatan_kantin',
+                    'description' => "{$descPrefix} {$tenantName} ({$roomNumber}) - {$order->order_code}",
+                    'transaction_date' => now()->toDateString(),
+                    'payment_method' => $request->payment_method_received,
+                    'booking_id' => $bookingId,
+                    'canteen_order_id' => $order->id,
+                ]);
+
+                $remainingToAllocate -= $allocated;
+            }
+
+            \DB::commit();
+
+            $sisaAkhir = max(0, $totalRemaining - min($inputPayment, $totalRemaining));
+            $msg = $sisaAkhir <= 0
+                ? 'Seluruh kasbon penghuni berhasil dilunasi!'
+                : 'Pembayaran cicilan kasbon berhasil dicatat! Sisa kasbon: Rp ' . number_format($sisaAkhir, 0, ',', '.');
+
+            return response()->json(['message' => $msg]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json(['message' => 'Gagal mencatat pembayaran: ' . $e->getMessage()], 500);
+        }
     }
 
     public function payDebt(Request $request, $id)
@@ -519,10 +716,11 @@ class CanteenOrderController extends Controller
 
 
             if ($request->payment_method === 'debt' && $request->tenant_id) {
-                $existingDebt = CanteenOrder::where('tenant_id', $request->tenant_id)
+                $existingDebt = (float) CanteenOrder::where('tenant_id', $request->tenant_id)
                     ->where('payment_status', 'debt_unpaid')
                     ->where('status', '!=', 'cancelled')
-                    ->sum('total_amount');
+                    ->selectRaw('COALESCE(SUM(total_amount - COALESCE(paid_amount, 0)), 0) as remaining')
+                    ->value('remaining');
                 if ($existingDebt + $totalAmount > 250000) {
                     throw new \Exception("MAAF, TRANSAKSI DITOLAK! Batas maksimal kasbon penghuni adalah Rp 250.000. Total kasbon saat ini: Rp " . number_format($existingDebt, 0, ',', '.') . ". Pesanan baru: Rp " . number_format($totalAmount, 0, ',', '.') . ". Silakan minta penghuni melunasi kasbon terlebih dahulu.");
                 }
@@ -547,6 +745,7 @@ class CanteenOrderController extends Controller
                 'customer_name' => $request->customer_name,
                 'order_code' => $orderCode,
                 'total_amount' => $totalAmount,
+                'paid_amount' => $paymentStatus === 'paid' ? $totalAmount : 0,
                 'payment_method' => $request->payment_method,
                 'payment_status' => $paymentStatus,
                 'status' => $status,
@@ -626,6 +825,8 @@ class CanteenOrderController extends Controller
         $debtsByTenant = [];
         foreach ($orders as $order) {
             if (!$order->tenant || !$order->tenant->phone) continue;
+            $remainingOrderDebt = max(0, floatval($order->total_amount) - floatval($order->paid_amount ?? 0));
+            if ($remainingOrderDebt <= 0) continue;
             
             if (!isset($debtsByTenant[$order->tenant_id])) {
                 $debtsByTenant[$order->tenant_id] = [
@@ -636,7 +837,7 @@ class CanteenOrderController extends Controller
                 ];
             }
             
-            $debtsByTenant[$order->tenant_id]['total_amount'] += $order->total_amount;
+            $debtsByTenant[$order->tenant_id]['total_amount'] += $remainingOrderDebt;
             $debtsByTenant[$order->tenant_id]['count']++;
             $debtsByTenant[$order->tenant_id]['orders'][] = $order;
         }
@@ -653,7 +854,9 @@ class CanteenOrderController extends Controller
             $orderSummaryLines = [];
             foreach ($debt['orders'] as $idx => $order) {
                 $orderNo      = $idx + 1;
-                $orderTotal   = 'Rp ' . number_format($order->total_amount, 0, ',', '.');
+                $orderPaid    = floatval($order->paid_amount ?? 0);
+                $orderRem     = max(0, floatval($order->total_amount) - $orderPaid);
+                $orderTotal   = 'Rp ' . number_format($orderRem, 0, ',', '.') . ($orderPaid > 0 ? ' (Sudah dicicil Rp ' . number_format($orderPaid, 0, ',', '.') . ')' : '');
                 $itemLines    = [];
                 foreach ($order->items as $orderItem) {
                     $itemName   = $orderItem->item ? $orderItem->item->name : 'Item';
